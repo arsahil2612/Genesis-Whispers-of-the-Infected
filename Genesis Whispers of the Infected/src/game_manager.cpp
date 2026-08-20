@@ -237,6 +237,55 @@ void GameManager::Initialize() {
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7150.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 7300.0, 185.0, 44.0, 55.0, PROP_LAYER_FOREGROUND);
 
+    // --- AREA 4: VILLAGE SQUARE (x = 7500 to 9000) ---
+    // 1. Village Square West Entrance & Sandbag Perimeter (x = 7500 to 7900)
+    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 7600.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7850.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
+
+    // 2. Central Fountain Plaza & Abandoned Ambulance (x = 7900 to 8400)
+    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 7950.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 8150.0, 220.0, 90.0, 55.0, PROP_LAYER_BACKGROUND); // Destroyed Fountain Highlight
+    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 8320.0, 185.0, 64.0, 45.0, PROP_LAYER_FOREGROUND); // Broken Statue / Rubble
+
+    // 3. Military Checkpoint Barricade & East Exit (x = 8400 to 9000)
+    AddWorldProp("Assets/Props/Military/bld_military_checkpoint.png", 8550.0, 185.0, 130.0, 85.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 8750.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 8900.0, 185.0, 90.0, 60.0, PROP_LAYER_FOREGROUND);
+
+    // --- AREA 5: ABANDONED MARKET (x = 9000 to 11000) ---
+    // 1. Market Storefront & Entrance (x = 9000 to 9400)
+    AddWorldProp("Assets/Props/Buildings/bld_grocery_store_abandoned.png", 9100.0, 185.0, 160.0, 130.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 9320.0, 185.0, 75.0, 60.0, PROP_LAYER_FOREGROUND);
+
+    // 2. Inner Market Aisles & Upper Shelf Platforms (x = 9400 to 10200)
+    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 9450.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 9520.0, 280.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 9820.0, 400.0, 70.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/crate.png", 9950.0, 185.0, 56.0, 56.0, PROP_LAYER_FOREGROUND);
+
+    // 3. Market Storage & Rear Exit (x = 10200 to 11000)
+    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10300.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 10600.0, 185.0, 44.0, 55.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 10850.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
+
+    // --- AREA 6: RAIDER CAMP (x = 11000 to 13500) ---
+    // 1. West Camp Outpost & Perimeter Barricade (x = 11000 to 11400)
+    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 11100.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_generator_01.png", 11350.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND);
+
+    // 2. Watchtower & Campfire Hub (x = 11400 to 12200)
+    AddWorldProp("Assets/Props/Military/bld_raider_watchtower.png", 11500.0, 185.0, 180.0, 280.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 11550.0, 320.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 11620.0, 450.0, 36.0, 45.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 11850.0, 185.0, 48.0, 60.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/crate.png", 12050.0, 185.0, 56.0, 56.0, PROP_LAYER_FOREGROUND);
+
+    // 3. Makeshift Shelter & East Guard Post (x = 12200 to 13500)
+    AddWorldProp("Assets/Props/Buildings/Quarantine_CheckpointQuarantine_Checkpoint.png", 12400.0, 185.0, 160.0, 120.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/drum.png", 12700.0, 185.0, 50.0, 60.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 13000.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 13300.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
+
     // Load props texture sheet (4x4 gameplay atlas)
     if (texPropsSheet == 0) {
         texPropsSheet = iLoadImage((char*)GetAssetPath("Assets/Props/props_sheet.png").c_str());
