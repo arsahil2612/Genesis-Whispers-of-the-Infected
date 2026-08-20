@@ -1,0 +1,165 @@
+#ifndef GAME_MANAGER_H
+#define GAME_MANAGER_H
+
+#include "player.h"
+#include "map.h"
+#include "enemy.h"
+#include "leaderboard.h"
+#include <vector>
+
+// ============================================================================
+// Game State Taxonomy & Data Structs
+// ============================================================================
+enum GameState {
+    STATE_MENU,
+    STATE_PLAYING,
+    STATE_DIALOGUE,
+    STATE_PAUSED,
+    STATE_GAMEOVER,
+    STATE_VICTORY,
+    STATE_LEADERBOARD
+};
+
+enum CollectibleType {
+    COL_MEDKIT,
+    COL_AMMO,
+    COL_WATER,
+    COL_BATTERY,
+    COL_FOOD,
+    COL_NOTE,
+    COL_KEYCARD,
+    COL_SCRAP,
+    COL_RUSTY_KEY,
+    COL_COIN
+};
+
+struct Collectible {
+    double x, y;
+    double width, height;
+    CollectibleType type;
+    bool active;
+    int subType;
+};
+
+enum PropType {
+    PROP_CAR,
+    PROP_BARREL_FIRE,
+    PROP_CRATE,
+    PROP_SANDBAG,
+    PROP_DRUM,
+    PROP_RIBBON,
+    PROP_POSTER_NOVAGEN,
+    PROP_POSTER_QUARANTINE,
+    PROP_POSTER_MISSING
+};
+
+struct Prop {
+    double x, y;
+    double width, height;
+    PropType type;
+    int animFrame;
+};
+
+enum Level1Area {
+    AREA_SPAWN_AREA,
+    AREA_DESTROYED_HOUSE,
+    AREA_VILLAGE_STREET,
+    AREA_VILLAGE_SQUARE,
+    AREA_ABANDONED_MARKET,
+    AREA_RAIDER_CAMP,
+    AREA_ABANDONED_CHURCH,
+    AREA_QUARANTINE_ZONE,
+    AREA_BROKEN_BRIDGE,
+    AREA_MINI_BOSS_ARENA,
+    AREA_EXIT_GATE,
+    AREA_LEVEL_COMPLETE
+};
+
+// Authoritative Level 1 Ground Baseline Coordinate
+const double kLevel1GroundY = 185.0;
+
+// ============================================================================
+// Core Game Manager Class
+// ============================================================================
+class GameManager {
+private:
+    GameState currentState;
+    Player player;
+    Map gameMap;
+    Leaderboard leaderboard;
+    std::vector<Enemy> enemies;
+    
+    // Props and Collectibles
+    std::vector<Collectible> collectibles;
+    std::vector<Prop> props;
+    unsigned int texPropsSheet;
+
+    // Level 1 Area Tracking
+    Level1Area currentArea;
+    Level1Area previousArea;
+    double areaBannerTimer;
+    double areaBannerAlpha;
+
+    // Boss Battle variables
+    bool bossSpawned;
+    bool bossDefeated;
+    int bossHp;
+    int bossMaxHp;
+
+    // Environmental Ribbon status
+    bool ribbonCollected;
+    bool hasKeycard;
+    bool showInventory;
+    double hudAlpha;
+
+    // Mouse Cursor state & coordinates
+    int mouseX;
+    int mouseY;
+    bool isMouseDown;
+
+    // UI Animation & Smooth Transition States
+    double menuTransitionAlpha;
+    double missionNotifyAlpha;
+    double missionNotifyTimer;
+    int lastObjectiveID;
+    double uiAnimTime;
+
+    int score;
+    int currentLevel;
+
+    // Helper functions for localized state updates/rendering
+    void UpdatePlaying(bool keys[], bool specialKeys[]);
+    void RenderPlaying();
+    void RenderMenu();
+    void RenderLeaderboard();
+    void RenderDialogue();
+    void RenderGameOver();
+    void RenderVictory();
+    void RenderCursor();
+
+public:
+    GameManager();
+    
+    void Initialize();
+    void Update(bool keys[], bool specialKeys[]);
+    void Render();
+
+    // Input hooks from iGraphics
+    void HandleKeyPress(unsigned char key);
+    void HandleSpecialKeyPress(unsigned char key);
+    void HandleMouseClick(int button, int state, int mx, int my);
+    void HandleMouseMove(int mx, int my);
+
+    // Score utility
+    void AddScore(int amount);
+    
+    GameState GetCurrentState() const { return currentState; }
+    void SetCurrentState(GameState state) { currentState = state; }
+
+    Level1Area GetCurrentArea() const { return currentArea; }
+    Level1Area GetAreaFromPosition(double px) const;
+    const char* GetAreaName(Level1Area area) const;
+};
+
+#endif // GAME_MANAGER_H
+

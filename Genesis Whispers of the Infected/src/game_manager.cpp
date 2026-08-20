@@ -1,0 +1,1842 @@
+#define _CRT_SECURE_NO_WARNINGS
+#include <windows.h>
+#include <GL/gl.h>
+#include "game_manager.h"
+#include "igraphics_declarations.h"
+#include <cmath>
+#include <cstdio>
+#include <cstdlib>
+
+// Active Dialogue Text buffer
+static char g_dialogueSpeaker[32] = "";
+static char g_dialogueText[128] = "";
+
+// ============================================================================
+// Typography & Text Shadow / Outline Helpers
+// ============================================================================
+static void DrawShadowText(int x, int y, const char* str, void* font, int r, int g, int b, int shadowOffset = 1) {
+    iSetColor(0, 0, 0);
+    iText(x + shadowOffset, y - shadowOffset, (char*)str, font);
+
+    iSetColor(r, g, b);
+    iText(x, y, (char*)str, font);
+}
+
+static void DrawOutlinedText(int x, int y, const char* str, void* font, int r, int g, int b) {
+    iSetColor(0, 0, 0);
+    iText(x + 1, y, (char*)str, font);
+    iText(x - 1, y, (char*)str, font);
+    iText(x, y + 1, (char*)str, font);
+    iText(x, y - 1, (char*)str, font);
+
+    iSetColor(r, g, b);
+    iText(x, y, (char*)str, font);
+}
+
+static void RenderMenuButtonSlot(int slotIdx, int textX, int textY, const char* label, void* font, int mouseX, int mouseY, bool isMouseDown, double animTime = 0.0) {
+    int yMin = 420, yMax = 470;
+    if (slotIdx == 2) { yMin = 345; yMax = 390; }
+    else if (slotIdx == 3) { yMin = 265; yMax = 310; }
+
+    bool isHovered = (mouseX >= 440 && mouseX <= 840 && mouseY >= yMin && mouseY <= yMax);
+
+    if (isHovered) {
+        // Glowing cyan hover indicator border with pulsing glow
+        double pulse = 0.8 + 0.2 * sin(animTime * 8.0);
+        int gVal = (int)(240 * pulse);
+        int bVal = (int)(255 * pulse);
+
+        iSetColor(0, gVal, bVal);
+        iRectangle(436, yMin - 6, 408, yMax - yMin + 12);
+        iRectangle(438, yMin - 4, 404, yMax - yMin + 8);
+
+        if (isMouseDown) {
+            // Button press offset animation (+3, -3) with gold click tint
+            DrawShadowText(textX + 3, textY - 3, label, font, 255, 220, 0);
+        } else {
+            // High contrast cyan text on hover
+            DrawShadowText(textX, textY, label, font, 0, 240, 255);
+        }
+    } else {
+        DrawShadowText(textX, textY, label, font, 255, 255, 255);
+    }
+}
+
+// Environmental Weather Simulation Particles
+struct RainParticle {
+    double x, y, speed;
+};
+
+struct FogParticle {
+    double x, y, speed, alpha;
+};
+
+static std::vector<RainParticle> rainParticles;
+static std::vector<FogParticle> fogParticles;
+
+// UI PNG Asset Texture Handles
+static unsigned int g_texHealthFrame = 0;
+static unsigned int g_texHealthFill = 0;
+static unsigned int g_texStaminaFrame = 0;
+static unsigned int g_texStaminaFill = 0;
+static unsigned int g_texMissionBox = 0;
+
+// Inventory UI PNG Texture Handles
+static unsigned int g_texInventoryPanel = 0;
+static unsigned int g_texInventorySlot = 0;
+static unsigned int g_texPauseOverlay = 0;
+static unsigned int g_texMainMenuBg = 0;
+static unsigned int g_texGameOverBg = 0;
+static unsigned int g_texLevelCompleteBg = 0;
+
+// Item PNG Asset Texture Handles (Assets/Items & Assets/Collectibles)
+static unsigned int g_texItemBread = 0;
+static unsigned int g_texItemApple = 0;
+static unsigned int g_texItemWaterBottle = 0;
+static unsigned int g_texItemFirstAid = 0;
+static unsigned int g_texItemBandage = 0;
+static unsigned int g_texItemScrapMetal = 0;
+static unsigned int g_texItemRustyKey = 0;
+static unsigned int g_texItemCoin = 0;
+
+// Instant Floating Item Pickup Notification Data
+static char g_pickupText[64] = "";
+static double g_pickupX = 0.0;
+static double g_pickupY = 0.0;
+static double g_pickupTimer = 0.0;
+static int g_pickupR = 255, g_pickupG = 255, g_pickupB = 255;
+
+// ============================================================================
+// Constructor & Level Initialization
+// ============================================================================
+const char* GameManager::GetAreaName(Level1Area area) const {
+    switch (area) {
+    case AREA_SPAWN_AREA:
+    case AREA_DESTROYED_HOUSE:   return "Spawn Area / Destroyed House";
+    case AREA_VILLAGE_STREET:    return "Village Street";
+    case AREA_VILLAGE_SQUARE:    return "Village Square";
+    case AREA_ABANDONED_MARKET:  return "Abandoned Market";
+    case AREA_RAIDER_CAMP:       return "Raider Camp";
+    case AREA_ABANDONED_CHURCH:  return "Abandoned Church";
+    case AREA_QUARANTINE_ZONE:   return "Quarantine Zone";
+    case AREA_BROKEN_BRIDGE:     return "Broken Bridge";
+    case AREA_MINI_BOSS_ARENA:   return "Mini Boss Arena";
+    case AREA_EXIT_GATE:         return "Exit Gate";
+    case AREA_LEVEL_COMPLETE:    return "Level Complete";
+    default:                     return "Unknown Area";
+    }
+}
+
+GameManager::GameManager() {
+    currentState = STATE_MENU;
+    score = 0;
+    currentLevel = 1;
+    texPropsSheet = 0;
+
+    currentArea = AREA_SPAWN_AREA;
+    previousArea = AREA_SPAWN_AREA;
+    areaBannerTimer = 4.0;
+    areaBannerAlpha = 1.0;
+
+    bossSpawned = false;
+    bossDefeated = false;
+    bossHp = 300;
+    bossMaxHp = 300;
+    ribbonCollected = false;
+    hasKeycard = false;
+    showInventory = false;
+    hudAlpha = 0.0;
+    mouseX = 640;
+    mouseY = 360;
+    isMouseDown = false;
+
+    menuTransitionAlpha = 1.0;
+    missionNotifyAlpha = 0.0;
+    missionNotifyTimer = 0.0;
+    lastObjectiveID = 0;
+    uiAnimTime = 0.0;
+}
+
+void GameManager::Initialize() {
+    score = 0;
+    currentLevel = 1;
+    player.Initialize(200, 185); // Arin starting location inside destroyed house (x=200, groundY=185)
+    gameMap.LoadLevel(currentLevel);
+    leaderboard.LoadScores();
+
+    currentArea = AREA_SPAWN_AREA;
+    previousArea = AREA_SPAWN_AREA;
+    areaBannerTimer = 4.0;
+    areaBannerAlpha = 1.0;
+
+    bossSpawned = false;
+    bossDefeated = false;
+    bossHp = 300;
+    bossMaxHp = 300;
+    ribbonCollected = false;
+    hasKeycard = false;
+    showInventory = false;
+    hudAlpha = 0.0;
+    mouseX = 640;
+    mouseY = 360;
+    isMouseDown = false;
+
+    menuTransitionAlpha = 1.0;
+    missionNotifyAlpha = 0.0;
+    missionNotifyTimer = 0.0;
+    lastObjectiveID = 0;
+    uiAnimTime = 0.0;
+
+    // Load props texture sheet (4x4 gameplay atlas)
+    if (texPropsSheet == 0) {
+        texPropsSheet = iLoadImage((char*)GetAssetPath("Assets/Props/props_sheet.png").c_str());
+    }
+
+    // Preload UI HUD assets from existing Assets/UI folder structure
+    if (g_texHealthFrame == 0) {
+        g_texHealthFrame = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/Health_Bar_Frame.png").c_str());
+        if (g_texHealthFrame == 0) g_texHealthFrame = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/ui_health_frame.png").c_str());
+    }
+    if (g_texHealthFill == 0) {
+        g_texHealthFill = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/Health_Fill.png").c_str());
+        if (g_texHealthFill == 0) g_texHealthFill = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/ui_health_fill.png").c_str());
+    }
+    if (g_texStaminaFrame == 0) {
+        g_texStaminaFrame = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/Stamina_Bar_Frame.png").c_str());
+        if (g_texStaminaFrame == 0) g_texStaminaFrame = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/ui_stamina_frame.png").c_str());
+    }
+    if (g_texStaminaFill == 0) {
+        g_texStaminaFill = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/stamina_fill.png").c_str());
+        if (g_texStaminaFill == 0) g_texStaminaFill = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/ui_stamina_fill.png").c_str());
+    }
+    if (g_texMissionBox == 0) {
+        g_texMissionBox = iLoadImage((char*)GetAssetPath("Assets/UI/Mission/mission_update_box.png").c_str());
+        if (g_texMissionBox == 0) g_texMissionBox = iLoadImage((char*)GetAssetPath("Assets/UI/Mission/ui_mission_box.png").c_str());
+    }
+    if (g_texInventoryPanel == 0) {
+        g_texInventoryPanel = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/inventory__panel.png").c_str());
+        if (g_texInventoryPanel == 0) g_texInventoryPanel = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/ui_inventory_panel.png").c_str());
+    }
+    if (g_texInventorySlot == 0) {
+        g_texInventorySlot = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/single_empty_inventory_slot.png").c_str());
+        if (g_texInventorySlot == 0) g_texInventorySlot = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/ui_inventory_slot.png").c_str());
+    }
+    if (g_texPauseOverlay == 0) {
+        g_texPauseOverlay = iLoadImage((char*)GetAssetPath("Assets/UI/Pause/pause_menu.png").c_str());
+        if (g_texPauseOverlay == 0) g_texPauseOverlay = iLoadImage((char*)GetAssetPath("Assets/UI/Pause/ui_pause_overlay.png").c_str());
+        if (g_texPauseOverlay == 0) g_texPauseOverlay = iLoadImage((char*)GetAssetPath("Assets/UI/Pause/ui_pause_menu.png").c_str());
+    }
+    if (g_texMainMenuBg == 0) {
+        g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/new_main_menu.png").c_str());
+        if (g_texMainMenuBg == 0) g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/main_menu_bg.png").c_str());
+        if (g_texMainMenuBg == 0) g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/ui_main_menu.png").c_str());
+    }
+    if (g_texGameOverBg == 0) {
+        g_texGameOverBg = iLoadImage((char*)GetAssetPath("Assets/UI/Game Over/game_over_screen.png").c_str());
+        if (g_texGameOverBg == 0) g_texGameOverBg = iLoadImage((char*)GetAssetPath("Assets/UI/Game Over/ui_game_over_background.png").c_str());
+        if (g_texGameOverBg == 0) g_texGameOverBg = iLoadImage((char*)GetAssetPath("Assets/UI/Game Over/ui_game_over_screen.png").c_str());
+    }
+    if (g_texLevelCompleteBg == 0) {
+        g_texLevelCompleteBg = iLoadImage((char*)GetAssetPath("Assets/UI/Level Complete/level_complete_screen.png").c_str());
+        if (g_texLevelCompleteBg == 0) g_texLevelCompleteBg = iLoadImage((char*)GetAssetPath("Assets/UI/Level Complete/ui_level_complete_background.png").c_str());
+        if (g_texLevelCompleteBg == 0) g_texLevelCompleteBg = iLoadImage((char*)GetAssetPath("Assets/UI/Level Complete/ui_level_complete_screen.png").c_str());
+    }
+
+    // Load static item textures once
+    if (g_texItemFirstAid == 0) {
+        g_texItemFirstAid = iLoadImage((char*)GetAssetPath("Assets/Items/Medicine/first_aid.png").c_str());
+        g_texItemBandage = iLoadImage((char*)GetAssetPath("Assets/Items/Medicine/bandage.png").c_str());
+        g_texItemApple = iLoadImage((char*)GetAssetPath("Assets/Items/Food/apple.png").c_str());
+        g_texItemBread = iLoadImage((char*)GetAssetPath("Assets/Items/Food/Bread.png").c_str());
+        g_texItemWaterBottle = iLoadImage((char*)GetAssetPath("Assets/Items/Food/water_bottle.png").c_str());
+        g_texItemScrapMetal = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/Scrap_Metal.png").c_str());
+        g_texItemRustyKey = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/Rusty_Key.png").c_str());
+        g_texItemCoin = iLoadImage((char*)GetAssetPath("Assets/Collectibles/coin.png").c_str());
+    }
+
+    // Populate Level 1 Enemies per area specification (aligned with kLevel1GroundY)
+    enemies.clear();
+
+    // Section 1: Spawn Area / Destroyed House (Background 1: 0 - 1448px) - 0 enemies
+
+    // Section 2: Village Street (Background 2: 1448 - 2896px: 3 Walkers)
+    enemies.push_back(Enemy(1800, 1950, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(2200, 2350, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(2600, 2750, kLevel1GroundY, TYPE_SPITTER));
+
+    // Section 3: Village Square (Background 3: 2896 - 4344px: 4 Walkers, 1 Runner)
+    enemies.push_back(Enemy(3100, 3220, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(3350, 3470, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(3600, 3720, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(3850, 3970, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(4150, 4280, kLevel1GroundY, TYPE_RUNNER));
+
+    // Section 4: Abandoned Market (Background 4: 4344 - 5792px: 2 Walkers, 1 Raider)
+    enemies.push_back(Enemy(4600, 4750, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(5000, 5150, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(5400, 5550, kLevel1GroundY, TYPE_RAIDER));
+
+    // Section 5: Raider Camp (Background 5: 5792 - 7240px: 3 Raiders)
+    enemies.push_back(Enemy(6050, 6200, kLevel1GroundY, TYPE_RAIDER));
+    enemies.push_back(Enemy(6450, 6600, kLevel1GroundY, TYPE_RAIDER));
+    enemies.push_back(Enemy(6850, 7000, kLevel1GroundY, TYPE_RAIDER));
+
+    // Section 6: Abandoned Church (Background 6: 7240 - 8688px: 2 Walkers, 1 Runner)
+    enemies.push_back(Enemy(7500, 7650, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(7900, 8050, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(8350, 8500, kLevel1GroundY, TYPE_RUNNER));
+
+    // Section 7: Quarantine Zone (Background 7: 8688 - 10136px: 2 Walkers, 1 Heavy Infected)
+    enemies.push_back(Enemy(8950, 9100, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(9350, 9500, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(9750, 9950, kLevel1GroundY, TYPE_ABOMINATION));
+
+    // Section 8: Broken Bridge (Background 8: 10136 - 11584px) - 0 normal enemies
+
+    // Section 9: Mini Boss Arena (Background 9: 11584 - 13032px: 1 Mutated Brute)
+    enemies.push_back(Enemy(12200, 12450, kLevel1GroundY, TYPE_ABOMINATION));
+
+    // Section 10: Exit Gate (Background 10: 13032 - 14480px) - 0 enemies
+
+    // Populate Props (X, Y, W, H, Type, animFrame) aligned with ground baseline
+    props.clear();
+    // Spawn Area - family photographs and NovaGen poster
+    props.push_back({ 120, 245, 32, 32, PROP_POSTER_MISSING, 0 });
+    props.push_back({ 420, 225, 32, 32, PROP_POSTER_NOVAGEN, 0 });
+    props.push_back({ 720, kLevel1GroundY, 48, 48, PROP_CRATE, 0 });
+    props.push_back({ 900, kLevel1GroundY, 64, 64, PROP_BARREL_FIRE, 0 });
+    // Destroyed House - burned furniture debris
+    props.push_back({ 2800, kLevel1GroundY, 48, 48, PROP_CRATE, 0 });
+    props.push_back({ 3100, kLevel1GroundY, 64, 64, PROP_BARREL_FIRE, 0 });
+    // Village street props
+    props.push_back({ 3800, kLevel1GroundY, 128, 64, PROP_CAR, 0 });
+    props.push_back({ 4400, kLevel1GroundY, 64, 64, PROP_BARREL_FIRE, 0 });
+    props.push_back({ 5100, kLevel1GroundY, 48, 48, PROP_CRATE, 0 });
+    // Village square ambulance and barricades
+    props.push_back({ 7200, kLevel1GroundY, 192, 96, PROP_CAR, 0 });
+    props.push_back({ 7600, kLevel1GroundY, 96, 48, PROP_SANDBAG, 0 });
+    props.push_back({ 7400, 255, 48, 64, PROP_POSTER_NOVAGEN, 0 });
+
+    // Populate Collectibles aligned with ground baseline
+    collectibles.clear();
+    // Section 1 (Spawn Area / Destroyed House)
+    collectibles.push_back({ 350, kLevel1GroundY, 32, 32, COL_SCRAP, true, 0 });      // Scrap Metal
+    // Section 2 (Village Street: Food, Ammo, Battery)
+    collectibles.push_back({ 3500, kLevel1GroundY, 32, 32, COL_FOOD, true, 0 });     // Food (Bread)
+    collectibles.push_back({ 4200, kLevel1GroundY, 32, 32, COL_AMMO, true, 0 });     // Ammo
+    collectibles.push_back({ 4900, 270, 32, 32, COL_BATTERY, true, 0 });  // Battery (Floating platform)
+    // Section 3 (Village Square: Mission Note, Medkit)
+    collectibles.push_back({ 6925, 250, 32, 32, COL_NOTE, true, 0 });      // Mission Note (Fountain)
+    collectibles.push_back({ 7300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0 });    // Medkit (First Aid)
+
+    // Initialize rain particle simulation
+    rainParticles.clear();
+    for (int i = 0; i < 80; ++i) {
+        rainParticles.push_back({ (double)(rand() % 1280), (double)(rand() % 720), 6.0 + (rand() % 40) / 10.0 });
+    }
+
+    fogParticles.clear();
+    for (int i = 0; i < 24; ++i) {
+        fogParticles.push_back({ (double)(rand() % 1280), (double)(80 + rand() % 420), 0.4 + (rand() % 8) / 10.0, 0.15 + (rand() % 20) / 100.0 });
+    }
+}
+
+// ============================================================================
+// Core Update Loop
+// ============================================================================
+void GameManager::Update(bool keys[], bool specialKeys[]) {
+    uiAnimTime += 0.016;
+
+    // Smooth screen transition fade out
+    if (menuTransitionAlpha > 0.0) {
+        menuTransitionAlpha -= 3.0 * 0.016;
+        if (menuTransitionAlpha < 0.0) menuTransitionAlpha = 0.0;
+    }
+
+    // Mission Notification Fade-in & Fade-out logic
+    int currentObjID = 0;
+    if (bossSpawned && !bossDefeated) currentObjID = 1;
+    else if (bossDefeated && !ribbonCollected) currentObjID = 2;
+    else if (bossDefeated && ribbonCollected) currentObjID = 3;
+
+    if (currentObjID != lastObjectiveID) {
+        lastObjectiveID = currentObjID;
+        missionNotifyTimer = 4.0; // Show banner for 4 seconds on objective change
+    }
+
+    if (missionNotifyTimer > 0.0) {
+        missionNotifyTimer -= 0.016;
+        missionNotifyAlpha += 4.0 * 0.016;
+        if (missionNotifyAlpha > 1.0) missionNotifyAlpha = 1.0;
+    } else {
+        missionNotifyAlpha -= 2.0 * 0.016;
+        if (missionNotifyAlpha < 0.0) missionNotifyAlpha = 0.0;
+    }
+
+    // ------------------------------------------------------------------------
+    // LEVEL 1 AREA TRACKING & TRANSITION DETECTION
+    // ------------------------------------------------------------------------
+    Level1Area newArea = GetAreaFromPosition(player.x);
+    if (currentState == STATE_VICTORY) {
+        newArea = AREA_LEVEL_COMPLETE;
+    }
+
+    if (newArea != currentArea) {
+        previousArea = currentArea;
+        currentArea = newArea;
+        areaBannerTimer = 3.0; // Briefly display area title banner on transition
+    }
+
+    if (areaBannerTimer > 0.0) {
+        areaBannerTimer -= 0.016;
+        areaBannerAlpha += 4.0 * 0.016;
+        if (areaBannerAlpha > 1.0) areaBannerAlpha = 1.0;
+    } else {
+        areaBannerAlpha -= 3.0 * 0.016;
+        if (areaBannerAlpha < 0.0) areaBannerAlpha = 0.0;
+    }
+
+    if (currentState == STATE_PLAYING) {
+        UpdatePlaying(keys, specialKeys);
+    }
+}
+
+void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
+    // Smooth HUD fade-in animation
+    hudAlpha += 3.0 * 0.016;
+    if (hudAlpha > 1.0) hudAlpha = 1.0;
+
+    // Update current level area based on player position (decoupled from background slices)
+    Level1Area newArea = GetAreaFromPosition(player.x);
+    if (newArea != currentArea) {
+        previousArea = currentArea;
+        currentArea = newArea;
+        areaBannerTimer = 3.0;
+        areaBannerAlpha = 1.0;
+    }
+
+    // 1. Update Player Physics and animations
+    player.Update(keys, specialKeys);
+
+    // 2. Collision checks against floating/ground platforms
+    const std::vector<Platform>& platforms = gameMap.GetPlatforms();
+    player.isGrounded = false;
+
+    for (size_t i = 0; i < platforms.size(); ++i) {
+        const Platform& p = platforms[i];
+        double topY = p.y + p.height;
+
+        // Check horizontal overlap with player feet
+        if (player.x + player.width * 0.7 > p.x && player.x + player.width * 0.3 < p.x + p.width) {
+            // Landing check: falling down and player feet (player.y) are near/above platform top
+            if (player.vy <= 0 && player.y >= topY - 24.0 && player.y <= topY + 24.0) {
+                player.y = topY;
+                player.vy = 0;
+                player.isGrounded = true;
+            }
+        }
+    }
+
+    // Default ground fallback if not in a pit
+    bool inPit = (player.x > 17800 && player.x < 18100) ||
+                 (player.x > 18500 && player.x < 18800) ||
+                 (player.x > 19200 && player.x < 19400);
+
+    if (!inPit && player.y <= 185.0) {
+        player.y = 185.0;
+        player.vy = 0.0;
+        player.isGrounded = true;
+    }
+    else if (inPit && player.y < -100.0) {
+        // Pit safety respawn
+        player.x = 17700;
+        player.y = 185.0;
+        player.vy = 0.0;
+        player.isGrounded = true;
+    }
+
+    // 3. Environmental rain particle simulation update
+    for (size_t i = 0; i < rainParticles.size(); ++i) {
+        rainParticles[i].y -= rainParticles[i].speed * 60.0 * 0.016;
+        rainParticles[i].x -= 1.5;
+        if (rainParticles[i].y < 0) {
+            rainParticles[i].y = 720;
+            rainParticles[i].x = rand() % 1380;
+        }
+    }
+
+    // 4. Horizontal camera tracking
+    // Check boss spawning boundary trigger
+    if (player.x >= 19600 && !bossSpawned) {
+        bossSpawned = true;
+        // Load boss stats dynamically
+        for (size_t i = 0; i < enemies.size(); ++i) {
+            if (enemies[i].type == TYPE_ABOMINATION) {
+                bossMaxHp = enemies[i].maxHp;
+                bossHp = enemies[i].hp;
+            }
+        }
+    }
+
+    // If boss fight is active, lock the player camera inside the arena bounds
+    if (bossSpawned && !bossDefeated) {
+        double minCam = 19400;
+        double maxCam = 20500;
+
+        double targetCam = player.x - (1280 / 2.0);
+        if (targetCam < minCam) targetCam = minCam;
+        if (targetCam > maxCam) targetCam = maxCam;
+
+        // Smooth camera track locked in arena
+        gameMap.ApplyCameraTracking(player.x, player.y, 1280, 720);
+        if (gameMap.GetCameraX() < minCam) {
+            if (player.x < 19450) player.x = 19450;
+            if (player.x > 21450) player.x = 21450;
+        }
+    }
+    else {
+        // Normal viewport tracking
+        gameMap.ApplyCameraTracking(player.x, player.y, 1280, 720);
+    }
+
+    // Update animated props (flickering fires)
+    for (size_t i = 0; i < props.size(); ++i) {
+        if (props[i].type == PROP_BARREL_FIRE) {
+            if (rand() % 10 == 0) {
+                props[i].animFrame = (props[i].animFrame + 1) % 3;
+            }
+        }
+    }
+
+    // 5. Water gap falling (Broken Bridge respawn logic)
+    if (player.y < 0) {
+        player.TakeDamage(25);
+        if (player.hp > 0) {
+            // Find nearest checkpoint coordinate
+            double respawnX = 100;
+            if (player.x >= 19600) respawnX = 19600;
+            else if (player.x >= 13500) respawnX = 13500;
+            else if (player.x >= 6800) respawnX = 6800;
+
+            player.Initialize(respawnX, 220); // Spawns above safe ground checkpoint
+        }
+    }
+
+    // 6. Update active Collectibles interaction
+    for (size_t i = 0; i < collectibles.size(); ++i) {
+        if (collectibles[i].active) {
+            // Check bounding collision between player and collectible item
+            bool intersectX = (player.x + player.width >= collectibles[i].x) && (collectibles[i].x + collectibles[i].width >= player.x);
+            bool intersectY = (player.y + player.height >= collectibles[i].y) && (collectibles[i].y + collectibles[i].height >= player.y);
+
+            if (intersectX && intersectY) {
+                collectibles[i].active = false;
+                score += 100;
+
+                // Apply GDD rewards and trigger floating feedback pop-up
+                switch (collectibles[i].type) {
+                case COL_MEDKIT:
+                    player.medkits++;
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 FIRST AID MEDKIT");
+                    g_pickupR = 255; g_pickupG = 100; g_pickupB = 100;
+                    break;
+                case COL_BATTERY:
+                    player.batteryCount++;
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 BATTERY");
+                    g_pickupR = 0; g_pickupG = 255; g_pickupB = 200;
+                    break;
+                case COL_FOOD:
+                    player.foodCount++;
+                    player.hp = (player.hp + 15 > player.maxHp) ? player.maxHp : player.hp + 15;
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 RATION (+15 HP)");
+                    g_pickupR = 255; g_pickupG = 180; g_pickupB = 0;
+                    break;
+                case COL_WATER:
+                    player.foodCount++;
+                    player.hp = (player.hp + 10 > player.maxHp) ? player.maxHp : player.hp + 10;
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 WATER (+10 HP)");
+                    g_pickupR = 0; g_pickupG = 220; g_pickupB = 255;
+                    break;
+                case COL_SCRAP:
+                    player.scrapCount++;
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 SCRAP METAL");
+                    g_pickupR = 200; g_pickupG = 210; g_pickupB = 220;
+                    break;
+                case COL_AMMO:
+                    player.ammo += 15;
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+15 PISTOL AMMO");
+                    g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
+                    break;
+                case COL_COIN:
+                    player.ammo += 10;
+                    score += 50;
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+10 AMMO (+50 PTS)");
+                    g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
+                    break;
+                case COL_RUSTY_KEY:
+                    hasKeycard = true;
+                    currentState = STATE_DIALOGUE;
+                    sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
+                    sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"An old Rusty Key! This could unlock hidden doors or emergency storage.\"");
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "RUSTY KEY ACQUIRED");
+                    g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
+                    break;
+                case COL_KEYCARD:
+                    hasKeycard = true;
+                    currentState = STATE_DIALOGUE;
+                    sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
+                    sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A NovaGen command keycard! This will grant me access to open the steel gate checkpoint.\"");
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "NOVAGEN KEYCARD ACQUIRED");
+                    g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
+                    break;
+                case COL_NOTE:
+                    currentState = STATE_DIALOGUE;
+                    sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Survivor's Clue Note");
+                    if (collectibles[i].x < 10000) {
+                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"NovaGen Memo: Evacuation path compromised. Convoy heading East to Blackwood Forest. Subject Luna immune.\"");
+                    }
+                    else {
+                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A crumpled note: 'Dr. Kael took the silver-haired girl through the forest checkpoint. She is our only hope...'\"");
+                    }
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "MISSION NOTE DISCOVERED");
+                    g_pickupR = 0; g_pickupG = 230; g_pickupB = 255;
+                    break;
+                default:
+                    break;
+                }
+
+                g_pickupX = player.x;
+                g_pickupY = player.y + 160.0;
+                g_pickupTimer = 1.0;
+            }
+        }
+    }
+
+    // 6b. Resolve player's ranged attack (pistol) against nearest enemy
+    if (player.rangedAttackTriggered) {
+        double bestDist = 1e9;
+        int bestIndex = -1;
+        for (size_t i = 0; i < enemies.size(); ++i) {
+            if (enemies[i].hp <= 0) continue;
+
+            bool inFront = (player.isFacingRight && enemies[i].x > player.x) ||
+                (!player.isFacingRight && enemies[i].x < player.x);
+            if (!inFront) continue;
+
+            double dxAbs = std::abs(enemies[i].x - player.x);
+            double dyAbs = std::abs(enemies[i].y - player.y);
+            if (dxAbs < 700.0 && dyAbs < 60.0 && dxAbs < bestDist) {
+                bestDist = dxAbs;
+                bestIndex = (int)i;
+            }
+        }
+
+        if (bestIndex != -1) {
+            enemies[bestIndex].TakeDamage(15);
+            score += 30;
+        }
+        player.rangedAttackTriggered = false;
+    }
+
+    // 7. Update Enemy physics, AI states, and damage interactions
+    for (size_t i = 0; i < enemies.size(); ++i) {
+        if (enemies[i].hp > 0) {
+            enemies[i].Update(player.x, player.y);
+
+            // Sync boss HP variables
+            if (enemies[i].type == TYPE_ABOMINATION) {
+                bossHp = enemies[i].hp;
+                if (bossHp <= 0) {
+                    bossDefeated = true;
+                }
+            }
+
+            // Damage player if enemy is in attacking state and collides
+            if (enemies[i].state == ENEMY_ATTACK) {
+                if (enemies[i].type == TYPE_ABOMINATION && enemies[i].bruteAttack == BRUTE_SLAM) {
+                    double slamDist = std::abs(player.x - enemies[i].x);
+                    double slamDy = std::abs(player.y - enemies[i].y);
+                    if (slamDist < 160.0 && slamDy < 80.0) {
+                        player.TakeDamage(enemies[i].damage + 10);
+                    }
+                }
+                else {
+                    double atkExtra = (enemies[i].type == TYPE_RUNNER) ? 40.0 : 30.0;
+                    double atkX = enemies[i].isFacingRight ? enemies[i].x : (enemies[i].x - atkExtra);
+                    double atkW = enemies[i].width + atkExtra;
+                    bool hitX = (atkX + atkW >= player.x) && (player.x + player.width >= atkX);
+                    bool hitY = (enemies[i].y + enemies[i].height >= player.y) && (player.y + player.height >= enemies[i].y);
+
+                    if (hitX && hitY && !enemies[i].hasDealtDamage) {
+                        int currentAtkFrame = enemies[i].animAttack.GetCurrentFrame();
+                        int totalAtkFrames = enemies[i].animAttack.GetFrameCount();
+                        bool isAtkActiveFrame = (totalAtkFrames <= 1) || (currentAtkFrame >= 0 && currentAtkFrame <= 6);
+
+                        if (isAtkActiveFrame) {
+                            player.TakeDamage(enemies[i].damage);
+                            enemies[i].hasDealtDamage = true;
+                        }
+                    }
+                }
+            }
+
+            // Mutated Brute Charge damage check
+            if (enemies[i].type == TYPE_ABOMINATION && enemies[i].vx > 2.0) {
+                if (enemies[i].CheckPlayerCollision(player.x, player.y, player.width, player.height)) {
+                    player.TakeDamage(enemies[i].damage + 15);
+                }
+            }
+
+            // Raider gunfire line-of-sight check
+            if (enemies[i].type == TYPE_RAIDER && enemies[i].rangedShotFired) {
+                bool facingPlayer = (enemies[i].isFacingRight && player.x > enemies[i].x) ||
+                    (!enemies[i].isFacingRight && player.x < enemies[i].x);
+                double shotDist = std::abs(player.x - enemies[i].x);
+                double shotDy = std::abs(player.y - enemies[i].y);
+                if (facingPlayer && shotDist < 500.0 && shotDy < 60.0) {
+                    player.TakeDamage(enemies[i].damage);
+                }
+                enemies[i].rangedShotFired = false;
+            }
+
+            // Damage enemy if player attacks them during active katana slash window
+            int currentFrame = player.animAttack.GetCurrentFrame();
+            int totalPlayerAtkFrames = player.animAttack.GetFrameCount();
+            bool isKatanaActiveFrame = (totalPlayerAtkFrames <= 1) || (currentFrame >= 0 && currentFrame <= 6);
+
+            if (player.state == STATE_ATTACK_MELEE && isKatanaActiveFrame && enemies[i].lastHitAttackID != player.currentAttackID) {
+                double hitboxX = player.isFacingRight ? player.x : (player.x - 70.0);
+                double hitboxW = player.width + 70.0;
+                double hitboxY = player.y;
+                double hitboxH = player.height;
+
+                bool hitX = (hitboxX + hitboxW >= enemies[i].x) && (enemies[i].x + enemies[i].width >= hitboxX);
+                bool hitY = (hitboxY + hitboxH >= enemies[i].y) && (enemies[i].y + enemies[i].height >= hitboxY);
+
+                if (hitX && hitY) {
+                    enemies[i].TakeDamage(35);
+                    score += 50;
+                    enemies[i].lastHitAttackID = player.currentAttackID;
+                }
+            }
+        }
+        else {
+            // Process death frames for enemy
+            enemies[i].Update(player.x, player.y);
+
+            // Check if boss died
+            if (enemies[i].type == TYPE_ABOMINATION) {
+                bossDefeated = true;
+            }
+        }
+    }
+
+    // 8. Exit Gate Ending Trigger
+    if (player.x >= 21550 && bossDefeated) {
+        if (!hasKeycard) {
+            if (currentState == STATE_PLAYING && player.x >= 21550) {
+                currentState = STATE_DIALOGUE;
+                sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
+                sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"The steel gate is locked. I need a NovaGen keycard from the quarantine checkpoint.\"");
+            }
+        }
+        else if (!ribbonCollected) {
+            currentState = STATE_DIALOGUE;
+            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
+            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Luna's silver-blue ribbon! It's caught on the steel gate latch... She survived. I will find you, Luna!\"");
+            ribbonCollected = true;
+        }
+        else if (currentState != STATE_DIALOGUE && currentState != STATE_VICTORY) {
+            currentState = STATE_VICTORY;
+            menuTransitionAlpha = 1.0;
+            leaderboard.AddScore("Arin", score);
+        }
+    }
+
+    // Check Player Game Over: Play full death animation before showing Game Over menu screen
+    if (player.hp <= 0 && currentState != STATE_GAMEOVER) {
+        if (player.state == STATE_DEAD && player.animDeath.IsFinished()) {
+            currentState = STATE_GAMEOVER;
+            menuTransitionAlpha = 1.0;
+        }
+    }
+}
+
+// ============================================================================
+// Main Dispatch Renderer
+// ============================================================================
+void GameManager::Render() {
+    switch (currentState) {
+    case STATE_MENU:
+        RenderMenu();
+        break;
+    case STATE_PLAYING:
+        RenderPlaying();
+        break;
+    case STATE_DIALOGUE:
+        RenderDialogue();
+        break;
+    case STATE_PAUSED:
+        RenderPlaying(); // Render gameplay frame underneath in frozen state
+
+        // Dark background dimmer
+        iSetColor(0, 0, 0);
+        iFilledRectangle(0, 0, 1280, 720);
+
+        if (g_texPauseOverlay != 0) {
+            iShowImage(240, 110, 800, 500, g_texPauseOverlay);
+        } else {
+            iSetColor(12, 16, 24);
+            iFilledRectangle(360, 240, 560, 240);
+            iSetColor(0, 180, 220);
+            iRectangle(360, 240, 560, 240);
+        }
+
+        // Top Carved Banner Slot: GAME PAUSED Title
+        DrawOutlinedText(535, 525, "GAME PAUSED", GLUT_BITMAP_TIMES_ROMAN_24, 0, 230, 255);
+
+        // Slot 1: Resume Game
+        RenderMenuButtonSlot(1, 525, 440, "1. RESUME GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+        // Slot 2: Restart Level
+        RenderMenuButtonSlot(2, 545, 362, "2. RESTART LEVEL", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+        // Slot 3: Quit to Menu
+        RenderMenuButtonSlot(3, 530, 285, "3. QUIT TO MENU [M]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+        // Bottom Detail Slot: Footer instructions
+        DrawShadowText(500, 148, "Press ESC to Resume or Click Option", GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
+        break;
+    case STATE_GAMEOVER:
+        RenderGameOver();
+        break;
+    case STATE_VICTORY:
+        RenderVictory();
+        break;
+    case STATE_LEADERBOARD:
+        RenderLeaderboard();
+        break;
+    }
+
+    // Always render custom game crosshair cursor on top
+    RenderCursor();
+}
+
+// ============================================================================
+// State Specific Renderers (Menu, Gameplay, Dialogue, End Screens, Archive)
+// ============================================================================
+void GameManager::RenderMenu() {
+    // 1. Draw Main Menu Background Graphic
+    if (g_texMainMenuBg != 0) {
+        iShowImage(0, 0, 1280, 720, g_texMainMenuBg);
+    } else {
+        iSetColor(10, 12, 18);
+        iFilledRectangle(0, 0, 1280, 720);
+    }
+
+    // 2. Top Carved Banner Slot: Title Header
+    const char* titleStr = "GENESIS: WHISPERS OF THE INFECTED";
+    DrawOutlinedText(445, 525, titleStr, GLUT_BITMAP_TIMES_ROMAN_24, 0, 220, 255);
+
+    // 3. Slot 1: Play Game
+    RenderMenuButtonSlot(1, 540, 440, "1. START SURVIVAL", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 4. Slot 2: Leaderboard
+    RenderMenuButtonSlot(2, 555, 362, "2. LEADERBOARD", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 5. Slot 3: Exit Game
+    RenderMenuButtonSlot(3, 565, 285, "3. EXIT GAME", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 6. Bottom Detail Slot: Footer Instructions
+    const char* footerStr = "Press [1], [2], [3] or Click Options to Select";
+    DrawShadowText(510, 148, footerStr, GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
+}
+
+void GameManager::RenderPlaying() {
+    double camX = gameMap.GetCameraX();
+    double camY = gameMap.GetCameraY();
+
+    // 1. Render Tiled backgrounds
+    gameMap.RenderBackground(camX, bossDefeated);
+
+    // 2. Render Props (Environmental obstacles & burning barrels)
+    for (size_t i = 0; i < props.size(); ++i) {
+        double screenPx = props[i].x - camX;
+        double screenPy = props[i].y - camY;
+
+        if (screenPx + props[i].width >= -100 && screenPx <= 1380) {
+            int px = (int)screenPx;
+            int py = (int)screenPy;
+            int pw = (int)props[i].width;
+            int ph = (int)props[i].height;
+
+            switch (props[i].type) {
+            case PROP_BARREL_FIRE: {
+                // Dark oil barrel base
+                iSetColor(25, 28, 35);
+                iFilledRectangle(px, py, pw, ph);
+                iSetColor(80, 85, 95);
+                iRectangle(px, py, pw, ph);
+                iSetColor(180, 40, 20); // Rust band
+                iFilledRectangle(px + 2, py + ph / 2 - 3, pw - 4, 6);
+
+                // Animated flickering fire flames on top of barrel
+                double fTime = uiAnimTime * 12.0 + i;
+                int fHeight = 24 + (int)(sin(fTime) * 6.0);
+                iSetColor(255, 140, 0); // Orange outer fire
+                iFilledRectangle(px + 8, py + ph - 4, pw - 16, fHeight);
+                iSetColor(255, 220, 0); // Yellow inner core fire
+                iFilledRectangle(px + 14, py + ph - 4, pw - 28, fHeight - 8);
+                break;
+            }
+            case PROP_CRATE:
+                iSetColor(55, 40, 25); // Wooden crate body
+                iFilledRectangle(px, py, pw, ph);
+                iSetColor(120, 90, 50); // Wood frame border
+                iRectangle(px, py, pw, ph);
+                iSetColor(90, 70, 40); // Diagonal braces
+                iLine(px + 2, py + 2, px + pw - 2, py + ph - 2);
+                iLine(px + pw - 2, py + 2, px + 2, py + ph - 2);
+                break;
+            case PROP_SANDBAG:
+                iSetColor(70, 65, 50); // Sandbag burlap wall
+                iFilledRectangle(px, py, pw, ph);
+                iSetColor(140, 130, 100);
+                iRectangle(px, py, pw, ph);
+                iSetColor(40, 35, 25);
+                iLine(px, py + ph / 2, px + pw, py + ph / 2);
+                break;
+            case PROP_DRUM:
+                iSetColor(30, 40, 50); // Steel fuel drum
+                iFilledRectangle(px, py, pw, ph);
+                iSetColor(0, 180, 220); // Cyan hazmat stripe
+                iRectangle(px, py, pw, ph);
+                iSetColor(0, 200, 240);
+                iFilledRectangle(px + 4, py + ph / 2 - 4, pw - 8, 8);
+                break;
+            case PROP_CAR:
+                iSetColor(20, 24, 30); // Destroyed car chassis
+                iFilledRectangle(px, py, pw, ph);
+                iSetColor(60, 70, 85);
+                iRectangle(px, py, pw, ph);
+                iSetColor(180, 30, 30); // Broken tail lamps
+                iFilledRectangle(px + 4, py + ph - 16, 12, 8);
+                break;
+            case PROP_RIBBON: {
+                // Luna's silver-blue ribbon fluttering at exit gate
+                double flutter = sin(uiAnimTime * 8.0) * 6.0;
+                iSetColor(0, 220, 255); // Silver-blue glow
+                iFilledRectangle(px, py, pw, ph);
+                iSetColor(255, 255, 255);
+                iLine(px + 4, py + 4, px + pw - 4 + (int)flutter, py + ph - 4);
+                DrawOutlinedText(px - 20, py + ph + 8, "LUNA'S RIBBON", GLUT_BITMAP_HELVETICA_10, 0, 240, 255);
+                break;
+            }
+            default:
+                break;
+            }
+        }
+    }
+
+    // 3. Render Collectibles with floating animation and image textures / glowing indicators
+    const int kWorldItemBaseSize = 58; // Centralized high-visibility world item render baseline
+    for (size_t i = 0; i < collectibles.size(); ++i) {
+        if (collectibles[i].active) {
+            double screenPx = collectibles[i].x - camX;
+            double bobY = collectibles[i].y + sin(uiAnimTime * 4.0 + i) * 3.0;
+
+            if (screenPx + collectibles[i].width >= -100 && screenPx <= 1380) {
+                int px = (int)screenPx;
+                int py = (int)bobY;
+
+                unsigned int itemTex = 0;
+                const char* itemLabel = "ITEM";
+                int lR = 255, lG = 255, lB = 255;
+                int itemDrawW = kWorldItemBaseSize;
+                int itemDrawH = kWorldItemBaseSize;
+
+                switch (collectibles[i].type) {
+                case COL_MEDKIT:
+                    itemTex = (collectibles[i].subType == 1 && g_texItemBandage != 0) ? g_texItemBandage : g_texItemFirstAid;
+                    itemLabel = (collectibles[i].subType == 1) ? "BANDAGE" : "FIRST AID";
+                    lR = 255; lG = 100; lB = 100;
+                    itemDrawW = 58; itemDrawH = 58;
+                    break;
+                case COL_FOOD:
+                    itemTex = (collectibles[i].subType == 1 && g_texItemApple != 0) ? g_texItemApple : g_texItemBread;
+                    itemLabel = (collectibles[i].subType == 1) ? "APPLE" : "BREAD";
+                    lR = 255; lG = 180; lB = 0;
+                    itemDrawW = 58; itemDrawH = 58;
+                    break;
+                case COL_WATER:
+                    itemTex = g_texItemWaterBottle;
+                    itemLabel = "WATER";
+                    lR = 0; lG = 220; lB = 255;
+                    itemDrawW = 44; itemDrawH = 64; // Preserves tall bottle aspect ratio
+                    break;
+                case COL_SCRAP:
+                    itemTex = g_texItemScrapMetal;
+                    itemLabel = "SCRAP";
+                    lR = 200; lG = 210; lB = 220;
+                    itemDrawW = 58; itemDrawH = 58;
+                    break;
+                case COL_RUSTY_KEY:
+                    itemTex = g_texItemRustyKey;
+                    itemLabel = "RUSTY KEY";
+                    lR = 255; lG = 215; lB = 0;
+                    itemDrawW = 64; itemDrawH = 44; // Preserves wide key aspect ratio
+                    break;
+                case COL_KEYCARD:
+                    itemTex = (g_texItemRustyKey != 0) ? g_texItemRustyKey : 0;
+                    itemLabel = "KEYCARD";
+                    lR = 255; lG = 215; lB = 0;
+                    itemDrawW = 60; itemDrawH = 42; // Preserves keycard aspect ratio
+                    break;
+                case COL_COIN:
+                case COL_AMMO:
+                    itemTex = g_texItemCoin;
+                    itemLabel = (collectibles[i].type == COL_COIN) ? "COIN" : "AMMO";
+                    lR = 255; lG = 215; lB = 0;
+                    itemDrawW = 52; itemDrawH = 52;
+                    break;
+                case COL_BATTERY:
+                    itemLabel = "BATTERY";
+                    lR = 0; lG = 255; lB = 200;
+                    itemDrawW = 44; itemDrawH = 60; // Preserves battery aspect ratio
+                    break;
+                case COL_NOTE:
+                    itemLabel = "CLUE NOTE";
+                    lR = 0; lG = 230; lB = 255;
+                    itemDrawW = 48; itemDrawH = 60; // Preserves note aspect ratio
+                    break;
+                default:
+                    break;
+                }
+
+                int drawX = px - (itemDrawW - (int)collectibles[i].width) / 2;
+
+                if (itemTex != 0) {
+                    iShowImage(drawX, py, itemDrawW, itemDrawH, itemTex);
+                    DrawOutlinedText(px - 2, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, lR, lG, lB);
+                }
+                else {
+                    // Procedural fallback rendering scaled to itemDrawW / itemDrawH
+                    switch (collectibles[i].type) {
+                    case COL_MEDKIT:
+                        iSetColor(180, 20, 20);
+                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(0, 220, 255);
+                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(255, 255, 255);
+                        iFilledRectangle(drawX + 20, py + 12, 12, 28);
+                        iFilledRectangle(drawX + 12, py + 20, 28, 12);
+                        DrawOutlinedText(px + 4, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 255, 220, 0);
+                        break;
+                    case COL_AMMO:
+                    case COL_COIN:
+                        iSetColor(40, 45, 50);
+                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(255, 215, 0);
+                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(220, 180, 20);
+                        iFilledRectangle(drawX + 18, py + 12, 12, 24);
+                        DrawOutlinedText(px + 4, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 255, 215, 0);
+                        break;
+                    case COL_WATER:
+                        iSetColor(15, 60, 100);
+                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(0, 240, 255);
+                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(0, 200, 255);
+                        iFilledRectangle(drawX + 12, py + 14, 16, 28);
+                        DrawOutlinedText(px + 4, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 0, 220, 255);
+                        break;
+                    case COL_BATTERY:
+                        iSetColor(30, 30, 35);
+                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(0, 255, 200);
+                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(0, 255, 180);
+                        iFilledRectangle(drawX + 10, py + 12, 20, 30);
+                        DrawOutlinedText(px + 2, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 0, 255, 200);
+                        break;
+                    case COL_FOOD:
+                        iSetColor(60, 45, 20);
+                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(255, 180, 0);
+                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(240, 160, 40);
+                        iFilledRectangle(drawX + 12, py + 12, 28, 28);
+                        DrawOutlinedText(px + 6, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 255, 180, 0);
+                        break;
+                    case COL_NOTE:
+                        iSetColor(20, 25, 35);
+                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(0, 230, 255);
+                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(255, 255, 255);
+                        iFilledRectangle(drawX + 8, py + 32, 28, 4);
+                        iFilledRectangle(drawX + 8, py + 22, 22, 4);
+                        iFilledRectangle(drawX + 8, py + 12, 25, 4);
+                        DrawOutlinedText(px + 2, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 0, 230, 255);
+                        break;
+                    case COL_KEYCARD:
+                    case COL_RUSTY_KEY:
+                        iSetColor(10, 30, 50);
+                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(255, 215, 0);
+                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(0, 220, 255);
+                        iFilledRectangle(drawX + 8, py + 16, 38, 8);
+                        DrawOutlinedText(px - 4, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 255, 215, 0);
+                        break;
+                    case COL_SCRAP:
+                        iSetColor(45, 50, 60);
+                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(200, 210, 220);
+                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iSetColor(180, 190, 200);
+                        iFilledRectangle(drawX + 14, py + 14, 24, 24);
+                        DrawOutlinedText(px + 2, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 200, 210, 220);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    // 4. Render Enemies
+    for (size_t i = 0; i < enemies.size(); ++i) {
+        double screenEx = enemies[i].x - camX;
+        double screenEy = enemies[i].y - camY;
+
+        if (screenEx + enemies[i].width >= -100 && screenEx <= 1380) {
+            enemies[i].Render(camX, camY);
+
+            // Draw Health Bar if damaged and alive
+            if (enemies[i].hp > 0 && enemies[i].hp < enemies[i].maxHp) {
+                iSetColor(30, 30, 40);
+                iFilledRectangle(screenEx, screenEy + enemies[i].height + 5, enemies[i].width, 6);
+                iSetColor(220, 40, 40);
+                double hpPercent = (double)enemies[i].hp / enemies[i].maxHp;
+                iFilledRectangle(screenEx, screenEy + enemies[i].height + 5, enemies[i].width * hpPercent, 6);
+            }
+        }
+    }
+
+    // 6. Render Player
+    player.Render(camX, camY);
+
+    // Floating Item Pickup Notification Pop-up
+    if (g_pickupTimer > 0.0) {
+        g_pickupTimer -= 0.016;
+        g_pickupY += 0.8;
+        double screenPx = g_pickupX - camX;
+        double screenPy = g_pickupY - camY;
+        if (screenPx >= -100 && screenPx <= 1380) {
+            DrawOutlinedText((int)screenPx - 30, (int)screenPy, g_pickupText, GLUT_BITMAP_HELVETICA_12, g_pickupR, g_pickupG, g_pickupB);
+        }
+    }
+
+    // ========================================================================
+    // SURVIVAL GAME HUD (Screen Anchored Layout)
+    // ========================================================================
+    if (hudAlpha < 0.05) return;
+
+    // Enable OpenGL Alpha Blending for clean PNG transparency across all elements
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // ------------------------------------------------------------------------
+    // TOP LEFT PANEL: Health & Stamina Bars (using ui_health_frame & ui_health_fill)
+    // ------------------------------------------------------------------------
+    // Only draw fallback panel if PNG texture frame is absent
+    if (g_texHealthFrame == 0) {
+        iSetColor(12, 16, 24);
+        iFilledRectangle(20, 630, 300, 70);
+        iSetColor(220, 40, 40); // Red accent border stroke
+        iRectangle(20, 630, 300, 70);
+    }
+
+    // Smooth animated health percentage
+    double playerHpPercent = player.displayedHp / (double)player.maxHp;
+    if (playerHpPercent < 0.0) playerHpPercent = 0.0;
+    if (playerHpPercent > 1.0) playerHpPercent = 1.0;
+
+    // Health Fill Texture (Dynamically animated & clipped to playerHpPercent)
+    if (g_texHealthFill != 0) {
+        int fillWidth = (int)(220.0 * playerHpPercent);
+        if (fillWidth > 0) {
+            iShowImageSub(32, 665, fillWidth, 20, g_texHealthFill, 0.0, 0.0, playerHpPercent, 1.0);
+        }
+    } else {
+        iSetColor(220, 35, 35);
+        iFilledRectangle(32, 665, 220 * playerHpPercent, 20);
+    }
+
+    // Health Frame Texture
+    if (g_texHealthFrame != 0) {
+        iShowImage(20, 655, 270, 40, g_texHealthFrame);
+    }
+
+    // Health Percentage Text with drop shadow
+    char hpPctStr[32];
+    int hpPct = (int)((double)player.hp / player.maxHp * 100.0);
+    sprintf_s(hpPctStr, sizeof(hpPctStr), "%d%%", hpPct);
+    iSetColor(0, 0, 0);
+    iText(261, 669, hpPctStr, GLUT_BITMAP_HELVETICA_12);
+    iSetColor(255, 255, 255);
+    iText(260, 670, hpPctStr, GLUT_BITMAP_HELVETICA_12);
+
+    // Health Label Overlay with subtle shadow
+    char hpLabelStr[32];
+    sprintf_s(hpLabelStr, sizeof(hpLabelStr), "HEALTH  %d / %d", player.hp, player.maxHp);
+    iSetColor(0, 0, 0);
+    iText(41, 669, hpLabelStr, GLUT_BITMAP_HELVETICA_12);
+    iSetColor(255, 255, 255);
+    iText(40, 670, hpLabelStr, GLUT_BITMAP_HELVETICA_12);
+
+    // Stamina Bar Frame & Fill (Dynamically animated & clipped to staminaPercent)
+    double staminaPercent = player.displayedStamina / (double)player.maxStamina;
+    if (staminaPercent < 0.0) staminaPercent = 0.0;
+    if (staminaPercent > 1.0) staminaPercent = 1.0;
+
+    if (g_texStaminaFill != 0) {
+        int stamWidth = (int)(276.0 * staminaPercent);
+        if (stamWidth > 0) {
+            iShowImageSub(32, 642, stamWidth, 10, g_texStaminaFill, 0.0, 0.0, staminaPercent, 1.0);
+        }
+    } else {
+        iSetColor(230, 190, 30);
+        iFilledRectangle(32, 642, 276 * staminaPercent, 8);
+    }
+
+    if (g_texStaminaFrame != 0) {
+        iShowImage(20, 635, 290, 22, g_texStaminaFrame);
+    }
+
+
+    // ------------------------------------------------------------------------
+    // TOP RIGHT PANEL: Current Weapon (Katana), Medkits, Food, Battery
+    // ------------------------------------------------------------------------
+    iSetColor(0, 0, 0);
+    iFilledRectangle(938, 608, 324, 94);
+    iSetColor(12, 16, 24);
+    iFilledRectangle(940, 610, 320, 90);
+    iSetColor(0, 180, 220); // Anime cyan outline
+    iRectangle(940, 610, 320, 90);
+
+    // Weapon Icon & Status
+    iSetColor(0, 210, 240);
+    iText(952, 680, "WEAPON: KATANA [J]", GLUT_BITMAP_HELVETICA_12);
+
+    // Survival Supplies (Medkit, Food, Battery)
+    char medCountStr[32], foodCountStr[32], batCountStr[32];
+    sprintf_s(medCountStr, sizeof(medCountStr), "Medkits : %d", player.medkits);
+    sprintf_s(foodCountStr, sizeof(foodCountStr), "Food    : %d", player.foodCount);
+    sprintf_s(batCountStr,  sizeof(batCountStr),  "Battery : %d", player.batteryCount);
+
+    // Render clean procedural HUD icons alongside counts
+    // Medkit Mini Icon
+    iSetColor(180, 20, 20);
+    iFilledRectangle(950, 634, 20, 20);
+    iSetColor(255, 255, 255);
+    iFilledRectangle(958, 637, 4, 14);
+    iFilledRectangle(953, 642, 14, 4);
+
+    // Food Mini Icon
+    iSetColor(160, 100, 30);
+    iFilledRectangle(1055, 634, 20, 20);
+    iSetColor(240, 180, 40);
+    iRectangle(1055, 634, 20, 20);
+
+    // Battery Mini Icon
+    iSetColor(30, 30, 40);
+    iFilledRectangle(1160, 634, 20, 20);
+    iSetColor(0, 255, 180);
+    iRectangle(1160, 634, 20, 20);
+    iFilledRectangle(1165, 638, 10, 12);
+
+    iSetColor(0, 0, 0);
+    iText(981, 639, medCountStr, GLUT_BITMAP_HELVETICA_12);
+    iText(1086, 639, foodCountStr, GLUT_BITMAP_HELVETICA_12);
+    iText(1191, 639, batCountStr, GLUT_BITMAP_HELVETICA_12);
+
+    iSetColor(255, 255, 255);
+    iText(980, 640, medCountStr, GLUT_BITMAP_HELVETICA_12);
+    iText(1085, 640, foodCountStr, GLUT_BITMAP_HELVETICA_12);
+    iText(1190, 640, batCountStr, GLUT_BITMAP_HELVETICA_12);
+
+    // Score Banner
+    iSetColor(0, 0, 0);
+    iFilledRectangle(1058, 568, 204, 34);
+    iSetColor(12, 16, 24);
+    iFilledRectangle(1060, 570, 200, 30);
+    iSetColor(255, 215, 0);
+    char scoreStr[32];
+    sprintf_s(scoreStr, sizeof(scoreStr), "SCORE: %07d", score);
+    iText(1075, 578, scoreStr, GLUT_BITMAP_HELVETICA_12);
+
+
+    // ------------------------------------------------------------------------
+    // TOP LEFT PANEL: Mission Objective Box (Positioned directly below Health Bar)
+    // ------------------------------------------------------------------------
+    int missX = 20;
+    int missY = 550;
+    int missW = 300;
+    int missH = 65;
+
+    if (g_texMissionBox != 0) {
+        iShowImage(missX, missY, missW, missH, g_texMissionBox);
+    } else {
+        iSetColor(12, 16, 24);
+        iFilledRectangle(missX, missY, missW, missH);
+        iSetColor(0, 180, 220);
+        iRectangle(missX, missY, missW, missH);
+    }
+
+    // Active Objective Text evaluation
+    const char* activeObjText = "Escape the Fallen Village";
+    if (bossSpawned && !bossDefeated) {
+        activeObjText = "DEFEAT MUTATED BRUTE";
+    }
+    else if (bossDefeated && !ribbonCollected) {
+        activeObjText = "Reach the Steel Exit Gate";
+    }
+    else if (bossDefeated && ribbonCollected) {
+        activeObjText = "Press ENTER to Escape";
+    }
+
+    // Animated glow pulse when objective updates
+    if (missionNotifyTimer > 0.0) {
+        double objPulse = 0.7 + 0.3 * sin(uiAnimTime * 12.0);
+        int gCol = (int)(255 * objPulse);
+        int bCol = (int)(255 * objPulse);
+
+        // Glowing border highlight animation
+        iSetColor(0, gCol, bCol);
+        iRectangle(missX - 2, missY - 2, missW + 4, missH + 4);
+        iRectangle(missX - 1, missY - 1, missW + 2, missH + 2);
+
+        // Objective Header
+        DrawOutlinedText(missX + 12, missY + missH - 22, "MISSION DIRECTIVE (UPDATED)", GLUT_BITMAP_HELVETICA_10, 0, 255, 220);
+        // Objective Body Text with Gold Pulse Tint
+        DrawShadowText(missX + 12, missY + 16, activeObjText, GLUT_BITMAP_HELVETICA_12, 255, 220, 0);
+    } else {
+    // Standard Objective Header with Current Area Tag
+        char headerStr[64];
+        sprintf_s(headerStr, sizeof(headerStr), "AREA: %s", GetAreaName(currentArea));
+        DrawOutlinedText(missX + 12, missY + missH - 22, headerStr, GLUT_BITMAP_HELVETICA_10, 0, 220, 255);
+        // Standard Objective Body Text
+        DrawShadowText(missX + 12, missY + 16, activeObjText, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    }
+
+    // Internal enemy count evaluation (disabled from gameplay screen drawing)
+    static bool g_showDebugOverlay = false;
+    if (g_showDebugOverlay) {
+        int expectedCount = 0;
+        switch (currentArea) {
+        case AREA_SPAWN_AREA:
+        case AREA_DESTROYED_HOUSE:  expectedCount = 0; break;
+        case AREA_VILLAGE_STREET:   expectedCount = 3; break;
+        case AREA_VILLAGE_SQUARE:   expectedCount = 5; break;
+        case AREA_ABANDONED_MARKET: expectedCount = 3; break;
+        case AREA_RAIDER_CAMP:      expectedCount = 3; break;
+        case AREA_ABANDONED_CHURCH: expectedCount = 3; break;
+        case AREA_QUARANTINE_ZONE:  expectedCount = 3; break;
+        case AREA_BROKEN_BRIDGE:    expectedCount = 0; break;
+        case AREA_MINI_BOSS_ARENA:  expectedCount = 1; break;
+        case AREA_EXIT_GATE:        expectedCount = 0; break;
+        case AREA_LEVEL_COMPLETE:   expectedCount = 0; break;
+        default:                    expectedCount = 0; break;
+        }
+
+        int actualCount = 0;
+        for (size_t i = 0; i < enemies.size(); ++i) {
+            if (enemies[i].hp > 0 && GetAreaFromPosition(enemies[i].x) == currentArea) {
+                actualCount++;
+            }
+        }
+
+        char debugEnemyStr[128];
+        sprintf_s(debugEnemyStr, sizeof(debugEnemyStr), "[DEBUG] AREA: %s | EXPECTED: %d | ACTUAL: %d", GetAreaName(currentArea), expectedCount, actualCount);
+        DrawOutlinedText(20, 528, debugEnemyStr, GLUT_BITMAP_HELVETICA_10, 0, 255, 200);
+    }
+
+    // ------------------------------------------------------------------------
+    // SLEEK CINEMATIC AREA TITLE BANNER (Upper Center)
+    // ------------------------------------------------------------------------
+    if (areaBannerAlpha > 0.01) {
+        const char* areaName = GetAreaName(currentArea);
+
+        int textLen = (int)strlen(areaName);
+        int bannerW = 320 + (textLen * 8);
+        if (bannerW < 380) bannerW = 380;
+        int bannerH = 48;
+        int bannerX = 640 - (bannerW / 2);
+        int bannerY = 605;
+
+        // Dark glass background panel
+        iSetColor(10, 14, 22);
+        iFilledRectangle(bannerX, bannerY, bannerW, bannerH);
+
+        // Dual cyan and gold accent border stroke
+        iSetColor(0, 220, 255);
+        iRectangle(bannerX, bannerY, bannerW, bannerH);
+        iSetColor(255, 215, 0);
+        iRectangle(bannerX + 2, bannerY + 2, bannerW - 4, bannerH - 4);
+
+        // Level 1 Chapter Title (Upper Header)
+        int headerX = 640 - 55;
+        DrawOutlinedText(headerX, bannerY + 30, "THE FALLEN VILLAGE", GLUT_BITMAP_HELVETICA_10, 0, 240, 255);
+
+        // Current Area Name (Main Title)
+        int titleX = 640 - (textLen * 4);
+        DrawShadowText(titleX, bannerY + 10, areaName, GLUT_BITMAP_HELVETICA_12, 255, 220, 0);
+    }
+
+    // ------------------------------------------------------------------------
+    // FADING MISSION OBJECTIVE NOTIFICATION BANNER
+    // ------------------------------------------------------------------------
+    if (missionNotifyAlpha > 0.01) {
+        // Dark banner backdrop with drop shadow
+        iSetColor(0, 0, 0);
+        iFilledRectangle(438, 638, 404, 54);
+        iSetColor(12, 16, 24);
+        iFilledRectangle(440, 640, 400, 50);
+
+        // Glowing animated cyan border
+        iSetColor(0, 220, 255);
+        iRectangle(440, 640, 400, 50);
+
+        // Banner text
+        DrawOutlinedText(525, 670, "MISSION DIRECTIVE UPDATED", GLUT_BITMAP_HELVETICA_10, 0, 230, 255);
+        DrawShadowText(480, 650, activeObjText, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    }
+
+
+    // ------------------------------------------------------------------------
+    // BOTTOM RIGHT PANEL: Inventory & Pause Controls
+    // ------------------------------------------------------------------------
+    iSetColor(0, 0, 0);
+    iFilledRectangle(1038, 18, 224, 69);
+    iSetColor(12, 16, 24);
+    iFilledRectangle(1040, 20, 220, 65);
+    iSetColor(0, 180, 220);
+    iRectangle(1040, 20, 220, 65);
+
+    // Keycard / Inventory Mini Icon
+    iSetColor(10, 30, 50);
+    iFilledRectangle(1050, 35, 28, 28);
+    iSetColor(0, 220, 255);
+    iRectangle(1050, 35, 28, 28);
+    iSetColor(255, 215, 0);
+    iFilledRectangle(1054, 46, 20, 5);
+
+    DrawOutlinedText(1090, 52, "[TAB] Inventory", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    DrawOutlinedText(1090, 32, "[ESC] Pause", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+
+
+    // ------------------------------------------------------------------------
+    // TOP CENTER: Boss Health Bar (during Boss Fight)
+    // ------------------------------------------------------------------------
+    if (bossSpawned && !bossDefeated) {
+        iSetColor(0, 0, 0);
+        iFilledRectangle(438, 638, 404, 44);
+        iSetColor(15, 15, 22);
+        iFilledRectangle(440, 640, 400, 40);
+        iSetColor(220, 40, 40);
+        iRectangle(440, 640, 400, 40);
+
+        iSetColor(40, 10, 10);
+        iFilledRectangle(450, 648, 380, 14);
+        iSetColor(220, 30, 30);
+        double bossHpPercent = (double)bossHp / bossMaxHp;
+        if (bossHpPercent < 0.0) bossHpPercent = 0.0;
+        if (bossHpPercent > 1.0) bossHpPercent = 1.0;
+        iFilledRectangle(450, 648, 380 * bossHpPercent, 14);
+
+        iSetColor(0, 0, 0);
+        iText(536, 665, "MUTATED BRUTE (MINI BOSS)", GLUT_BITMAP_HELVETICA_12);
+        iSetColor(255, 255, 255);
+        iText(535, 666, "MUTATED BRUTE (MINI BOSS)", GLUT_BITMAP_HELVETICA_12);
+    }
+
+    // ------------------------------------------------------------------------
+    // INVENTORY OVERLAY (Rendered when TAB or [I] is pressed)
+    // ------------------------------------------------------------------------
+    if (showInventory) {
+        // Semi-transparent dark background dimmer
+        iSetColor(0, 0, 0);
+        iFilledRectangle(0, 0, 1280, 720);
+
+        // Center Inventory Panel (using ui_inventory_panel.png / inventory__panel.png)
+        int panelX = 340, panelY = 140, panelW = 600, panelH = 440;
+        if (g_texInventoryPanel != 0) {
+            iShowImage(panelX, panelY, panelW, panelH, g_texInventoryPanel);
+        } else {
+            iSetColor(12, 16, 24);
+            iFilledRectangle(panelX, panelY, panelW, panelH);
+            iSetColor(0, 180, 220);
+            iRectangle(panelX, panelY, panelW, panelH);
+        }
+
+        // Header Title
+        iSetColor(0, 220, 255);
+        iText(panelX + 200, panelY + panelH - 40, "SURVIVAL INVENTORY", GLUT_BITMAP_HELVETICA_18);
+
+        // Render Inventory Grid Slots (using ui_inventory_slot.png / single_empty_inventory_slot.png)
+        int cols = 4, rows = 3;
+        int slotW = 85, slotH = 85;
+        int startX = panelX + 70;
+        int startY = panelY + panelH - 160;
+        int gapX = 35, gapY = 20;
+
+        for (int r = 0; r < rows; ++r) {
+            for (int c = 0; c < cols; ++c) {
+                int slotX = startX + c * (slotW + gapX);
+                int slotY = startY - r * (slotH + gapY);
+
+                if (g_texInventorySlot != 0) {
+                    iShowImage(slotX, slotY, slotW, slotH, g_texInventorySlot);
+                } else {
+                    iSetColor(20, 25, 35);
+                    iFilledRectangle(slotX, slotY, slotW, slotH);
+                    iSetColor(0, 150, 180);
+                    iRectangle(slotX, slotY, slotW, slotH);
+                }
+            }
+        }
+
+        // Bottom instruction label
+        iSetColor(200, 210, 220);
+        iText(panelX + 180, panelY + 30, "Press [TAB] or [ESC] to Close", GLUT_BITMAP_HELVETICA_12);
+    }
+}
+
+void GameManager::RenderDialogue() {
+    RenderPlaying(); // Render gameplay backdrop
+
+    // Transparent dialog frame at bottom of window
+    iSetColor(5, 5, 10);
+    iFilledRectangle(50, 40, 924, 140);
+    iSetColor(0, 180, 200);
+    iRectangle(50, 40, 924, 140);
+
+    iSetColor(0, 230, 255);
+    iText(70, 145, g_dialogueSpeaker, GLUT_BITMAP_HELVETICA_18);
+
+    iSetColor(255, 255, 255);
+    iText(70, 95, g_dialogueText, GLUT_BITMAP_HELVETICA_18);
+
+    iSetColor(150, 150, 150);
+    iText(800, 55, "Press ENTER to continue", GLUT_BITMAP_HELVETICA_12);
+}
+
+void GameManager::RenderGameOver() {
+    // 1. Display ui_game_over_background.png / game_over_screen.png image asset
+    if (g_texGameOverBg != 0) {
+        iShowImage(0, 0, 1280, 720, g_texGameOverBg);
+    } else {
+        iSetColor(15, 5, 5);
+        iFilledRectangle(0, 0, 1280, 720);
+    }
+
+    // 2. High contrast title header in carved banner slot
+    const char* goTitle = "YOU HAVE DIED";
+    DrawOutlinedText(530, 525, goTitle, GLUT_BITMAP_TIMES_ROMAN_24, 240, 30, 30);
+
+    // 3. Option 1: Restart Game (Slot 1)
+    RenderMenuButtonSlot(1, 515, 440, "1. RESTART GAME [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 4. Option 2: Exit to Menu (Slot 2)
+    RenderMenuButtonSlot(2, 530, 362, "2. EXIT TO MENU [M]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 5. Option 3: Exit Game (Slot 3)
+    RenderMenuButtonSlot(3, 535, 285, "3. EXIT GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 6. Bottom Detail Slot: Instructions
+    const char* goFooter = "Press [ENTER], [M], [ESC] or Click Options to Select";
+    DrawShadowText(470, 148, goFooter, GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
+}
+
+void GameManager::RenderVictory() {
+    // 1. Display ui_level_complete_background.png / level_complete_screen.png image asset
+    if (g_texLevelCompleteBg != 0) {
+        iShowImage(0, 0, 1280, 720, g_texLevelCompleteBg);
+    } else {
+        iSetColor(5, 15, 10);
+        iFilledRectangle(0, 0, 1280, 720);
+    }
+
+    // 2. Title Header in Top Carved Banner Slot
+    const char* vicTitle = "LEVEL 1 COMPLETE";
+    DrawOutlinedText(515, 525, vicTitle, GLUT_BITMAP_TIMES_ROMAN_24, 0, 255, 120);
+
+    // 3. Option 1: Next Level (Slot 1)
+    RenderMenuButtonSlot(1, 525, 440, "1. NEXT LEVEL [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 4. Option 2: Main Menu (Slot 2)
+    RenderMenuButtonSlot(2, 545, 362, "2. MAIN MENU [M]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 5. Option 3: Exit Game (Slot 3)
+    RenderMenuButtonSlot(3, 535, 285, "3. EXIT GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 6. Bottom Detail Slot: Instructions
+    const char* vicFooter = "Press [ENTER], [M], [ESC] or Click Options to Select";
+    DrawShadowText(470, 148, vicFooter, GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
+}
+
+void GameManager::RenderCursor() {
+    int cx = mouseX;
+    int cy = mouseY;
+
+    // Drop shadow under cursor
+    iSetColor(0, 0, 0);
+    iFilledCircle(cx + 1, cy - 1, 4);
+
+    // Crosshair diamond cursor frame
+    if (isMouseDown) {
+        iSetColor(255, 220, 0); // Gold click pulse
+        iFilledCircle(cx, cy, 5);
+        iSetColor(255, 255, 255);
+        iRectangle(cx - 7, cy - 7, 15, 15);
+    } else {
+        iSetColor(0, 240, 255); // Cyan active crosshair
+        iFilledCircle(cx, cy, 3);
+        iLine(cx - 10, cy, cx - 4, cy);
+        iLine(cx + 4, cy, cx + 10, cy);
+        iLine(cx, cy - 10, cx, cy - 4);
+        iLine(cx, cy + 4, cx, cy + 10);
+        iRectangle(cx - 6, cy - 6, 13, 13);
+    }
+}
+
+void GameManager::RenderLeaderboard() {
+    iSetColor(10, 10, 15);
+    iFilledRectangle(0, 0, 1280, 720);
+
+    DrawOutlinedText(440, 650, "GENESIS ARCHIVE - LEADERBOARD", GLUT_BITMAP_TIMES_ROMAN_24, 0, 230, 255);
+
+    const std::vector<ScoreEntry>& entries = leaderboard.GetEntries();
+
+    if (entries.empty()) {
+        DrawShadowText(540, 400, "No records found.", GLUT_BITMAP_HELVETICA_18, 255, 255, 255);
+    }
+    else {
+        for (size_t i = 0; i < entries.size() && i < 5; ++i) {
+            char row[128];
+            sprintf_s(row, sizeof(row), "%d.  %-20s   Score: %07d", (int)(i + 1), entries[i].name, entries[i].score);
+            iText(350, 500 - (i * 60), row, GLUT_BITMAP_HELVETICA_18);
+        }
+    }
+
+    iSetColor(0, 230, 120);
+    iText(400, 100, "Press ESC to Return to Menu", GLUT_BITMAP_HELVETICA_18);
+}
+
+// ============================================================================
+// Input Event Handlers
+// ============================================================================
+void GameManager::HandleKeyPress(unsigned char key) {
+    if (currentState == STATE_MENU) {
+        if (key == 13 || key == '1') { // Enter or 1 = Start Survival
+            Initialize(); // Fresh start
+            currentState = STATE_PLAYING;
+            menuTransitionAlpha = 1.0;
+        }
+        else if (key == '2') {
+            currentState = STATE_LEADERBOARD;
+            menuTransitionAlpha = 1.0;
+        }
+        else if (key == '3') {
+            exit(0);
+        }
+    }
+    else if (currentState == STATE_PLAYING) {
+        if (key == 27) { // ESC Key
+            if (showInventory) {
+                showInventory = false;
+            } else {
+                currentState = STATE_PAUSED;
+                menuTransitionAlpha = 1.0;
+            }
+        }
+        else if (key == 9 || key == '\t' || key == 'i' || key == 'I') {
+            showInventory = !showInventory;
+        }
+        else if (key == 'j' || key == 'J') {
+            if (!showInventory) player.AttackMelee();
+        }
+        else if (key == 'k' || key == 'K') {
+            if (!showInventory) player.AttackRanged();
+        }
+        else if (key == 'h' || key == 'H') {
+            if (!showInventory) player.UseHeal();
+        }
+    }
+    else if (currentState == STATE_PAUSED) {
+        if (key == 27) { // ESC resumes normal gameplay
+            currentState = STATE_PLAYING;
+            menuTransitionAlpha = 1.0;
+        }
+        else if (key == 'm' || key == 'M' || key == 13) { // Quit to menu
+            currentState = STATE_MENU;
+            menuTransitionAlpha = 1.0;
+        }
+    }
+    else if (currentState == STATE_DIALOGUE) {
+        if (key == 13) { // Enter key
+            currentState = STATE_PLAYING;
+            menuTransitionAlpha = 1.0;
+        }
+    }
+    else if (currentState == STATE_GAMEOVER) {
+        if (key == 13 || key == '1') { // Enter or 1 = Restart Game
+            Initialize();
+            currentState = STATE_PLAYING;
+            menuTransitionAlpha = 1.0;
+        }
+        else if (key == 'm' || key == 'M' || key == '2') { // M or 2 = Exit to Menu
+            currentState = STATE_MENU;
+            menuTransitionAlpha = 1.0;
+        }
+        else if (key == 27 || key == '3') { // ESC or 3 = Exit Game
+            exit(0);
+        }
+    }
+    else if (currentState == STATE_VICTORY) {
+        if (key == 13 || key == '1') { // Enter or 1 = Next Level / Restart Level
+            Initialize();
+            currentState = STATE_PLAYING;
+            menuTransitionAlpha = 1.0;
+        }
+        else if (key == 'm' || key == 'M' || key == '2') { // M or 2 = Main Menu
+            currentState = STATE_MENU;
+            menuTransitionAlpha = 1.0;
+        }
+        else if (key == 27 || key == '3') { // ESC or 3 = Exit Game
+            exit(0);
+        }
+    }
+    else if (currentState == STATE_LEADERBOARD) {
+        if (key == 27) {
+            currentState = STATE_MENU;
+            menuTransitionAlpha = 1.0;
+        }
+    }
+}
+
+void GameManager::HandleSpecialKeyPress(unsigned char key) {
+    // Handled dynamically in Player state updates
+}
+
+void GameManager::HandleMouseMove(int mx, int my) {
+    mouseX = mx;
+    mouseY = my;
+}
+
+void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
+    mouseX = mx;
+    mouseY = my;
+
+    if (button == 0) { // GLUT_LEFT_BUTTON == 0
+        if (state == 0) { // GLUT_DOWN == 0
+            isMouseDown = true;
+        }
+        else if (state == 1) { // GLUT_UP == 1
+            isMouseDown = false;
+
+            if (currentState == STATE_MENU) {
+                // Slot 1: Start Survival
+                if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
+                    Initialize();
+                    currentState = STATE_PLAYING;
+                    menuTransitionAlpha = 1.0;
+                }
+                // Slot 2: Leaderboard
+                else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
+                    currentState = STATE_LEADERBOARD;
+                    menuTransitionAlpha = 1.0;
+                }
+                // Slot 3: Exit
+                else if (mx >= 440 && mx <= 840 && my >= 265 && my <= 310) {
+                    exit(0);
+                }
+            }
+            else if (currentState == STATE_PAUSED) {
+                // Slot 1: Resume Game
+                if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
+                    currentState = STATE_PLAYING;
+                    menuTransitionAlpha = 1.0;
+                }
+                // Slot 2: Restart Level
+                else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
+                    Initialize();
+                    currentState = STATE_PLAYING;
+                    menuTransitionAlpha = 1.0;
+                }
+                // Slot 3: Quit to Menu
+                else if (mx >= 440 && mx <= 840 && my >= 265 && my <= 310) {
+                    currentState = STATE_MENU;
+                    menuTransitionAlpha = 1.0;
+                }
+            }
+            else if (currentState == STATE_GAMEOVER) {
+                // Slot 1: Restart Game
+                if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
+                    Initialize();
+                    currentState = STATE_PLAYING;
+                    menuTransitionAlpha = 1.0;
+                }
+                // Slot 2: Exit to Menu
+                else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
+                    currentState = STATE_MENU;
+                    menuTransitionAlpha = 1.0;
+                }
+                // Slot 3: Exit Game
+                else if (mx >= 440 && mx <= 840 && my >= 265 && my <= 310) {
+                    exit(0);
+                }
+            }
+            else if (currentState == STATE_VICTORY) {
+                // Slot 1: Next Level
+                if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
+                    Initialize();
+                    currentState = STATE_PLAYING;
+                    menuTransitionAlpha = 1.0;
+                }
+                // Slot 2: Main Menu
+                else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
+                    currentState = STATE_MENU;
+                    menuTransitionAlpha = 1.0;
+                }
+                // Slot 3: Exit Game
+                else if (mx >= 440 && mx <= 840 && my >= 265 && my <= 310) {
+                    exit(0);
+                }
+            }
+            else if (currentState == STATE_PLAYING) {
+                if (!showInventory) player.AttackMelee();
+            }
+        }
+    }
+}
+
+void GameManager::AddScore(int amount) {
+    score += amount;
+}
+
+Level1Area GameManager::GetAreaFromPosition(double px) const {
+    if (px < 1448.0) return AREA_SPAWN_AREA;      // 1. SPAWN AREA / DESTROYED HOUSE (0 enemies)
+    if (px < 2896.0) return AREA_VILLAGE_STREET;   // 2. VILLAGE STREET (3 Walkers)
+    if (px < 4344.0) return AREA_VILLAGE_SQUARE;   // 3. VILLAGE SQUARE (4 Walkers, 1 Runner)
+    if (px < 5792.0) return AREA_ABANDONED_MARKET; // 4. ABANDONED MARKET (2 Walkers, 1 Raider)
+    if (px < 7240.0) return AREA_RAIDER_CAMP;      // 5. RAIDER CAMP (3 Raiders)
+    if (px < 8688.0) return AREA_ABANDONED_CHURCH;// 6. ABANDONED CHURCH (2 Walkers, 1 Runner)
+    if (px < 10136.0) return AREA_QUARANTINE_ZONE; // 7. QUARANTINE ZONE (2 Walkers, 1 Heavy Infected)
+    if (px < 11584.0) return AREA_BROKEN_BRIDGE;   // 8. BROKEN BRIDGE (0 enemies)
+    if (px < 13032.0) return AREA_MINI_BOSS_ARENA; // 9. MINI BOSS ARENA (1 Mutated Brute)
+    if (px < 14480.0) return AREA_EXIT_GATE;       // 10. EXIT GATE (0 enemies)
+    return AREA_LEVEL_COMPLETE;                    // 11. LEVEL COMPLETE
+}
