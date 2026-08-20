@@ -1,4 +1,5 @@
 #include "Game.h"
+#include "ResourceManager.h"
 #include "../iGraphics.h"
 #include <stdio.h>
 
@@ -29,10 +30,10 @@ void Game::Initialize(int width, int height) {
     QueryPerformanceFrequency(&m_frequency);
     QueryPerformanceCounter(&m_lastTime);
 
-    // Initialize GameManager (Loads level maps, characters, props, background textures)
+    // Initialize GameManager (Loads Level 1 map, Arin player character, backgrounds, props, enemies, sound)
     m_gameManager.Initialize();
 
-    printf("[GENESIS Engine] Game engine initialized with full render & asset pipeline. Screen: %dx%d\n", width, height);
+    printf("[GENESIS Engine] Game Engine Initialized with full render, asset, & gameplay pipeline. Screen: %dx%d\n", width, height);
 }
 
 // ============================================================================
@@ -78,6 +79,7 @@ void Game::Update() {
 // RENDER LOOP
 // ============================================================================
 void Game::Render() {
+    // Delegate rendering to GameManager (Backgrounds, Arin, Enemies, Props, Tiles, UI, Menu)
     m_gameManager.Render();
 }
 

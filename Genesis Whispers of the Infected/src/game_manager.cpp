@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <GL/gl.h>
 #include "game_manager.h"
+#include "ResourceManager.h"
 #include "igraphics_declarations.h"
 #include <cmath>
 #include <cstdio>
@@ -186,6 +187,55 @@ void GameManager::Initialize() {
     missionNotifyTimer = 0.0;
     lastObjectiveID = 0;
     uiAnimTime = 0.0;
+
+    // Initialize Independent Environment Prop System & Destroyed House Area Props (Arin's Family Home)
+    worldProps.clear();
+
+    // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
+    // 1. Entrance / Living Room (x = 300 to 1000)
+    AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 420.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Posters/poster_missing_luna.png", 650.0, 270.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Luna's missing poster on wall
+    AddWorldProp("Assets/Props/Furniture/furn_dining_table_01.png", 750.0, 185.0, 110.0, 70.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Items/Medicine/first_aid.png", 840.0, 185.0, 36.0, 36.0, PROP_LAYER_FOREGROUND); // Emergency medical kit on floor
+
+    // 2. Kitchen / Storage Area (x = 1000 to 1700)
+    AddWorldProp("Assets/Props/Furniture/furn_wooden_cabinet_01.png", 1120.0, 185.0, 85.0, 115.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 1320.0, 280.0, 48.0, 64.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 1520.0, 185.0, 75.0, 60.0, PROP_LAYER_FOREGROUND);
+
+    // 3. Arin & Luna's Bedrooms (x = 1700 to 2400)
+    AddWorldProp("Assets/Props/Furniture/furn_broken_bed_01.png", 1820.0, 185.0, 130.0, 75.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Furniture/furn_broken_bench_01.png", 2150.0, 185.0, 80.0, 45.0, PROP_LAYER_BACKGROUND);
+
+    // 4. Second Floor Upper Platforms (x = 2400 to 3000)
+    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 2520.0, 300.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 2720.0, 450.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
+
+    // 5. Exit Ledge / Destroyed Wall Boundary (x = 3000 to 3400)
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 3120.0, 185.0, 100.0, 65.0, PROP_LAYER_FOREGROUND);
+
+    // --- AREA 3 & 4: VILLAGE STREET & SQUARE (x = 3500 to 7500) ---
+    // 1. Entrance to Village Street (x = 3500 to 4400)
+    AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 3650.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 3900.0, 185.0, 120.0, 180.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 4200.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+
+    // 2. Mid Street & Barricade Zone (x = 4400 to 5500)
+    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 4550.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 4750.0, 185.0, 48.0, 60.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Vehicles/veh_destroyed_car_01.png", 5100.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Nature/dry_bush.png", 5350.0, 185.0, 48.0, 36.0, PROP_LAYER_FOREGROUND);
+
+    // 3. Village Square Approach (x = 5500 to 6700)
+    AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 5600.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 5900.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 6200.0, 185.0, 56.0, 40.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 6450.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
+
+    // 4. Village Square Edge (x = 6700 to 7400)
+    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 6850.0, 185.0, 130.0, 190.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7150.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 7300.0, 185.0, 44.0, 55.0, PROP_LAYER_FOREGROUND);
 
     // Load props texture sheet (4x4 gameplay atlas)
     if (texPropsSheet == 0) {
@@ -852,12 +902,54 @@ void GameManager::RenderMenu() {
     DrawShadowText(510, 148, footerStr, GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
 }
 
+// ============================================================================
+// Independent Environment Prop System Implementation
+// ============================================================================
+void GameManager::AddWorldProp(const std::string& assetPath, double x, double y, double width, double height, PropLayer layer) {
+    WorldProp wp;
+    wp.x = x;
+    wp.y = y;
+    wp.width = width;
+    wp.height = height;
+    wp.assetPath = assetPath;
+    wp.textureID = ResourceManager::GetInstance().GetTexture(assetPath);
+    wp.layer = layer;
+    wp.visible = true;
+
+    worldProps.push_back(wp);
+    printf("[Prop System] Registered WorldProp: %s at (%.1f, %.1f) scale (%.1f x %.1f)\n", assetPath.c_str(), x, y, width, height);
+}
+
+void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
+    // Enable OpenGL Alpha Blending for clean PNG transparency across all prop textures
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    for (size_t i = 0; i < worldProps.size(); ++i) {
+        if (!worldProps[i].visible || worldProps[i].layer != layer) continue;
+
+        double screenPx = worldProps[i].x - camX;
+        double screenPy = worldProps[i].y - camY;
+
+        // Viewport frustum culling check (-100 to 1380)
+        if (screenPx + worldProps[i].width >= -100 && screenPx <= 1380) {
+            if (worldProps[i].textureID != 0) {
+                iShowImage((int)screenPx, (int)screenPy, (int)worldProps[i].width, (int)worldProps[i].height, worldProps[i].textureID);
+            }
+        }
+    }
+}
+
 void GameManager::RenderPlaying() {
     double camX = gameMap.GetCameraX();
     double camY = gameMap.GetCameraY();
 
-    // 1. Render Tiled backgrounds
+    // 1. Render Tiled backgrounds & surface tiles
     gameMap.RenderBackground(camX, bossDefeated);
+    gameMap.RenderTiles(camX, camY);
+
+    // Render Background Props (Behind player and enemies)
+    RenderWorldProps(PROP_LAYER_BACKGROUND, camX, camY);
 
     // 2. Render Props (Environmental obstacles & burning barrels)
     for (size_t i = 0; i < props.size(); ++i) {
@@ -1126,6 +1218,9 @@ void GameManager::RenderPlaying() {
 
     // 6. Render Player
     player.Render(camX, camY);
+
+    // Render Foreground Props (In front of player and enemies)
+    RenderWorldProps(PROP_LAYER_FOREGROUND, camX, camY);
 
     // Floating Item Pickup Notification Pop-up
     if (g_pickupTimer > 0.0) {

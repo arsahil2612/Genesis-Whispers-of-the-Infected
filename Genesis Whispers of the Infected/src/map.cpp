@@ -1,8 +1,10 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "map.h"
+#include "ResourceManager.h"
 #include "asset_loader.h"
 #include "igraphics_declarations.h"
 #include <cstdio>
+#include <cmath>
 
 // Map rendering layout constants
 namespace {
@@ -95,6 +97,145 @@ void Map::RenderBackground(double camX, bool bossDefeated) {
                 // Use floor() so negative screen coordinates round down accurately, with 1px precision edge alignment
                 int drawX = (int)floor(xPos);
                 iShowImage(drawX, kBgDrawYOffset, kBgSliceWidth + 1, kBgSliceHeight, tex);
+            }
+        }
+    }
+}
+
+// ============================================================================
+// Tilemap Surface & Platform Rendering Loop
+// ============================================================================
+void Map::RenderTiles(double camX, double camY) {
+    ResourceManager& rm = ResourceManager::GetInstance();
+
+    // Wooden Tiles
+    unsigned int texWood = rm.GetWoodFloorTile();
+    unsigned int texBrokenWood = rm.GetBrokenWoodFloorTile();
+    unsigned int texEdge = rm.GetWoodFloorEdgeTile();
+    unsigned int texPlatform = rm.GetWoodPlatformTile();
+
+    // Ground & Road Tiles
+    unsigned int texDirt = rm.GetDirtTile();
+    unsigned int texGrass = rm.GetVillageGrassTile();
+    unsigned int texRoad = rm.GetBrokenRoadTile();
+
+    // Church Tiles
+    unsigned int texChurchStone = rm.GetChurchStoneFloorTile();
+    unsigned int texChurchEdge = rm.GetChurchStoneFloorEdge();
+    unsigned int texChurchPlatform = rm.GetChurchStonePlatform();
+
+    // Quarantine Zone & Military Concrete Tiles
+    unsigned int texMilitaryConcrete = rm.GetMilitaryConcreteFloorTile();
+    unsigned int texCrackedConcrete = rm.GetCrackedMilitaryConcreteTile();
+    unsigned int texHazardConcrete = rm.GetHazardMilitaryConcreteTile();
+    unsigned int texConcreteEdge = rm.GetConcreteToGroundEdgeTile();
+
+    // Bridge Tiles
+    unsigned int texBridgeFloor = rm.GetBridgeFloorTile();
+    unsigned int texBrokenBridge = rm.GetBrokenBridgeFloorTile();
+    unsigned int texBrokenBridgeEdge = rm.GetBrokenBridgeEdgeTile();
+    unsigned int texRiverWater = rm.GetRiverWaterTile();
+
+    const int kTileWidth = 160;
+    const int kTileHeight = 64;
+
+    // Render River Water beneath the Broken Bridge gap (World X: 17500 to 19400)
+    if (17500 - camX <= 1480 && 19400 - camX >= -200) {
+        for (double wx = 17500; wx < 19400; wx += kTileWidth) {
+            double screenWX = wx - camX;
+            if (screenWX + kTileWidth >= -200 && screenWX <= 1480) {
+                iShowImage((int)screenWX, 0, kTileWidth, 140, texRiverWater);
+            }
+        }
+    }
+
+    for (size_t i = 0; i < platforms.size(); ++i) {
+        const Platform& p = platforms[i];
+
+        double screenPx = p.x - camX;
+        double screenPy = p.y - camY;
+
+        if (screenPx + p.width >= -200 && screenPx <= 1480) {
+            if (p.y > 200) {
+                // --- Elevated Platforms ---
+                int count = (int)(p.width / kTileWidth) + 1;
+                for (int t = 0; t < count; ++t) {
+                    double tileX = p.x + (t * kTileWidth) - camX;
+                    double worldX = p.x + (t * kTileWidth);
+                    double drawW = kTileWidth;
+                    if (tileX + drawW > (p.x + p.width - camX)) {
+                        drawW = (p.x + p.width - camX) - tileX;
+                    }
+
+                    if (tileX + drawW >= -200 && tileX <= 1480 && drawW > 0) {
+                        unsigned int currentPlatformTex = texPlatform;
+
+                        // Area-based platform styling
+                        if (worldX >= 13000 && worldX < 15000) {
+                            // Abandoned Church rafters / platform
+                            currentPlatformTex = texChurchPlatform;
+                        } else if (worldX >= 15000) {
+                            // Quarantine Zone & Boss Arena elevated structures
+                            currentPlatformTex = texHazardConcrete;
+                        }
+
+                        iShowImage((int)tileX, (int)(screenPy - 10), (int)drawW, 36, currentPlatformTex);
+                    }
+                }
+            } else {
+                // --- Main Ground Platforms ---
+                int count = (int)(p.width / kTileWidth) + 1;
+                for (int t = 0; t < count; ++t) {
+                    double tileX = p.x + (t * kTileWidth) - camX;
+                    double worldX = p.x + (t * kTileWidth);
+                    double drawW = kTileWidth;
+                    if (tileX + drawW > (p.x + p.width - camX)) {
+                        drawW = (p.x + p.width - camX) - tileX;
+                    }
+
+                    if (tileX + drawW >= -200 && tileX <= 1480 && drawW > 0) {
+                        unsigned int currentTex = texWood;
+
+                        // 10 Level 1 Area Tile Themes
+                        if (worldX < 3500) {
+                            // Area 1 & 2: Spawn Area & Destroyed House (Wooden Floor)
+                            currentTex = (t % 4 == 3) ? texBrokenWood : texWood;
+                        } else if (worldX >= 3500 && worldX < 7500) {
+                            // Area 3 & 4: Village Street & Square (Broken Road & Grass)
+                            currentTex = (t % 3 == 0) ? texRoad : ((t % 3 == 1) ? texGrass : texDirt);
+                        } else if (worldX >= 7500 && worldX < 12500) {
+                            // Area 5 & 6: Abandoned Market & Raider Camp (Decayed Wood & Dirt)
+                            currentTex = (t % 3 == 0) ? texBrokenWood : texWood;
+                        } else if (worldX >= 12500 && worldX < 15000) {
+                            // Area 7: Abandoned Church (Stone Floor)
+                            currentTex = texChurchStone;
+                        } else if (worldX >= 15000 && worldX < 17500) {
+                            // Area 8: Quarantine Zone (Military Concrete & Hazard Paint)
+                            currentTex = (t % 4 == 0) ? texHazardConcrete : texMilitaryConcrete;
+                        } else if (worldX >= 17500 && worldX < 19400) {
+                            // Area 9: Broken Bridge (Bridge Floor & Broken Edge)
+                            currentTex = (t % 2 == 0) ? texBridgeFloor : texBrokenBridge;
+                        } else if (worldX >= 19400) {
+                            // Area 10 & 11: Boss Arena & Exit Gate (Cracked Military Concrete)
+                            currentTex = (t % 3 == 0) ? texHazardConcrete : texCrackedConcrete;
+                        }
+
+                        // Boundary / Ledge Edge Alignment
+                        if (t == count - 1 && p.width < 2000) {
+                            if (worldX >= 12500 && worldX < 15000) {
+                                currentTex = texChurchEdge;
+                            } else if (worldX >= 15000 && worldX < 17500) {
+                                currentTex = texConcreteEdge;
+                            } else if (worldX >= 17500 && worldX < 19400) {
+                                currentTex = texBrokenBridgeEdge;
+                            } else {
+                                currentTex = texEdge;
+                            }
+                        }
+
+                        iShowImage((int)tileX, (int)(screenPy - 40), (int)drawW, kTileHeight, currentTex);
+                    }
+                }
             }
         }
     }

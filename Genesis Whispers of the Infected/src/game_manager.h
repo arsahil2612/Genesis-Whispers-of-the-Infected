@@ -60,6 +60,22 @@ struct Prop {
     int animFrame;
 };
 
+enum PropLayer {
+    PROP_LAYER_BACKGROUND,  // Rendered behind player and enemies
+    PROP_LAYER_FOREGROUND   // Rendered in front of player and enemies
+};
+
+struct WorldProp {
+    double x;               // World X position
+    double y;               // World Y position
+    double width;           // Scaled render width
+    double height;          // Scaled render height
+    std::string assetPath;   // Asset file path in Assets/Props/...
+    unsigned int textureID; // Cached OpenGL texture handle
+    PropLayer layer;        // Layer depth
+    bool visible;           // Render flag
+};
+
 enum Level1Area {
     AREA_SPAWN_AREA,
     AREA_DESTROYED_HOUSE,
@@ -92,6 +108,7 @@ private:
     // Props and Collectibles
     std::vector<Collectible> collectibles;
     std::vector<Prop> props;
+    std::vector<WorldProp> worldProps;
     unsigned int texPropsSheet;
 
     // Level 1 Area Tracking
@@ -143,6 +160,10 @@ public:
     void Initialize();
     void Update(bool keys[], bool specialKeys[]);
     void Render();
+
+    // Independent Environment Prop System Methods
+    void AddWorldProp(const std::string& assetPath, double x, double y, double width, double height, PropLayer layer = PROP_LAYER_BACKGROUND);
+    void RenderWorldProps(PropLayer layer, double camX, double camY);
 
     // Input hooks from iGraphics
     void HandleKeyPress(unsigned char key);

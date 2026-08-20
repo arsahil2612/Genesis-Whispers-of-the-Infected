@@ -25,6 +25,7 @@ public:
     Map();
     void LoadLevel(int levelNumber);
     void RenderBackground(double cameraX, bool bossDefeated = false);
+    void RenderTiles(double cameraX, double cameraY);
     void ApplyCameraTracking(double playerX, double playerY, int screenWidth, int screenHeight);
     
     // Inline Getters

@@ -3,9 +3,10 @@
 
 #include <windows.h>
 #include "game_manager.h"
+#include "ResourceManager.h"
 
 // ============================================================================
-// GAME CLASS (CORE ENGINE ENGINE & FRAMEWORK MANAGER)
+// GAME CLASS (CORE FRAMEWORK & ENGINE MANAGER)
 // ============================================================================
 class Game {
 private:
@@ -13,10 +14,10 @@ private:
     int m_screenHeight;
     bool m_isRunning;
 
-    // Embedded Game Manager driving world entities, rendering, and gameplay
+    // Embedded Core Game Manager (Arin, World Map, Enemies, UI, Menus, Audio)
     GameManager m_gameManager;
 
-    // Delta Time tracking using Windows High-Resolution Performance Counter
+    // High precision Delta Time tracking using Windows Performance Counter
     LARGE_INTEGER m_frequency;
     LARGE_INTEGER m_lastTime;
     float m_deltaTime;
