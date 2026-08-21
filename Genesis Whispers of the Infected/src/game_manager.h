@@ -5,7 +5,9 @@
 #include "map.h"
 #include "enemy.h"
 #include "leaderboard.h"
+#include "UI.h"
 #include <vector>
+#include <string>
 
 // ============================================================================
 // Game State Taxonomy & Data Structs
@@ -146,6 +148,12 @@ private:
     double missionNotifyTimer;
     int lastObjectiveID;
     double uiAnimTime;
+    int pauseSubMenu; // 0 = Pause Main, 1 = Controls, 2 = Settings
+
+    // Contextual Interaction Prompt
+    std::string activePromptText;
+    int activePromptX;
+    int activePromptY;
 
     int score;
     int currentLevel;

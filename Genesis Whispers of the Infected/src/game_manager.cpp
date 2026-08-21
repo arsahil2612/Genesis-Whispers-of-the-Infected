@@ -159,9 +159,14 @@ GameManager::GameManager() {
     missionNotifyTimer = 0.0;
     lastObjectiveID = 0;
     uiAnimTime = 0.0;
+    pauseSubMenu = 0;
+    activePromptText = "";
+    activePromptX = 0;
+    activePromptY = 0;
 }
 
 void GameManager::Initialize() {
+    UI::Initialize();
     score = 0;
     currentLevel = 1;
     player.Initialize(200, 185); // Arin starting location inside destroyed house (x=200, groundY=185)
@@ -190,6 +195,10 @@ void GameManager::Initialize() {
     missionNotifyTimer = 0.0;
     lastObjectiveID = 0;
     uiAnimTime = 0.0;
+    pauseSubMenu = 0;
+    activePromptText = "";
+    activePromptX = 0;
+    activePromptY = 0;
 
     // Initialize Independent Environment Prop System & Destroyed House Area Props (Arin's Family Home)
     worldProps.clear();
@@ -869,12 +878,36 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         }
     }
 
-    // Check Player Game Over: Play full death animation before showing Game Over menu screen
-    if (player.hp <= 0 && currentState != STATE_GAMEOVER) {
-        if (player.state == STATE_DEAD && player.animDeath.IsFinished()) {
-            currentState = STATE_GAMEOVER;
-            menuTransitionAlpha = 1.0;
+    // 9. Update Contextual Interaction Prompt
+    activePromptText = "";
+    double camX = gameMap.GetCameraX();
+    double camY = gameMap.GetCameraY();
+
+    for (size_t i = 0; i < collectibles.size(); ++i) {
+        if (collectibles[i].active) {
+            double dist = std::abs(player.x - collectibles[i].x);
+            if (dist < 70.0) {
+                switch (collectibles[i].type) {
+                case COL_NOTE: activePromptText = "[E] Read Note"; break;
+                case COL_KEYCARD: activePromptText = "[E] Pick Up Keycard"; break;
+                case COL_RUSTY_KEY: activePromptText = "[E] Pick Up Gate Key"; break;
+                case COL_MEDKIT: activePromptText = "[E] Pick Up Medkit"; break;
+                case COL_AMMO: activePromptText = "[E] Pick Up Ammo"; break;
+                case COL_BATTERY: activePromptText = "[E] Pick Up Battery"; break;
+                case COL_FOOD: activePromptText = "[E] Pick Up Ration"; break;
+                default: activePromptText = "[E] Pick Up Item"; break;
+                }
+                activePromptX = (int)(collectibles[i].x - camX);
+                activePromptY = (int)(collectibles[i].y - camY + collectibles[i].height + 30.0);
+                break;
+            }
         }
+    }
+
+    if (activePromptText.empty() && player.x >= 21400 && bossDefeated) {
+        activePromptText = "[E] Interact with Exit Gate";
+        activePromptX = (int)(player.x - camX);
+        activePromptY = (int)(player.y - camY + player.height + 30.0);
     }
 }
 
@@ -894,45 +927,21 @@ void GameManager::Render() {
         break;
     case STATE_PAUSED:
         RenderPlaying(); // Render gameplay frame underneath in frozen state
-
-        // Dark background dimmer
-        iSetColor(0, 0, 0);
-        iFilledRectangle(0, 0, 1280, 720);
-
-        if (g_texPauseOverlay != 0) {
-            iShowImage(240, 110, 800, 500, g_texPauseOverlay);
-        } else {
-            iSetColor(12, 16, 24);
-            iFilledRectangle(360, 240, 560, 240);
-            iSetColor(0, 180, 220);
-            iRectangle(360, 240, 560, 240);
-        }
-
-        // Top Carved Banner Slot: GAME PAUSED Title
-        DrawOutlinedText(535, 525, "GAME PAUSED", GLUT_BITMAP_TIMES_ROMAN_24, 0, 230, 255);
-
-        // Slot 1: Resume Game
-        RenderMenuButtonSlot(1, 525, 440, "1. RESUME GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
-
-        // Slot 2: Restart Level
-        RenderMenuButtonSlot(2, 545, 362, "2. RESTART LEVEL", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
-
-        // Slot 3: Quit to Menu
-        RenderMenuButtonSlot(3, 530, 285, "3. QUIT TO MENU [M]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
-
-        // Bottom Detail Slot: Footer instructions
-        DrawShadowText(500, 148, "Press ESC to Resume or Click Option", GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
+        UI::DrawPauseMenu(mouseX, mouseY, isMouseDown, uiAnimTime, pauseSubMenu);
         break;
     case STATE_GAMEOVER:
-        RenderGameOver();
+        UI::DrawGameOver(mouseX, mouseY, isMouseDown, uiAnimTime);
         break;
     case STATE_VICTORY:
-        RenderVictory();
+        UI::DrawLevelComplete(mouseX, mouseY, isMouseDown, uiAnimTime);
         break;
     case STATE_LEADERBOARD:
         RenderLeaderboard();
         break;
     }
+
+    // Render active notifications
+    UI::DrawNotification();
 
     // Always render custom game crosshair cursor on top
     RenderCursor();
@@ -1442,325 +1451,30 @@ void GameManager::RenderPlaying() {
     // ========================================================================
     // SURVIVAL GAME HUD (Screen Anchored Layout)
     // ========================================================================
-    if (hudAlpha < 0.05) return;
-
-    // Enable OpenGL Alpha Blending for clean PNG transparency across all elements
-    glEnable(GL_BLEND);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-
-    // ------------------------------------------------------------------------
-    // TOP LEFT PANEL: Health & Stamina Bars (using ui_health_frame & ui_health_fill)
-    // ------------------------------------------------------------------------
-    // Only draw fallback panel if PNG texture frame is absent
-    if (g_texHealthFrame == 0) {
-        iSetColor(12, 16, 24);
-        iFilledRectangle(20, 630, 300, 70);
-        iSetColor(220, 40, 40); // Red accent border stroke
-        iRectangle(20, 630, 300, 70);
-    }
-
-    // Smooth animated health percentage
-    double playerHpPercent = player.displayedHp / (double)player.maxHp;
-    if (playerHpPercent < 0.0) playerHpPercent = 0.0;
-    if (playerHpPercent > 1.0) playerHpPercent = 1.0;
-
-    // Health Fill Texture (Dynamically animated & clipped to playerHpPercent)
-    if (g_texHealthFill != 0) {
-        int fillWidth = (int)(220.0 * playerHpPercent);
-        if (fillWidth > 0) {
-            iShowImageSub(32, 665, fillWidth, 20, g_texHealthFill, 0.0, 0.0, playerHpPercent, 1.0);
+    if (hudAlpha >= 0.05) {
+        const char* activeObjText = "Escape the Fallen Village";
+        if (bossSpawned && !bossDefeated) {
+            activeObjText = "DEFEAT MUTATED BRUTE";
         }
-    } else {
-        iSetColor(220, 35, 35);
-        iFilledRectangle(32, 665, 220 * playerHpPercent, 20);
-    }
-
-    // Health Frame Texture
-    if (g_texHealthFrame != 0) {
-        iShowImage(20, 655, 270, 40, g_texHealthFrame);
-    }
-
-    // Health Percentage Text with drop shadow
-    char hpPctStr[32];
-    int hpPct = (int)((double)player.hp / player.maxHp * 100.0);
-    sprintf_s(hpPctStr, sizeof(hpPctStr), "%d%%", hpPct);
-    iSetColor(0, 0, 0);
-    iText(261, 669, hpPctStr, GLUT_BITMAP_HELVETICA_12);
-    iSetColor(255, 255, 255);
-    iText(260, 670, hpPctStr, GLUT_BITMAP_HELVETICA_12);
-
-    // Health Label Overlay with subtle shadow
-    char hpLabelStr[32];
-    sprintf_s(hpLabelStr, sizeof(hpLabelStr), "HEALTH  %d / %d", player.hp, player.maxHp);
-    iSetColor(0, 0, 0);
-    iText(41, 669, hpLabelStr, GLUT_BITMAP_HELVETICA_12);
-    iSetColor(255, 255, 255);
-    iText(40, 670, hpLabelStr, GLUT_BITMAP_HELVETICA_12);
-
-    // Stamina Bar Frame & Fill (Dynamically animated & clipped to staminaPercent)
-    double staminaPercent = player.displayedStamina / (double)player.maxStamina;
-    if (staminaPercent < 0.0) staminaPercent = 0.0;
-    if (staminaPercent > 1.0) staminaPercent = 1.0;
-
-    if (g_texStaminaFill != 0) {
-        int stamWidth = (int)(276.0 * staminaPercent);
-        if (stamWidth > 0) {
-            iShowImageSub(32, 642, stamWidth, 10, g_texStaminaFill, 0.0, 0.0, staminaPercent, 1.0);
+        else if (bossDefeated && !ribbonCollected) {
+            activeObjText = "Reach the Steel Exit Gate";
         }
-    } else {
-        iSetColor(230, 190, 30);
-        iFilledRectangle(32, 642, 276 * staminaPercent, 8);
-    }
-
-    if (g_texStaminaFrame != 0) {
-        iShowImage(20, 635, 290, 22, g_texStaminaFrame);
-    }
-
-
-    // ------------------------------------------------------------------------
-    // TOP RIGHT PANEL: Current Weapon (Katana), Medkits, Food, Battery
-    // ------------------------------------------------------------------------
-    iSetColor(0, 0, 0);
-    iFilledRectangle(938, 608, 324, 94);
-    iSetColor(12, 16, 24);
-    iFilledRectangle(940, 610, 320, 90);
-    iSetColor(0, 180, 220); // Anime cyan outline
-    iRectangle(940, 610, 320, 90);
-
-    // Weapon Icon & Status
-    iSetColor(0, 210, 240);
-    iText(952, 680, "WEAPON: KATANA [J]", GLUT_BITMAP_HELVETICA_12);
-
-    // Survival Supplies (Medkit, Food, Battery)
-    char medCountStr[32], foodCountStr[32], batCountStr[32];
-    sprintf_s(medCountStr, sizeof(medCountStr), "Medkits : %d", player.medkits);
-    sprintf_s(foodCountStr, sizeof(foodCountStr), "Food    : %d", player.foodCount);
-    sprintf_s(batCountStr,  sizeof(batCountStr),  "Battery : %d", player.batteryCount);
-
-    // Render clean procedural HUD icons alongside counts
-    // Medkit Mini Icon
-    iSetColor(180, 20, 20);
-    iFilledRectangle(950, 634, 20, 20);
-    iSetColor(255, 255, 255);
-    iFilledRectangle(958, 637, 4, 14);
-    iFilledRectangle(953, 642, 14, 4);
-
-    // Food Mini Icon
-    iSetColor(160, 100, 30);
-    iFilledRectangle(1055, 634, 20, 20);
-    iSetColor(240, 180, 40);
-    iRectangle(1055, 634, 20, 20);
-
-    // Battery Mini Icon
-    iSetColor(30, 30, 40);
-    iFilledRectangle(1160, 634, 20, 20);
-    iSetColor(0, 255, 180);
-    iRectangle(1160, 634, 20, 20);
-    iFilledRectangle(1165, 638, 10, 12);
-
-    iSetColor(0, 0, 0);
-    iText(981, 639, medCountStr, GLUT_BITMAP_HELVETICA_12);
-    iText(1086, 639, foodCountStr, GLUT_BITMAP_HELVETICA_12);
-    iText(1191, 639, batCountStr, GLUT_BITMAP_HELVETICA_12);
-
-    iSetColor(255, 255, 255);
-    iText(980, 640, medCountStr, GLUT_BITMAP_HELVETICA_12);
-    iText(1085, 640, foodCountStr, GLUT_BITMAP_HELVETICA_12);
-    iText(1190, 640, batCountStr, GLUT_BITMAP_HELVETICA_12);
-
-    // Score Banner
-    iSetColor(0, 0, 0);
-    iFilledRectangle(1058, 568, 204, 34);
-    iSetColor(12, 16, 24);
-    iFilledRectangle(1060, 570, 200, 30);
-    iSetColor(255, 215, 0);
-    char scoreStr[32];
-    sprintf_s(scoreStr, sizeof(scoreStr), "SCORE: %07d", score);
-    iText(1075, 578, scoreStr, GLUT_BITMAP_HELVETICA_12);
-
-
-    // ------------------------------------------------------------------------
-    // TOP LEFT PANEL: Mission Objective Box (Positioned directly below Health Bar)
-    // ------------------------------------------------------------------------
-    int missX = 20;
-    int missY = 550;
-    int missW = 300;
-    int missH = 65;
-
-    if (g_texMissionBox != 0) {
-        iShowImage(missX, missY, missW, missH, g_texMissionBox);
-    } else {
-        iSetColor(12, 16, 24);
-        iFilledRectangle(missX, missY, missW, missH);
-        iSetColor(0, 180, 220);
-        iRectangle(missX, missY, missW, missH);
-    }
-
-    // Active Objective Text evaluation
-    const char* activeObjText = "Escape the Fallen Village";
-    if (bossSpawned && !bossDefeated) {
-        activeObjText = "DEFEAT MUTATED BRUTE";
-    }
-    else if (bossDefeated && !ribbonCollected) {
-        activeObjText = "Reach the Steel Exit Gate";
-    }
-    else if (bossDefeated && ribbonCollected) {
-        activeObjText = "Press ENTER to Escape";
-    }
-
-    // Animated glow pulse when objective updates
-    if (missionNotifyTimer > 0.0) {
-        double objPulse = 0.7 + 0.3 * sin(uiAnimTime * 12.0);
-        int gCol = (int)(255 * objPulse);
-        int bCol = (int)(255 * objPulse);
-
-        // Glowing border highlight animation
-        iSetColor(0, gCol, bCol);
-        iRectangle(missX - 2, missY - 2, missW + 4, missH + 4);
-        iRectangle(missX - 1, missY - 1, missW + 2, missH + 2);
-
-        // Objective Header
-        DrawOutlinedText(missX + 12, missY + missH - 22, "MISSION DIRECTIVE (UPDATED)", GLUT_BITMAP_HELVETICA_10, 0, 255, 220);
-        // Objective Body Text with Gold Pulse Tint
-        DrawShadowText(missX + 12, missY + 16, activeObjText, GLUT_BITMAP_HELVETICA_12, 255, 220, 0);
-    } else {
-    // Standard Objective Header with Current Area Tag
-        char headerStr[64];
-        sprintf_s(headerStr, sizeof(headerStr), "AREA: %s", GetAreaName(currentArea));
-        DrawOutlinedText(missX + 12, missY + missH - 22, headerStr, GLUT_BITMAP_HELVETICA_10, 0, 220, 255);
-        // Standard Objective Body Text
-        DrawShadowText(missX + 12, missY + 16, activeObjText, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-    }
-
-    // Internal enemy count evaluation (disabled from gameplay screen drawing)
-    static bool g_showDebugOverlay = false;
-    if (g_showDebugOverlay) {
-        int expectedCount = 0;
-        switch (currentArea) {
-        case AREA_SPAWN_AREA:
-        case AREA_DESTROYED_HOUSE:  expectedCount = 0; break;
-        case AREA_VILLAGE_STREET:   expectedCount = 3; break;
-        case AREA_VILLAGE_SQUARE:   expectedCount = 5; break;
-        case AREA_ABANDONED_MARKET: expectedCount = 3; break;
-        case AREA_RAIDER_CAMP:      expectedCount = 3; break;
-        case AREA_ABANDONED_CHURCH: expectedCount = 3; break;
-        case AREA_QUARANTINE_ZONE:  expectedCount = 3; break;
-        case AREA_BROKEN_BRIDGE:    expectedCount = 0; break;
-        case AREA_MINI_BOSS_ARENA:  expectedCount = 1; break;
-        case AREA_EXIT_GATE:        expectedCount = 0; break;
-        case AREA_LEVEL_COMPLETE:   expectedCount = 0; break;
-        default:                    expectedCount = 0; break;
+        else if (bossDefeated && ribbonCollected) {
+            activeObjText = "Press ENTER to Escape";
         }
 
-        int actualCount = 0;
-        for (size_t i = 0; i < enemies.size(); ++i) {
-            if (enemies[i].hp > 0 && GetAreaFromPosition(enemies[i].x) == currentArea) {
-                actualCount++;
-            }
+        // Draw Full In-Game Gameplay HUD
+        UI::DrawHUD(player, score, activeObjText, GetAreaName(currentArea), missionNotifyTimer, areaBannerAlpha);
+
+        // Render Contextual Interaction Prompt if active
+        if (!activePromptText.empty()) {
+            UI::DrawInteractionPrompt(activePromptText.c_str(), activePromptX, activePromptY);
         }
 
-        char debugEnemyStr[128];
-        sprintf_s(debugEnemyStr, sizeof(debugEnemyStr), "[DEBUG] AREA: %s | EXPECTED: %d | ACTUAL: %d", GetAreaName(currentArea), expectedCount, actualCount);
-        DrawOutlinedText(20, 528, debugEnemyStr, GLUT_BITMAP_HELVETICA_10, 0, 255, 200);
-    }
-
-    // ------------------------------------------------------------------------
-    // SLEEK CINEMATIC AREA TITLE BANNER (Upper Center)
-    // ------------------------------------------------------------------------
-    if (areaBannerAlpha > 0.01) {
-        const char* areaName = GetAreaName(currentArea);
-
-        int textLen = (int)strlen(areaName);
-        int bannerW = 320 + (textLen * 8);
-        if (bannerW < 380) bannerW = 380;
-        int bannerH = 48;
-        int bannerX = 640 - (bannerW / 2);
-        int bannerY = 605;
-
-        // Dark glass background panel
-        iSetColor(10, 14, 22);
-        iFilledRectangle(bannerX, bannerY, bannerW, bannerH);
-
-        // Dual cyan and gold accent border stroke
-        iSetColor(0, 220, 255);
-        iRectangle(bannerX, bannerY, bannerW, bannerH);
-        iSetColor(255, 215, 0);
-        iRectangle(bannerX + 2, bannerY + 2, bannerW - 4, bannerH - 4);
-
-        // Level 1 Chapter Title (Upper Header)
-        int headerX = 640 - 55;
-        DrawOutlinedText(headerX, bannerY + 30, "THE FALLEN VILLAGE", GLUT_BITMAP_HELVETICA_10, 0, 240, 255);
-
-        // Current Area Name (Main Title)
-        int titleX = 640 - (textLen * 4);
-        DrawShadowText(titleX, bannerY + 10, areaName, GLUT_BITMAP_HELVETICA_12, 255, 220, 0);
-    }
-
-    // ------------------------------------------------------------------------
-    // FADING MISSION OBJECTIVE NOTIFICATION BANNER
-    // ------------------------------------------------------------------------
-    if (missionNotifyAlpha > 0.01) {
-        // Dark banner backdrop with drop shadow
-        iSetColor(0, 0, 0);
-        iFilledRectangle(438, 638, 404, 54);
-        iSetColor(12, 16, 24);
-        iFilledRectangle(440, 640, 400, 50);
-
-        // Glowing animated cyan border
-        iSetColor(0, 220, 255);
-        iRectangle(440, 640, 400, 50);
-
-        // Banner text
-        DrawOutlinedText(525, 670, "MISSION DIRECTIVE UPDATED", GLUT_BITMAP_HELVETICA_10, 0, 230, 255);
-        DrawShadowText(480, 650, activeObjText, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-    }
-
-
-    // ------------------------------------------------------------------------
-    // BOTTOM RIGHT PANEL: Inventory & Pause Controls
-    // ------------------------------------------------------------------------
-    iSetColor(0, 0, 0);
-    iFilledRectangle(1038, 18, 224, 69);
-    iSetColor(12, 16, 24);
-    iFilledRectangle(1040, 20, 220, 65);
-    iSetColor(0, 180, 220);
-    iRectangle(1040, 20, 220, 65);
-
-    // Keycard / Inventory Mini Icon
-    iSetColor(10, 30, 50);
-    iFilledRectangle(1050, 35, 28, 28);
-    iSetColor(0, 220, 255);
-    iRectangle(1050, 35, 28, 28);
-    iSetColor(255, 215, 0);
-    iFilledRectangle(1054, 46, 20, 5);
-
-    DrawOutlinedText(1090, 52, "[TAB] Inventory", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-    DrawOutlinedText(1090, 32, "[ESC] Pause", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-
-
-    // ------------------------------------------------------------------------
-    // TOP CENTER: Boss Health Bar (during Boss Fight)
-    // ------------------------------------------------------------------------
-    if (bossSpawned && !bossDefeated) {
-        iSetColor(0, 0, 0);
-        iFilledRectangle(438, 638, 404, 44);
-        iSetColor(15, 15, 22);
-        iFilledRectangle(440, 640, 400, 40);
-        iSetColor(220, 40, 40);
-        iRectangle(440, 640, 400, 40);
-
-        iSetColor(40, 10, 10);
-        iFilledRectangle(450, 648, 380, 14);
-        iSetColor(220, 30, 30);
-        double bossHpPercent = (double)bossHp / bossMaxHp;
-        if (bossHpPercent < 0.0) bossHpPercent = 0.0;
-        if (bossHpPercent > 1.0) bossHpPercent = 1.0;
-        iFilledRectangle(450, 648, 380 * bossHpPercent, 14);
-
-        iSetColor(0, 0, 0);
-        iText(536, 665, "MUTATED BRUTE (MINI BOSS)", GLUT_BITMAP_HELVETICA_12);
-        iSetColor(255, 255, 255);
-        iText(535, 666, "MUTATED BRUTE (MINI BOSS)", GLUT_BITMAP_HELVETICA_12);
+        // Render Boss Health Bar centered at top if Boss fight active
+        if (bossSpawned && !bossDefeated) {
+            UI::DrawBossHealthBar("MUTATED BRUTE (MINI BOSS)", bossHp, bossMaxHp);
+        }
     }
 
     // ------------------------------------------------------------------------
@@ -2024,11 +1738,21 @@ void GameManager::HandleKeyPress(unsigned char key) {
                 showInventory = false;
             } else {
                 currentState = STATE_PAUSED;
+                pauseSubMenu = 0;
                 menuTransitionAlpha = 1.0;
             }
         }
         else if (key == 9 || key == '\t' || key == 'i' || key == 'I') {
             showInventory = !showInventory;
+        }
+        else if (key == 'e' || key == 'E') {
+            if (!showInventory) {
+                for (size_t i = 0; i < collectibles.size(); ++i) {
+                    if (collectibles[i].active && std::abs(player.x - collectibles[i].x) < 70.0) {
+                        break;
+                    }
+                }
+            }
         }
         else if (key == 'j' || key == 'J') {
             if (!showInventory) player.AttackMelee();
@@ -2041,12 +1765,38 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
     }
     else if (currentState == STATE_PAUSED) {
-        if (key == 27) { // ESC resumes normal gameplay
+        if (key == 27) { // ESC resumes or closes sub menu
+            if (pauseSubMenu > 0) {
+                pauseSubMenu = 0;
+            } else {
+                currentState = STATE_PLAYING;
+                menuTransitionAlpha = 1.0;
+            }
+        }
+        else if (key == '1') {
             currentState = STATE_PLAYING;
+            pauseSubMenu = 0;
             menuTransitionAlpha = 1.0;
         }
-        else if (key == 'm' || key == 'M' || key == 13) { // Quit to menu
+        else if (key == '2' || key == 9 || key == '\t' || key == 'i' || key == 'I') {
+            currentState = STATE_PLAYING;
+            showInventory = true;
+            pauseSubMenu = 0;
+        }
+        else if (key == '3' || key == 'c' || key == 'C') {
+            pauseSubMenu = 1; // Controls panel
+        }
+        else if (key == '4' || key == 's' || key == 'S') {
+            pauseSubMenu = 2; // Settings panel
+        }
+        else if (key == '5') {
+            Initialize();
+            currentState = STATE_PLAYING;
+            pauseSubMenu = 0;
+        }
+        else if (key == '6' || key == 'm' || key == 'M') { // Quit to menu
             currentState = STATE_MENU;
+            pauseSubMenu = 0;
             menuTransitionAlpha = 1.0;
         }
     }
@@ -2130,21 +1880,38 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                 }
             }
             else if (currentState == STATE_PAUSED) {
-                // Slot 1: Resume Game
-                if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
-                    currentState = STATE_PLAYING;
-                    menuTransitionAlpha = 1.0;
-                }
-                // Slot 2: Restart Level
-                else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
-                    Initialize();
-                    currentState = STATE_PLAYING;
-                    menuTransitionAlpha = 1.0;
-                }
-                // Slot 3: Quit to Menu
-                else if (mx >= 440 && mx <= 840 && my >= 265 && my <= 310) {
-                    currentState = STATE_MENU;
-                    menuTransitionAlpha = 1.0;
+                if (pauseSubMenu > 0) {
+                    pauseSubMenu = 0;
+                } else {
+                    // Slot 1: Resume Game (430 - 475)
+                    if (mx >= 440 && mx <= 840 && my >= 430 && my <= 475) {
+                        currentState = STATE_PLAYING;
+                        menuTransitionAlpha = 1.0;
+                    }
+                    // Slot 2: Inventory (375 - 420)
+                    else if (mx >= 440 && mx <= 840 && my >= 375 && my <= 420) {
+                        currentState = STATE_PLAYING;
+                        showInventory = true;
+                    }
+                    // Slot 3: Controls (320 - 365)
+                    else if (mx >= 440 && mx <= 840 && my >= 320 && my <= 365) {
+                        pauseSubMenu = 1;
+                    }
+                    // Slot 4: Settings (265 - 310)
+                    else if (mx >= 440 && mx <= 840 && my >= 265 && my <= 310) {
+                        pauseSubMenu = 2;
+                    }
+                    // Slot 5: Restart Level (210 - 255)
+                    else if (mx >= 440 && mx <= 840 && my >= 210 && my <= 255) {
+                        Initialize();
+                        currentState = STATE_PLAYING;
+                        menuTransitionAlpha = 1.0;
+                    }
+                    // Slot 6: Quit to Menu (155 - 200)
+                    else if (mx >= 440 && mx <= 840 && my >= 155 && my <= 200) {
+                        currentState = STATE_MENU;
+                        menuTransitionAlpha = 1.0;
+                    }
                 }
             }
             else if (currentState == STATE_GAMEOVER) {
