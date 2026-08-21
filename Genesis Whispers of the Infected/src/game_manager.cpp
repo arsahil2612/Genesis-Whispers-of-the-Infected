@@ -405,7 +405,7 @@ void GameManager::Initialize() {
     // Section 7: Quarantine Zone (Background 7: 8688 - 10136px: 2 Walkers, 1 Heavy Infected)
     enemies.push_back(Enemy(8950, 9100, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(9350, 9500, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(9750, 9950, kLevel1GroundY, TYPE_ABOMINATION));
+    enemies.push_back(Enemy(9750, 9950, kLevel1GroundY, TYPE_HEAVY));
 
     // Section 8: Broken Bridge (Background 8: 10136 - 11584px) - 0 normal enemies
 

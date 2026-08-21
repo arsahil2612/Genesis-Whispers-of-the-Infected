@@ -11,7 +11,8 @@ enum EnemyType {
     TYPE_RUNNER,
     TYPE_SPITTER,      // Represents Infected Walker
     TYPE_ABOMINATION,  // Mutated Brute (Mini Boss)
-    TYPE_RAIDER        // Raider
+    TYPE_RAIDER,       // Raider
+    TYPE_HEAVY         // Heavy Infected
 };
 
 enum EnemyState {
@@ -66,11 +67,13 @@ public:
     static unsigned int texWalkerIdle, texWalkerWalk, texWalkerAttack, texWalkerHurt, texWalkerDeath;
     static unsigned int texRunnerIdle, texRunnerWalk, texRunnerRun, texRunnerAttack, texRunnerHurt, texRunnerDeath;
     static unsigned int texRaiderIdle, texRaiderWalk, texRaiderRun, texRaiderAttackMelee, texRaiderAttackRanged, texRaiderHurt, texRaiderDeath;
+    static unsigned int texHeavyIdle, texHeavyWalk, texHeavyAttack, texHeavyHurt, texHeavyDeath;
 
-    // Static Frame Sequence Vectors (Walker, Runner & Raider)
+    // Static Frame Sequence Vectors (Walker, Runner, Raider & Heavy)
     static std::vector<unsigned int> seqWalkerIdle, seqWalkerWalk, seqWalkerAttack, seqWalkerHurt, seqWalkerDeath;
     static std::vector<unsigned int> seqRunnerIdle, seqRunnerWalk, seqRunnerRun, seqRunnerAttack, seqRunnerHurt, seqRunnerDeath;
     static std::vector<unsigned int> seqRaiderIdle, seqRaiderWalk, seqRaiderAttack, seqRaiderHurt, seqRaiderDeath;
+    static std::vector<unsigned int> seqHeavyIdle, seqHeavyWalk, seqHeavyAttack, seqHeavyHurt, seqHeavyDeath;
 
     // Reusable Animation Objects
     Animation animIdle;

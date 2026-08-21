@@ -29,7 +29,13 @@ unsigned int Enemy::texRaiderAttackRanged = 0;
 unsigned int Enemy::texRaiderHurt = 0;
 unsigned int Enemy::texRaiderDeath = 0;
 
-// Static Frame Sequence Vectors (Walker & Runner)
+unsigned int Enemy::texHeavyIdle = 0;
+unsigned int Enemy::texHeavyWalk = 0;
+unsigned int Enemy::texHeavyAttack = 0;
+unsigned int Enemy::texHeavyHurt = 0;
+unsigned int Enemy::texHeavyDeath = 0;
+
+// Static Frame Sequence Vectors (Walker, Runner, Raider & Heavy)
 std::vector<unsigned int> Enemy::seqWalkerIdle;
 std::vector<unsigned int> Enemy::seqWalkerWalk;
 std::vector<unsigned int> Enemy::seqWalkerAttack;
@@ -48,6 +54,12 @@ std::vector<unsigned int> Enemy::seqRaiderWalk;
 std::vector<unsigned int> Enemy::seqRaiderAttack;
 std::vector<unsigned int> Enemy::seqRaiderHurt;
 std::vector<unsigned int> Enemy::seqRaiderDeath;
+
+std::vector<unsigned int> Enemy::seqHeavyIdle;
+std::vector<unsigned int> Enemy::seqHeavyWalk;
+std::vector<unsigned int> Enemy::seqHeavyAttack;
+std::vector<unsigned int> Enemy::seqHeavyHurt;
+std::vector<unsigned int> Enemy::seqHeavyDeath;
 
 // ============================================================================
 // Enemy Constructor & Texture Initialization
@@ -87,6 +99,13 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
         hp = maxHp = 60;
         damage = 12;
         vx = 1.8;
+    }
+    else if (type == TYPE_HEAVY) {
+        hp = maxHp = 120;
+        damage = 18;
+        vx = 1.2;
+        width = 80;
+        height = 100;
     }
     else if (type == TYPE_ABOMINATION) {
         hp = maxHp = 300;
@@ -292,6 +311,56 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
         animHurt.Init(seqRaiderHurt, 6, false);     // 6 ticks/frame (10 FPS hurt)
         animDeath.Init(seqRaiderDeath, 7, false);   // 7 ticks/frame (8.5 FPS death)
     }
+    else if (type == TYPE_HEAVY) {
+        if (seqHeavyIdle.empty() || seqHeavyIdle[0] == 0) {
+            seqHeavyIdle.clear();
+            seqHeavyWalk.clear();
+            seqHeavyAttack.clear();
+            seqHeavyHurt.clear();
+            seqHeavyDeath.clear();
+
+            for (int i = 1; i <= 6; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/idle/enemy_heavy_infected_idle_%02d.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqHeavyIdle.push_back(handle);
+            }
+            for (int i = 1; i <= 8; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/walk/enemy_heavy_infected_walk_%02d_master.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqHeavyWalk.push_back(handle);
+            }
+            for (int i = 1; i <= 8; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/attack/enemy_heavy_infected_attack_%02d_master.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqHeavyAttack.push_back(handle);
+            }
+            for (int i = 1; i <= 4; ++i) {
+                char path[256];
+                if (i == 1) {
+                    sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/hurt/enemy_heavy_infected_hurt_01_master_1.png");
+                } else {
+                    sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/hurt/enemy_heavy_infected_hurt_%02d_master.png", i);
+                }
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqHeavyHurt.push_back(handle);
+            }
+            for (int i = 1; i <= 8; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/death/enemy_heavy_infected_death_%02d_master.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqHeavyDeath.push_back(handle);
+            }
+        }
+
+        animIdle.Init(seqHeavyIdle, 8, true);      // 8 ticks/frame (7.5 FPS idle)
+        animWalk.Init(seqHeavyWalk, 6, true);      // 6 ticks/frame (10 FPS walk)
+        animAttack.Init(seqHeavyAttack, 5, false); // 5 ticks/frame (12 FPS heavy smash)
+        animHurt.Init(seqHeavyHurt, 6, false);     // 6 ticks/frame (10 FPS hurt)
+        animDeath.Init(seqHeavyDeath, 7, false);   // 7 ticks/frame (8.5 FPS death)
+    }
 }
 
 // ============================================================================
@@ -390,7 +459,7 @@ void Enemy::Update(double playerX, double playerY) {
             inAttackRange = false;
             // Actively chase Arin when within detection range
             state = ENEMY_CHASE;
-            double speed = (type == TYPE_RUNNER) ? 4.2 : ((type == TYPE_RAIDER) ? 1.8 : 1.5);
+            double speed = (type == TYPE_RUNNER) ? 4.2 : ((type == TYPE_RAIDER) ? 1.8 : ((type == TYPE_HEAVY) ? 1.2 : 1.5));
             if (playerX > x + 8.0) {
                 x += speed;
                 isFacingRight = true;
@@ -437,15 +506,15 @@ void Enemy::Update(double playerX, double playerY) {
 // Render Pipeline (Viewport Relative)
 // ============================================================================
 void Enemy::Render(double camX, double camY) {
-    // Proportional visual draw sizes: Abomination 192, Walker 192, Runner 192, Raider 192
-    int drawSize = (type == TYPE_ABOMINATION) ? 192 : ((type == TYPE_SPITTER) ? 192 : ((type == TYPE_RUNNER) ? 192 : 192));
+    // Proportional visual draw sizes: Abomination 192, Walker 192, Runner 192, Raider 192, Heavy 192
+    int drawSize = 192;
 
     double drawX = x - camX;
     double drawY = y - camY;
 
     // Aligns bottom center of drawing box to collision bounds & ground baseline
     double drawXOffset = drawX - (drawSize - width) / 2.0;
-    double drawYOffset = (type == TYPE_SPITTER || type == TYPE_RUNNER || type == TYPE_RAIDER) ? (drawY - 6.0) : drawY;
+    double drawYOffset = (type == TYPE_SPITTER || type == TYPE_RUNNER || type == TYPE_RAIDER || type == TYPE_HEAVY) ? (drawY - 6.0) : drawY;
 
     // Select active animation based on state
     const Animation* activeAnim = &animIdle;
