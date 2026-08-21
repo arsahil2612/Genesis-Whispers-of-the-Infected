@@ -777,7 +777,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                     }
                 }
                 else {
-                    double atkExtra = (enemies[i].type == TYPE_RUNNER) ? 40.0 : 30.0;
+                    double atkExtra = (enemies[i].type == TYPE_RUNNER) ? 40.0 : ((enemies[i].type == TYPE_HEAVY) ? 45.0 : 30.0);
                     double atkX = enemies[i].isFacingRight ? enemies[i].x : (enemies[i].x - atkExtra);
                     double atkW = enemies[i].width + atkExtra;
                     bool hitX = (atkX + atkW >= player.x) && (player.x + player.width >= atkX);

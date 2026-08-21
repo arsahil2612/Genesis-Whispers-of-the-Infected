@@ -137,6 +137,12 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
         texRaiderAttackRanged = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderAttackRanged.png").c_str());
         texRaiderHurt = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderHurt.png").c_str());
         texRaiderDeath = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderDeath.png").c_str());
+
+        texHeavyIdle = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/idle/enemy_heavy_infected_idle_01.png").c_str());
+        texHeavyWalk = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/walk/enemy_heavy_infected_walk_01_master.png").c_str());
+        texHeavyAttack = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/attack/enemy_heavy_infected_attack_01_master.png").c_str());
+        texHeavyHurt = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/hurt/enemy_heavy_infected_hurt_01_master_1.png").c_str());
+        texHeavyDeath = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/death/enemy_heavy_infected_death_01_master.png").c_str());
     }
 
     // Initialize reusable Animation instances for enemy states (cached statically once)
@@ -353,13 +359,26 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
                 unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
                 if (handle != 0) seqHeavyDeath.push_back(handle);
             }
+
+            // Fallback to single static textures if subfolder frames are missing
+            if (seqHeavyIdle.empty() && texHeavyIdle != 0) seqHeavyIdle.push_back(texHeavyIdle);
+            if (seqHeavyWalk.empty()) {
+                if (texHeavyWalk != 0) seqHeavyWalk.push_back(texHeavyWalk);
+                else if (!seqHeavyIdle.empty()) seqHeavyWalk = seqHeavyIdle;
+            }
+            if (seqHeavyAttack.empty() && texHeavyAttack != 0) seqHeavyAttack.push_back(texHeavyAttack);
+            if (seqHeavyHurt.empty() && texHeavyHurt != 0) seqHeavyHurt.push_back(texHeavyHurt);
+            if (seqHeavyDeath.empty()) {
+                if (texHeavyDeath != 0) seqHeavyDeath.push_back(texHeavyDeath);
+                else if (!seqHeavyHurt.empty()) seqHeavyDeath = seqHeavyHurt;
+            }
         }
 
-        animIdle.Init(seqHeavyIdle, 8, true);      // 8 ticks/frame (7.5 FPS idle)
-        animWalk.Init(seqHeavyWalk, 6, true);      // 6 ticks/frame (10 FPS walk)
-        animAttack.Init(seqHeavyAttack, 5, false); // 5 ticks/frame (12 FPS heavy smash)
-        animHurt.Init(seqHeavyHurt, 6, false);     // 6 ticks/frame (10 FPS hurt)
-        animDeath.Init(seqHeavyDeath, 7, false);   // 7 ticks/frame (8.5 FPS death)
+        animIdle.Init(seqHeavyIdle, 9, true);      // 9 ticks/frame (6.6 FPS heavy breathing idle)
+        animWalk.Init(seqHeavyWalk, 6, true);      // 6 ticks/frame (10 FPS heavy walk stride)
+        animAttack.Init(seqHeavyAttack, 6, false); // 6 ticks/frame (10 FPS heavy smash)
+        animHurt.Init(seqHeavyHurt, 5, false);     // 5 ticks/frame (12 FPS responsive hurt stagger)
+        animDeath.Init(seqHeavyDeath, 7, false);   // 7 ticks/frame (8.5 FPS heavy collapse)
     }
 }
 
@@ -385,8 +404,8 @@ void Enemy::Update(double playerX, double playerY) {
     double distToPlayer = std::abs(playerX - x);
     double dyToPlayer = std::abs(playerY - y);
 
-    const double ATTACK_RANGE = (type == TYPE_RUNNER) ? 75.0 : 65.0;     // Attack range threshold in pixels
-    const double DETECTION_RANGE = (type == TYPE_RUNNER) ? 550.0 : 500.0; // Detection & chase range threshold in pixels
+    const double ATTACK_RANGE = (type == TYPE_RUNNER) ? 75.0 : ((type == TYPE_HEAVY) ? 75.0 : 65.0);     // Attack range threshold in pixels
+    const double DETECTION_RANGE = (type == TYPE_RUNNER) ? 550.0 : ((type == TYPE_HEAVY) ? 480.0 : 500.0); // Detection & chase range threshold in pixels
 
     if (state == ENEMY_HURT) {
         inAttackRange = false;
@@ -413,7 +432,7 @@ void Enemy::Update(double playerX, double playerY) {
             animFrame = animAttack.GetCurrentFrame();
             if (animAttack.IsFinished()) {
                 state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) ? ENEMY_CHASE : ENEMY_PATROL;
-                attackCooldown = (type == TYPE_RUNNER) ? 35 : 60; // 35 ticks (0.58s) aggressive cooldown for Runner
+                attackCooldown = (type == TYPE_RUNNER) ? 35 : ((type == TYPE_HEAVY) ? 75 : 60);
                 animFrame = 0;
                 frameCounter = 0;
                 stateTimer = 0;
@@ -422,7 +441,7 @@ void Enemy::Update(double playerX, double playerY) {
         }
         else {
             state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) ? ENEMY_CHASE : ENEMY_PATROL;
-            attackCooldown = (type == TYPE_RUNNER) ? 35 : 60;
+            attackCooldown = (type == TYPE_RUNNER) ? 35 : ((type == TYPE_HEAVY) ? 75 : 60);
             animAttack.Reset();
         }
     }
@@ -459,7 +478,7 @@ void Enemy::Update(double playerX, double playerY) {
             inAttackRange = false;
             // Actively chase Arin when within detection range
             state = ENEMY_CHASE;
-            double speed = (type == TYPE_RUNNER) ? 4.2 : ((type == TYPE_RAIDER) ? 1.8 : ((type == TYPE_HEAVY) ? 1.2 : 1.5));
+            double speed = (type == TYPE_RUNNER) ? 4.2 : ((type == TYPE_RAIDER) ? 1.8 : ((type == TYPE_HEAVY) ? 1.1 : 1.5));
             if (playerX > x + 8.0) {
                 x += speed;
                 isFacingRight = true;
@@ -482,7 +501,18 @@ void Enemy::Update(double playerX, double playerY) {
             inAttackRange = false;
             // Outside detection range: stay in patrol / idle
             state = ENEMY_PATROL;
-            if (animIdle.IsValid()) {
+            if (startX != endX && animWalk.IsValid()) {
+                if (isFacingRight) {
+                    x += (type == TYPE_RUNNER ? 2.0 : (type == TYPE_HEAVY ? 0.8 : 1.0));
+                    if (x >= endX) isFacingRight = false;
+                } else {
+                    x -= (type == TYPE_RUNNER ? 2.0 : (type == TYPE_HEAVY ? 0.8 : 1.0));
+                    if (x <= startX) isFacingRight = true;
+                }
+                animWalk.Update();
+                animFrame = animWalk.GetCurrentFrame();
+            }
+            else if (animIdle.IsValid()) {
                 animIdle.Update();
                 animFrame = animIdle.GetCurrentFrame();
             }
@@ -494,7 +524,10 @@ void Enemy::Update(double playerX, double playerY) {
     }
 
     if (state != oldState) {
-        if (state == ENEMY_PATROL) animIdle.Reset();
+        if (state == ENEMY_PATROL) {
+            if (startX != endX && animWalk.IsValid()) animWalk.Reset();
+            else animIdle.Reset();
+        }
         else if (state == ENEMY_CHASE) animWalk.Reset();
         else if (state == ENEMY_ATTACK) { animAttack.Reset(); hasDealtDamage = false; }
         else if (state == ENEMY_HURT) animHurt.Reset();
@@ -506,15 +539,15 @@ void Enemy::Update(double playerX, double playerY) {
 // Render Pipeline (Viewport Relative)
 // ============================================================================
 void Enemy::Render(double camX, double camY) {
-    // Proportional visual draw sizes: Abomination 192, Walker 192, Runner 192, Raider 192, Heavy 192
-    int drawSize = 192;
+    // Proportional visual draw sizes: Abomination 256, Heavy 230, Walker/Runner/Raider 192
+    int drawSize = (type == TYPE_ABOMINATION) ? 256 : ((type == TYPE_HEAVY) ? 230 : 192);
 
     double drawX = x - camX;
     double drawY = y - camY;
 
     // Aligns bottom center of drawing box to collision bounds & ground baseline
     double drawXOffset = drawX - (drawSize - width) / 2.0;
-    double drawYOffset = (type == TYPE_SPITTER || type == TYPE_RUNNER || type == TYPE_RAIDER || type == TYPE_HEAVY) ? (drawY - 6.0) : drawY;
+    double drawYOffset = (type == TYPE_HEAVY) ? (drawY + 2.0) : ((type == TYPE_SPITTER || type == TYPE_RUNNER || type == TYPE_RAIDER) ? (drawY - 6.0) : drawY);
 
     // Select active animation based on state
     const Animation* activeAnim = &animIdle;
@@ -542,7 +575,10 @@ void Enemy::Render(double camX, double camY) {
         }
     }
     else if (state == ENEMY_PATROL) {
-        if (startX == endX && animIdle.IsValid()) {
+        if (startX != endX && animWalk.IsValid()) {
+            activeAnim = &animWalk;
+        }
+        else if (animIdle.IsValid()) {
             activeAnim = &animIdle;
         }
         else if (animWalk.IsValid()) {
