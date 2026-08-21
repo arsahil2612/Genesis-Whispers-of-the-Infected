@@ -82,6 +82,7 @@
     <ClInclude Include="src\map.h" />
     <ClInclude Include="src\player.h" />
     <ClInclude Include="src\ResourceManager.h" />
+    <ClInclude Include="src\StoryManager.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="src\UI.h" />
   </ItemGroup>
@@ -106,6 +107,7 @@
     <ClCompile Include="src\map.cpp" />
     <ClCompile Include="src\player.cpp" />
     <ClCompile Include="src\ResourceManager.cpp" />
+    <ClCompile Include="src\StoryManager.cpp" />
     <ClCompile Include="src\UI.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

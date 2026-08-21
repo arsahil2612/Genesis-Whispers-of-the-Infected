@@ -13,6 +13,7 @@
 // Game State Taxonomy & Data Structs
 // ============================================================================
 enum GameState {
+    STATE_STORY,
     STATE_MENU,
     STATE_PLAYING,
     STATE_DIALOGUE,

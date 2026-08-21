@@ -4,6 +4,12 @@
 #include <windows.h>
 #include "game_manager.h"
 #include "ResourceManager.h"
+#include "StoryManager.h"
+
+enum EngineState {
+    GAME_STATE_STORY,
+    GAME_STATE_PLAYING
+};
 
 // ============================================================================
 // GAME CLASS (CORE FRAMEWORK & ENGINE MANAGER)
@@ -13,9 +19,13 @@ private:
     int m_screenWidth;
     int m_screenHeight;
     bool m_isRunning;
+    EngineState m_engineState;
 
     // Embedded Core Game Manager (Arin, World Map, Enemies, UI, Menus, Audio)
     GameManager m_gameManager;
+
+    // Independent Level 1 Cinematic Story Introduction Manager
+    StoryManager m_storyManager;
 
     // High precision Delta Time tracking using Windows Performance Counter
     LARGE_INTEGER m_frequency;
@@ -34,6 +44,10 @@ public:
     // High precision Delta Time
     float CalculateDeltaTime();
     float GetDeltaTime() const { return m_deltaTime; }
+
+    // Engine State Accessors
+    EngineState GetEngineState() const { return m_engineState; }
+    void SetEngineState(EngineState state) { m_engineState = state; }
 
     // Screen Dimensions
     int GetScreenWidth() const { return m_screenWidth; }
