@@ -7,10 +7,13 @@
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
+#include <string>
+#include <vector>
+#include <sstream>
 
 // Active Dialogue Text buffer
-static char g_dialogueSpeaker[32] = "";
-static char g_dialogueText[128] = "";
+static char g_dialogueSpeaker[64] = "";
+static char g_dialogueText[512] = "";
 
 // ============================================================================
 // Typography & Text Shadow / Outline Helpers
@@ -192,19 +195,22 @@ void GameManager::Initialize() {
     worldProps.clear();
 
     // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
+    // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
+    // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
     // 1. Entrance / Living Room (x = 300 to 1000)
     AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 420.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_missing_luna.png", 650.0, 270.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Luna's missing poster on wall
+    AddWorldProp("Assets/Posters/poster_missing_luna.png", 650.0, 270.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Story: Family photo / Missing Luna portrait
     AddWorldProp("Assets/Props/Furniture/furn_dining_table_01.png", 750.0, 185.0, 110.0, 70.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Items/Medicine/first_aid.png", 840.0, 185.0, 36.0, 36.0, PROP_LAYER_FOREGROUND); // Emergency medical kit on floor
+    AddWorldProp("Assets/Items/Medicine/first_aid.png", 840.0, 185.0, 36.0, 36.0, PROP_LAYER_BACKGROUND); // Story: Personal belongings / medical supplies
 
     // 2. Kitchen / Storage Area (x = 1000 to 1700)
     AddWorldProp("Assets/Props/Furniture/furn_wooden_cabinet_01.png", 1120.0, 185.0, 85.0, 115.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 1320.0, 280.0, 48.0, 64.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 1520.0, 185.0, 75.0, 60.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 1320.0, 280.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Story: Evacuation notice
+    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 1520.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // 3. Arin & Luna's Bedrooms (x = 1700 to 2400)
     AddWorldProp("Assets/Props/Furniture/furn_broken_bed_01.png", 1820.0, 185.0, 130.0, 75.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Posters/poster_missing_luna.png", 1950.0, 260.0, 40.0, 52.0, PROP_LAYER_BACKGROUND); // Story: Children's sketch / Luna's picture in bedroom
     AddWorldProp("Assets/Props/Furniture/furn_broken_bench_01.png", 2150.0, 185.0, 80.0, 45.0, PROP_LAYER_BACKGROUND);
 
     // 4. Second Floor Upper Platforms (x = 2400 to 3000)
@@ -212,32 +218,36 @@ void GameManager::Initialize() {
     AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 2720.0, 450.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
 
     // 5. Exit Ledge / Destroyed Wall Boundary (x = 3000 to 3400)
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 3120.0, 185.0, 100.0, 65.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 3120.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND);
 
     // --- AREA 3 & 4: VILLAGE STREET & SQUARE (x = 3500 to 7500) ---
     // 1. Entrance to Village Street (x = 3500 to 4400)
     AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 3650.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 3655.0, 270.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Evacuation poster on pole
     AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 3900.0, 185.0, 120.0, 180.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 4200.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
 
     // 2. Mid Street & Barricade Zone (x = 4400 to 5500)
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 4550.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 4750.0, 185.0, 48.0, 60.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4555.0, 250.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Military warning sign on lamp
+    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 4750.0, 185.0, 48.0, 60.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 4900.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Abandoned luggage / backpack cart
     AddWorldProp("Assets/Props/Vehicles/veh_destroyed_car_01.png", 5100.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Nature/dry_bush.png", 5350.0, 185.0, 48.0, 36.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Nature/dry_bush.png", 5350.0, 185.0, 48.0, 36.0, PROP_LAYER_FOREGROUND); // Foreground Grass
 
     // 3. Village Square Approach (x = 5500 to 6700)
     AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 5600.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 5900.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 6200.0, 185.0, 56.0, 40.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 6200.0, 185.0, 56.0, 40.0, PROP_LAYER_FOREGROUND); // Foreground Rocks
     AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 6450.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // 4. Village Square Edge (x = 6700 to 7400)
     AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 6850.0, 185.0, 130.0, 190.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7150.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 7300.0, 185.0, 44.0, 55.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 7155.0, 250.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Military quarantine warning
+    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 7300.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND);
 
-    // --- AREA 4: VILLAGE SQUARE (x = 7500 to 9000) ---
+    // --- AREA 4: VILLAGE SQUARE & QUARANTINE (x = 7500 to 9000) ---
     // 1. Village Square West Entrance & Sandbag Perimeter (x = 7500 to 7900)
     AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 7600.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7850.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
@@ -245,45 +255,52 @@ void GameManager::Initialize() {
     // 2. Central Fountain Plaza & Abandoned Ambulance (x = 7900 to 8400)
     AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 7950.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Nature/Assets__stone.png", 8150.0, 220.0, 90.0, 55.0, PROP_LAYER_BACKGROUND); // Destroyed Fountain Highlight
-    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 8320.0, 185.0, 64.0, 45.0, PROP_LAYER_FOREGROUND); // Broken Statue / Rubble
+    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 8320.0, 185.0, 64.0, 45.0, PROP_LAYER_FOREGROUND); // Foreground Rubble
 
     // 3. Military Checkpoint Barricade & East Exit (x = 8400 to 9000)
     AddWorldProp("Assets/Props/Military/bld_military_checkpoint.png", 8550.0, 185.0, 130.0, 85.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 8580.0, 235.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Story: NovaGen propaganda poster on checkpoint
+    AddWorldProp("Assets/Items/Medicine/first_aid.png", 8650.0, 185.0, 36.0, 36.0, PROP_LAYER_BACKGROUND); // Story: Abandoned medical equipment
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 8750.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 8900.0, 185.0, 90.0, 60.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 8800.0, 240.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Warning sign on checkpoint gate
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 8900.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // --- AREA 5: ABANDONED MARKET (x = 9000 to 11000) ---
     // 1. Market Storefront & Entrance (x = 9000 to 9400)
     AddWorldProp("Assets/Props/Buildings/bld_grocery_store_abandoned.png", 9100.0, 185.0, 160.0, 130.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 9320.0, 185.0, 75.0, 60.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 9150.0, 260.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Story: NovaGen poster on store facade
+    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 9320.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // 2. Inner Market Aisles & Upper Shelf Platforms (x = 9400 to 10200)
     AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 9450.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 9520.0, 280.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Items/Medicine/first_aid.png", 9600.0, 185.0, 36.0, 36.0, PROP_LAYER_BACKGROUND); // Story: Abandoned medical kit in market aisle
     AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 9820.0, 400.0, 70.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/crate.png", 9950.0, 185.0, 56.0, 56.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/crate.png", 9950.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND);
 
     // 3. Market Storage & Rear Exit (x = 10200 to 11000)
     AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10300.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 10600.0, 185.0, 44.0, 55.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 10600.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 10850.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
 
-    // --- AREA 6: RAIDER CAMP (x = 11000 to 13500) ---
+    // --- AREA 6: RAIDER CAMP & EXIT GATE (x = 11000 to 13500) ---
     // 1. West Camp Outpost & Perimeter Barricade (x = 11000 to 11400)
     AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 11100.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 11150.0, 240.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Biohazard warning sign
     AddWorldProp("Assets/Props/Decorations/prop_generator_01.png", 11350.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // 2. Watchtower & Campfire Hub (x = 11400 to 12200)
     AddWorldProp("Assets/Props/Military/bld_raider_watchtower.png", 11500.0, 185.0, 180.0, 280.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 11550.0, 320.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 11620.0, 450.0, 36.0, 45.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 11850.0, 185.0, 48.0, 60.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Decorations/crate.png", 12050.0, 185.0, 56.0, 56.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 11850.0, 185.0, 48.0, 60.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/crate.png", 12050.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND);
 
-    // 3. Makeshift Shelter & East Guard Post (x = 12200 to 13500)
+    // 3. Exit Gate & Luna's Ribbon Checkpoint (x = 12200 to 13500)
     AddWorldProp("Assets/Props/Buildings/Quarantine_CheckpointQuarantine_Checkpoint.png", 12400.0, 185.0, 160.0, 120.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/drum.png", 12700.0, 185.0, 50.0, 60.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/drum.png", 12700.0, 185.0, 50.0, 60.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 13000.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Military/Exit_Gate.png", 13200.0, 185.0, 180.0, 220.0, PROP_LAYER_BACKGROUND); // Story: Steel Exit Gate
     AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 13300.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
 
     // Load props texture sheet (4x4 gameplay atlas)
@@ -692,10 +709,10 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                     currentState = STATE_DIALOGUE;
                     sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Survivor's Clue Note");
                     if (collectibles[i].x < 10000) {
-                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"NovaGen Memo: Evacuation path compromised. Convoy heading East to Blackwood Forest. Subject Luna immune.\"");
+                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"NovaGen Memo:\nEvacuation path compromised.\nConvoy heading East to Blackwood Forest.\nSubject Luna immune.\"");
                     }
                     else {
-                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A crumpled note: 'Dr. Kael took the silver-haired girl through the forest checkpoint. She is our only hope...'\"");
+                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A crumpled note:\nDr. Kael took the silver-haired girl through the forest checkpoint.\nShe is our only hope...\"");
                     }
                     sprintf_s(g_pickupText, sizeof(g_pickupText), "MISSION NOTE DISCOVERED");
                     g_pickupR = 0; g_pickupG = 230; g_pickupB = 255;
@@ -969,6 +986,114 @@ void GameManager::AddWorldProp(const std::string& assetPath, double x, double y,
     printf("[Prop System] Registered WorldProp: %s at (%.1f, %.1f) scale (%.1f x %.1f)\n", assetPath.c_str(), x, y, width, height);
 }
 
+double GameManager::GetPropWorldScale(const std::string& assetPath) const {
+    // 1. Small props (Scrap, papers, notes, first aid, small bushes)
+    if (assetPath.find("Posters/") != std::string::npos ||
+        assetPath.find("Items/") != std::string::npos ||
+        assetPath.find("dry_bush") != std::string::npos ||
+        assetPath.find("paper") != std::string::npos ||
+        assetPath.find("note") != std::string::npos ||
+        assetPath.find("scrap") != std::string::npos) {
+        return kPropScaleSmall; // 1.1x
+    }
+
+    // 2. Human-scale props (Chair, Table, Bed, Shopping cart, Furniture)
+    if (assetPath.find("chair") != std::string::npos ||
+        assetPath.find("shopping_cart") != std::string::npos ||
+        assetPath.find("Furniture/") != std::string::npos ||
+        assetPath.find("table") != std::string::npos ||
+        assetPath.find("bed") != std::string::npos ||
+        assetPath.find("bench") != std::string::npos ||
+        assetPath.find("cabinet") != std::string::npos ||
+        assetPath.find("shelf") != std::string::npos) {
+        return 1.8;
+    }
+
+    // 3. Industrial props - Vehicles & Large Structures
+    // Ambulance: Significantly larger than Arin (roof ~295px vs Arin 195px, length ~527px)
+    if (assetPath.find("ambulance") != std::string::npos) {
+        return 3.1;
+    }
+
+    // Military pickup / trucks: Human/world scale (roof ~243px vs Arin 195px, length ~432px)
+    if (assetPath.find("pickup") != std::string::npos ||
+        assetPath.find("truck") != std::string::npos) {
+        return 2.7;
+    }
+
+    // Destroyed cars: Realistic vehicle size (roof ~192px vs Arin 195px, length ~360px)
+    if (assetPath.find("destroyed_car") != std::string::npos ||
+        assetPath.find("car_") != std::string::npos) {
+        return 2.4;
+    }
+
+    // Large buildings / checkpoints / shelters
+    if (assetPath.find("bld_military_checkpoint") != std::string::npos ||
+        assetPath.find("Quarantine_Checkpoint") != std::string::npos) {
+        return 2.6;
+    }
+    if (assetPath.find("bld_grocery_store") != std::string::npos) {
+        return 2.4;
+    }
+
+    // Tall structures / nature (Trees, poles, lamps, watchtower)
+    if (assetPath.find("nature_dead_tree") != std::string::npos ||
+        assetPath.find("telephone_pole") != std::string::npos ||
+        assetPath.find("street_lamp") != std::string::npos ||
+        assetPath.find("watchtower") != std::string::npos) {
+        return kPropScaleTall; // 1.8x
+    }
+
+    // Other large vehicle/building fallbacks
+    if (assetPath.find("Vehicles/") != std::string::npos ||
+        assetPath.find("Military/") != std::string::npos ||
+        assetPath.find("Buildings/") != std::string::npos ||
+        assetPath.find("veh_") != std::string::npos ||
+        assetPath.find("bld_") != std::string::npos) {
+        return 2.5;
+    }
+
+    // 4. Industrial props (Default: Barrels, oil drums, crates, fences, sandbags, generators, stones/rubble)
+    return 1.8;
+}
+
+double GameManager::GetPropGroundOffset(const std::string& assetPath) const {
+    // 1. Chair & Shopping Cart: PNG transparent bottom padding (~12px)
+    if (assetPath.find("chair") != std::string::npos ||
+        assetPath.find("shopping_cart") != std::string::npos) {
+        return 12.0;
+    }
+
+    // 2. Other Furniture (Table, Bed, Bench, Cabinet, Shelf): PNG padding (~8px)
+    if (assetPath.find("Furniture/") != std::string::npos ||
+        assetPath.find("table") != std::string::npos ||
+        assetPath.find("bed") != std::string::npos ||
+        assetPath.find("bench") != std::string::npos ||
+        assetPath.find("cabinet") != std::string::npos ||
+        assetPath.find("shelf") != std::string::npos) {
+        return 8.0;
+    }
+
+    // 3. Barrels, Drums, Crates & Fences: PNG padding (~6px)
+    if (assetPath.find("barrel") != std::string::npos ||
+        assetPath.find("drum") != std::string::npos ||
+        assetPath.find("crate") != std::string::npos ||
+        assetPath.find("fence") != std::string::npos) {
+        return 6.0;
+    }
+
+    // 4. Sandbags, Generators, Stones & Bushes (~4px)
+    if (assetPath.find("sandbags") != std::string::npos ||
+        assetPath.find("generator") != std::string::npos ||
+        assetPath.find("stone") != std::string::npos ||
+        assetPath.find("bush") != std::string::npos) {
+        return 4.0;
+    }
+
+    // 5. Default ground offset for all other environment props
+    return 4.0;
+}
+
 void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
     // Enable OpenGL Alpha Blending for clean PNG transparency across all prop textures
     glEnable(GL_BLEND);
@@ -977,13 +1102,27 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
     for (size_t i = 0; i < worldProps.size(); ++i) {
         if (!worldProps[i].visible || worldProps[i].layer != layer) continue;
 
-        double screenPx = worldProps[i].x - camX;
-        double screenPy = worldProps[i].y - camY;
+        double scale = GetPropWorldScale(worldProps[i].assetPath);
+        double renderW = worldProps[i].width * scale;
+        double renderH = worldProps[i].height * scale;
+
+        // Bottom-Center Ground Anchor Calculation:
+        // Position (x, y) represents the bottom-center point touching the ground.
+        double renderX = (worldProps[i].x - camX) - (renderW / 2.0);
+        double renderY = worldProps[i].y - camY;
+
+        // Configurable Ground Alignment Offset:
+        // If prop rests on main ground baseline (y == 185.0), apply Arin's boot alignment reference (-6.0)
+        // plus the asset's PNG transparent padding offset (groundOffset) so the visible base touches ground Y.
+        if (std::abs(worldProps[i].y - kLevel1GroundY) < 1.0) {
+            double groundOffset = GetPropGroundOffset(worldProps[i].assetPath);
+            renderY += (-6.0 + groundOffset);
+        }
 
         // Viewport frustum culling check (-100 to 1380)
-        if (screenPx + worldProps[i].width >= -100 && screenPx <= 1380) {
+        if (renderX + renderW >= -100 && renderX <= 1380) {
             if (worldProps[i].textureID != 0) {
-                iShowImage((int)screenPx, (int)screenPy, (int)worldProps[i].width, (int)worldProps[i].height, worldProps[i].textureID);
+                iShowImage((int)renderX, (int)renderY, (int)renderW, (int)renderH, worldProps[i].textureID);
             }
         }
     }
@@ -993,14 +1132,18 @@ void GameManager::RenderPlaying() {
     double camX = gameMap.GetCameraX();
     double camY = gameMap.GetCameraY();
 
-    // 1. Render Tiled backgrounds & surface tiles
+    // ========================================================================
+    // LAYER 1: BACKGROUND (Parallax backdrop & surface tiles)
+    // ========================================================================
     gameMap.RenderBackground(camX, bossDefeated);
     gameMap.RenderTiles(camX, camY);
 
-    // Render Background Props (Behind player and enemies)
+    // ========================================================================
+    // LAYER 2: LARGE ENVIRONMENT OBJECTS (Vehicles, buildings, trees, background props)
+    // ========================================================================
     RenderWorldProps(PROP_LAYER_BACKGROUND, camX, camY);
 
-    // 2. Render Props (Environmental obstacles & burning barrels)
+    // Render level props (Environmental obstacles & burning barrels)
     for (size_t i = 0; i < props.size(); ++i) {
         double screenPx = props[i].x - camX;
         double screenPy = props[i].y - camY;
@@ -1079,174 +1222,185 @@ void GameManager::RenderPlaying() {
         }
     }
 
-    // 3. Render Collectibles with floating animation and image textures / glowing indicators
-    const int kWorldItemBaseSize = 58; // Centralized high-visibility world item render baseline
+    // Render Collectibles with floating animation, ground pod indicators, and high visibility
     for (size_t i = 0; i < collectibles.size(); ++i) {
         if (collectibles[i].active) {
             double screenPx = collectibles[i].x - camX;
-            double bobY = collectibles[i].y + sin(uiAnimTime * 4.0 + i) * 3.0;
+            double groundY = collectibles[i].y - (std::abs(collectibles[i].y - kLevel1GroundY) < 1.0 ? 6.0 : 0.0);
+            double bobY = groundY + (sin(uiAnimTime * 4.0 + i) * 3.0 + 3.0);
 
-            if (screenPx + collectibles[i].width >= -100 && screenPx <= 1380) {
+            if (screenPx + 80 >= -100 && screenPx - 80 <= 1380) {
                 int px = (int)screenPx;
                 int py = (int)bobY;
 
                 unsigned int itemTex = 0;
                 const char* itemLabel = "ITEM";
                 int lR = 255, lG = 255, lB = 255;
-                int itemDrawW = kWorldItemBaseSize;
-                int itemDrawH = kWorldItemBaseSize;
+                int itemDrawW = 44;
+                int itemDrawH = 44;
 
                 switch (collectibles[i].type) {
                 case COL_MEDKIT:
                     itemTex = (collectibles[i].subType == 1 && g_texItemBandage != 0) ? g_texItemBandage : g_texItemFirstAid;
                     itemLabel = (collectibles[i].subType == 1) ? "BANDAGE" : "FIRST AID";
                     lR = 255; lG = 100; lB = 100;
-                    itemDrawW = 58; itemDrawH = 58;
+                    itemDrawW = 44; itemDrawH = 44;
                     break;
                 case COL_FOOD:
                     itemTex = (collectibles[i].subType == 1 && g_texItemApple != 0) ? g_texItemApple : g_texItemBread;
                     itemLabel = (collectibles[i].subType == 1) ? "APPLE" : "BREAD";
                     lR = 255; lG = 180; lB = 0;
-                    itemDrawW = 58; itemDrawH = 58;
+                    itemDrawW = 40; itemDrawH = 40;
                     break;
                 case COL_WATER:
                     itemTex = g_texItemWaterBottle;
                     itemLabel = "WATER";
                     lR = 0; lG = 220; lB = 255;
-                    itemDrawW = 44; itemDrawH = 64; // Preserves tall bottle aspect ratio
+                    itemDrawW = 36; itemDrawH = 48;
                     break;
                 case COL_SCRAP:
                     itemTex = g_texItemScrapMetal;
-                    itemLabel = "SCRAP";
+                    itemLabel = "SCRAP METAL";
                     lR = 200; lG = 210; lB = 220;
-                    itemDrawW = 58; itemDrawH = 58;
+                    itemDrawW = 44; itemDrawH = 44;
                     break;
                 case COL_RUSTY_KEY:
                     itemTex = g_texItemRustyKey;
-                    itemLabel = "RUSTY KEY";
+                    itemLabel = "GATE KEY";
                     lR = 255; lG = 215; lB = 0;
-                    itemDrawW = 64; itemDrawH = 44; // Preserves wide key aspect ratio
+                    itemDrawW = 42; itemDrawH = 42;
                     break;
                 case COL_KEYCARD:
-                    itemTex = (g_texItemRustyKey != 0) ? g_texItemRustyKey : 0;
+                    itemTex = g_texItemRustyKey;
                     itemLabel = "KEYCARD";
                     lR = 255; lG = 215; lB = 0;
-                    itemDrawW = 60; itemDrawH = 42; // Preserves keycard aspect ratio
+                    itemDrawW = 42; itemDrawH = 42;
                     break;
                 case COL_COIN:
+                    itemTex = g_texItemCoin;
+                    itemLabel = "OLD CURRENCY";
+                    lR = 255; lG = 215; lB = 0;
+                    itemDrawW = 38; itemDrawH = 38;
+                    break;
                 case COL_AMMO:
                     itemTex = g_texItemCoin;
-                    itemLabel = (collectibles[i].type == COL_COIN) ? "COIN" : "AMMO";
+                    itemLabel = (collectibles[i].subType == 1) ? "12GA SHELLS" : "9MM AMMO";
                     lR = 255; lG = 215; lB = 0;
-                    itemDrawW = 52; itemDrawH = 52;
+                    itemDrawW = 42; itemDrawH = 42;
                     break;
                 case COL_BATTERY:
+                    itemTex = 0;
                     itemLabel = "BATTERY";
                     lR = 0; lG = 255; lB = 200;
-                    itemDrawW = 44; itemDrawH = 60; // Preserves battery aspect ratio
+                    itemDrawW = 36; itemDrawH = 46;
                     break;
                 case COL_NOTE:
-                    itemLabel = "CLUE NOTE";
+                    itemTex = 0;
+                    itemLabel = "MISSION NOTE";
                     lR = 0; lG = 230; lB = 255;
-                    itemDrawW = 48; itemDrawH = 60; // Preserves note aspect ratio
+                    itemDrawW = 38; itemDrawH = 46;
                     break;
                 default:
                     break;
                 }
 
-                int drawX = px - (itemDrawW - (int)collectibles[i].width) / 2;
+                int drawX = px - itemDrawW / 2;
+                int drawY = py;
 
+                // 1. Ground highlight aura pod (Visibility indicator on floor)
+                int groundScreenY = (int)(groundY - camY);
+                iSetColor(lR / 4, lG / 4, lB / 4);
+                iFilledRectangle(drawX - 4, groundScreenY, itemDrawW + 8, 4);
+                iSetColor(lR / 2, lG / 2, lB / 2);
+                iFilledRectangle(drawX, groundScreenY + 1, itemDrawW, 2);
+
+                // 2. Render item sprite texture or procedural fallback
                 if (itemTex != 0) {
-                    iShowImage(drawX, py, itemDrawW, itemDrawH, itemTex);
-                    DrawOutlinedText(px - 2, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, lR, lG, lB);
+                    iShowImage(drawX, drawY, itemDrawW, itemDrawH, itemTex);
                 }
                 else {
-                    // Procedural fallback rendering scaled to itemDrawW / itemDrawH
+                    // Procedural fallback rendering cleanly scaled to item dimensions
                     switch (collectibles[i].type) {
                     case COL_MEDKIT:
                         iSetColor(180, 20, 20);
-                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(0, 220, 255);
-                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(255, 255, 255);
-                        iFilledRectangle(drawX + 20, py + 12, 12, 28);
-                        iFilledRectangle(drawX + 12, py + 20, 28, 12);
-                        DrawOutlinedText(px + 4, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 255, 220, 0);
+                        iFilledRectangle(drawX + itemDrawW / 3, drawY + 8, itemDrawW / 3, itemDrawH - 16);
+                        iFilledRectangle(drawX + 8, drawY + itemDrawH / 3, itemDrawW - 16, itemDrawH / 3);
                         break;
                     case COL_AMMO:
                     case COL_COIN:
                         iSetColor(40, 45, 50);
-                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(255, 215, 0);
-                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(220, 180, 20);
-                        iFilledRectangle(drawX + 18, py + 12, 12, 24);
-                        DrawOutlinedText(px + 4, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 255, 215, 0);
+                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 8, itemDrawW / 2, itemDrawH - 16);
                         break;
                     case COL_WATER:
                         iSetColor(15, 60, 100);
-                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(0, 240, 255);
-                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(0, 200, 255);
-                        iFilledRectangle(drawX + 12, py + 14, 16, 28);
-                        DrawOutlinedText(px + 4, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 0, 220, 255);
+                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
                         break;
                     case COL_BATTERY:
                         iSetColor(30, 30, 35);
-                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(0, 255, 200);
-                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(0, 255, 180);
-                        iFilledRectangle(drawX + 10, py + 12, 20, 30);
-                        DrawOutlinedText(px + 2, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 0, 255, 200);
+                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
                         break;
                     case COL_FOOD:
                         iSetColor(60, 45, 20);
-                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(255, 180, 0);
-                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(240, 160, 40);
-                        iFilledRectangle(drawX + 12, py + 12, 28, 28);
-                        DrawOutlinedText(px + 6, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 255, 180, 0);
+                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
                         break;
                     case COL_NOTE:
                         iSetColor(20, 25, 35);
-                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
-                        iSetColor(0, 230, 255);
-                        iRectangle(drawX, py, itemDrawW, itemDrawH);
-                        iSetColor(255, 255, 255);
-                        iFilledRectangle(drawX + 8, py + 32, 28, 4);
-                        iFilledRectangle(drawX + 8, py + 22, 22, 4);
-                        iFilledRectangle(drawX + 8, py + 12, 25, 4);
-                        DrawOutlinedText(px + 2, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 0, 230, 255);
+                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
+                        iSetColor(0, 220, 255);
+                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
+                        iSetColor(0, 240, 255);
+                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
                         break;
                     case COL_KEYCARD:
                     case COL_RUSTY_KEY:
                         iSetColor(10, 30, 50);
-                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(255, 215, 0);
-                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(0, 220, 255);
-                        iFilledRectangle(drawX + 8, py + 16, 38, 8);
-                        DrawOutlinedText(px - 4, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 255, 215, 0);
+                        iFilledRectangle(drawX + 6, drawY + itemDrawH / 3, itemDrawW - 12, itemDrawH / 3);
                         break;
                     case COL_SCRAP:
                         iSetColor(45, 50, 60);
-                        iFilledRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(200, 210, 220);
-                        iRectangle(drawX, py, itemDrawW, itemDrawH);
+                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
                         iSetColor(180, 190, 200);
-                        iFilledRectangle(drawX + 14, py + 14, 24, 24);
-                        DrawOutlinedText(px + 2, py - 14, itemLabel, GLUT_BITMAP_HELVETICA_10, 200, 210, 220);
+                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
                         break;
                     }
                 }
+
+                // 3. Outlined text label above item
+                int labelX = px - ((int)strlen(itemLabel) * 6) / 2;
+                DrawOutlinedText(labelX, drawY + itemDrawH + 6, itemLabel, GLUT_BITMAP_HELVETICA_10, lR, lG, lB);
             }
         }
     }
 
-    // 4. Render Enemies
+    // ========================================================================
+    // LAYER 3: CHARACTERS (Enemies & Player Arin)
+    // ========================================================================
     for (size_t i = 0; i < enemies.size(); ++i) {
         double screenEx = enemies[i].x - camX;
         double screenEy = enemies[i].y - camY;
@@ -1265,13 +1419,16 @@ void GameManager::RenderPlaying() {
         }
     }
 
-    // 6. Render Player
     player.Render(camX, camY);
 
-    // Render Foreground Props (In front of player and enemies)
+    // ========================================================================
+    // LAYER 4: FOREGROUND OBJECTS (Foreground props in front of characters)
+    // ========================================================================
     RenderWorldProps(PROP_LAYER_FOREGROUND, camX, camY);
 
-    // Floating Item Pickup Notification Pop-up
+    // ========================================================================
+    // LAYER 5: EFFECTS (Floating popups, particle effects, HUD overlays)
+    // ========================================================================
     if (g_pickupTimer > 0.0) {
         g_pickupTimer -= 0.016;
         g_pickupY += 0.8;
@@ -1661,20 +1818,84 @@ void GameManager::RenderPlaying() {
 void GameManager::RenderDialogue() {
     RenderPlaying(); // Render gameplay backdrop
 
-    // Transparent dialog frame at bottom of window
-    iSetColor(5, 5, 10);
-    iFilledRectangle(50, 40, 924, 140);
-    iSetColor(0, 180, 200);
-    iRectangle(50, 40, 924, 140);
+    // Transparent dialog frame centered at bottom of window
+    int panelX = 90;
+    int panelY = 30;
+    int panelW = 1100;
+    int panelH = 180;
 
+    // Dark semi-transparent dialogue background
+    iSetColor(8, 12, 22);
+    iFilledRectangle(panelX, panelY, panelW, panelH);
+
+    // Glowing cyan outer frame
+    iSetColor(0, 190, 220);
+    iRectangle(panelX, panelY, panelW, panelH);
+    iSetColor(0, 120, 150);
+    iRectangle(panelX + 2, panelY + 2, panelW - 4, panelH - 4);
+
+    // Header Title (Speaker / Note Title)
     iSetColor(0, 230, 255);
-    iText(70, 145, g_dialogueSpeaker, GLUT_BITMAP_HELVETICA_18);
+    iText(panelX + 30, panelY + panelH - 32, g_dialogueSpeaker, GLUT_BITMAP_HELVETICA_18);
 
-    iSetColor(255, 255, 255);
-    iText(70, 95, g_dialogueText, GLUT_BITMAP_HELVETICA_18);
+    // Header accent divider line
+    iSetColor(0, 140, 170);
+    iLine(panelX + 25, panelY + panelH - 42, panelX + panelW - 25, panelY + panelH - 42);
 
-    iSetColor(150, 150, 150);
-    iText(800, 55, "Press ENTER to continue", GLUT_BITMAP_HELVETICA_12);
+    // Body Text Multi-line Word-Wrapping Engine
+    int textStartX = panelX + 30;
+    int textStartY = panelY + panelH - 70;
+    int maxPixelWidth = panelW - 60; // 1040px text width
+    int lineHeight = 24;
+
+    std::string textStr(g_dialogueText);
+    std::vector<std::string> lines;
+
+    // Max characters per line for GLUT_BITMAP_HELVETICA_18 (~9.5px per char)
+    int maxCharsPerLine = (int)(maxPixelWidth / 9.5); // ~109 chars
+    if (maxCharsPerLine < 20) maxCharsPerLine = 20;
+
+    std::stringstream ss(textStr);
+    std::string segment;
+
+    while (std::getline(ss, segment, '\n')) {
+        if (segment.empty()) {
+            lines.push_back("");
+            continue;
+        }
+
+        std::stringstream wordStream(segment);
+        std::string word;
+        std::string currentLine = "";
+
+        while (wordStream >> word) {
+            if (currentLine.empty()) {
+                currentLine = word;
+            } else if ((int)(currentLine.length() + 1 + word.length()) <= maxCharsPerLine) {
+                currentLine += " " + word;
+            } else {
+                lines.push_back(currentLine);
+                currentLine = word;
+            }
+        }
+        if (!currentLine.empty()) {
+            lines.push_back(currentLine);
+        }
+    }
+
+    // Render body text lines inside panel boundaries
+    iSetColor(240, 245, 255);
+    int currentY = textStartY;
+    for (size_t i = 0; i < lines.size(); ++i) {
+        if (currentY >= panelY + 25) { // Ensure no text extends past bottom padding
+            iText(textStartX, currentY, (char*)lines[i].c_str(), GLUT_BITMAP_HELVETICA_18);
+        }
+        currentY -= lineHeight;
+    }
+
+    // Footer prompt aligned in bottom right inside frame
+    iSetColor(150, 165, 180);
+    iText(panelX + panelW - 220, panelY + 16, "Press [ENTER] to Continue", GLUT_BITMAP_HELVETICA_12);
 }
 
 void GameManager::RenderGameOver() {

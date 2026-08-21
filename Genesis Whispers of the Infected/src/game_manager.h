@@ -94,6 +94,12 @@ enum Level1Area {
 // Authoritative Level 1 Ground Baseline Coordinate
 const double kLevel1GroundY = 185.0;
 
+// Centralized Environment Prop World Rendering Scale Factors (Referenced to Arin's 195px height)
+const double kPropScaleSmall  = 1.1;  // Small: Posters, papers, notes, first aid, small items
+const double kPropScaleMedium = 1.75; // Medium: Barrels, oil drums, crates, furniture, fences, sandbags, generator
+const double kPropScaleLarge  = 2.3;  // Large: Ambulance, pickup trucks, cars, military checkpoint, store
+const double kPropScaleTall   = 1.8;  // Tall: Trees, telephone poles, street lamps, watchtowers
+
 // ============================================================================
 // Core Game Manager Class
 // ============================================================================
@@ -164,6 +170,8 @@ public:
     // Independent Environment Prop System Methods
     void AddWorldProp(const std::string& assetPath, double x, double y, double width, double height, PropLayer layer = PROP_LAYER_BACKGROUND);
     void RenderWorldProps(PropLayer layer, double camX, double camY);
+    double GetPropWorldScale(const std::string& assetPath) const;
+    double GetPropGroundOffset(const std::string& assetPath) const;
 
     // Input hooks from iGraphics
     void HandleKeyPress(unsigned char key);
