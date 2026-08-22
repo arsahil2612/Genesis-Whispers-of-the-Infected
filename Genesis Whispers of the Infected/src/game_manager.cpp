@@ -340,8 +340,9 @@ void GameManager::Initialize() {
     // 3. Exit Gate & Luna's Ribbon Checkpoint (x = 12200 to 13500)
     AddWorldProp("Assets/Props/Buildings/Quarantine_CheckpointQuarantine_Checkpoint.png", 12400.0, 185.0, 160.0, 120.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/drum.png", 12700.0, 185.0, 50.0, 60.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Military/Exit_Gate.png", 13200.0, 185.0, 180.0, 220.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 13300.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Military/Exit_Gate.png", 13200.0, 185.0, 586.0, 440.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 12910.0, 185.0, 90.0, 45.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 13480.0, 185.0, 70.0, 40.0, PROP_LAYER_FOREGROUND);
 
     // Load props texture sheet (4x4 gameplay atlas)
     if (texPropsSheet == 0) {
@@ -471,6 +472,8 @@ void GameManager::Initialize() {
     // Section 3 (Village Square: Mission Note, Medkit)
     collectibles.push_back({ 6925, kLevel1GroundY, 32, 32, COL_NOTE, true, 0 });      // Mission Note
     collectibles.push_back({ 7300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0 });    // Medkit (First Aid)
+    // Section 7 (Quarantine Zone: NovaGen Keycard)
+    collectibles.push_back({ 9250, kLevel1GroundY, 32, 32, COL_KEYCARD, true, 0 });   // NovaGen Keycard
 
     // Initialize rain particle simulation
     rainParticles.clear();
@@ -608,9 +611,14 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         }
     }
 
-    // 4. Horizontal camera tracking
-    // Check boss spawning boundary trigger
-    if (player.x >= 19600 && !bossSpawned) {
+    // 4. Horizontal camera tracking & Exit Gate collision boundary
+    // Enforcement of Exit Gate solid world structure (Player cannot clip past entrance at 13120)
+    if (player.x > 13120.0) {
+        player.x = 13120.0;
+    }
+
+    // Check boss spawning boundary trigger (Section 9: x >= 11800)
+    if (player.x >= 11800 && !bossSpawned) {
         bossSpawned = true;
         // Load boss stats dynamically
         for (size_t i = 0; i < enemies.size(); ++i) {
@@ -621,10 +629,10 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         }
     }
 
-    // If boss fight is active, lock the player camera inside the arena bounds
+    // If boss fight is active, lock the player camera inside the arena bounds (11400 to 12600)
     if (bossSpawned && !bossDefeated) {
-        double minCam = 19400;
-        double maxCam = 20500;
+        double minCam = 11400;
+        double maxCam = 12600;
 
         double targetCam = player.x - (1280 / 2.0);
         if (targetCam < minCam) targetCam = minCam;
@@ -632,10 +640,8 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
 
         // Smooth camera track locked in arena
         gameMap.ApplyCameraTracking(player.x, player.y, 1280, 720);
-        if (gameMap.GetCameraX() < minCam) {
-            if (player.x < 19450) player.x = 19450;
-            if (player.x > 21450) player.x = 21450;
-        }
+        if (player.x < 11450) player.x = 11450;
+        if (player.x > 12650) player.x = 12650;
     }
     else {
         // Normal viewport tracking
@@ -665,14 +671,15 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         }
     }
 
-    // 6. Update active Collectibles interaction
+    // 6. Update active Collectibles interaction (Auto pickup for resources, [E] keypress for keycard/note)
     for (size_t i = 0; i < collectibles.size(); ++i) {
         if (collectibles[i].active) {
             // Check bounding collision between player and collectible item
             bool intersectX = (player.x + player.width >= collectibles[i].x) && (collectibles[i].x + collectibles[i].width >= player.x);
             bool intersectY = (player.y + player.height >= collectibles[i].y) && (collectibles[i].y + collectibles[i].height >= player.y);
 
-            if (intersectX && intersectY) {
+            // Story items (Keycard, Note) require manual [E] interaction, while consumables auto-pickup on collision
+            if (intersectX && intersectY && collectibles[i].type != COL_KEYCARD && collectibles[i].type != COL_NOTE) {
                 collectibles[i].active = false;
                 score += 100;
 
@@ -875,9 +882,9 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     }
 
     // 8. Exit Gate Ending Trigger
-    if (player.x >= 21550 && bossDefeated) {
+    if (player.x >= 13050 && bossDefeated) {
         if (!hasKeycard) {
-            if (currentState == STATE_PLAYING && player.x >= 21550) {
+            if (currentState == STATE_PLAYING && player.x >= 13050) {
                 currentState = STATE_DIALOGUE;
                 sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
                 sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"The steel gate is locked. I need a NovaGen keycard from the quarantine checkpoint.\"");
@@ -907,7 +914,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
             if (dist < 70.0) {
                 switch (collectibles[i].type) {
                 case COL_NOTE: activePromptText = "[E] Read Note"; break;
-                case COL_KEYCARD: activePromptText = "[E] Pick Up Keycard"; break;
+                case COL_KEYCARD: activePromptText = "[E] Collect NovaGen Keycard"; break;
                 case COL_RUSTY_KEY: activePromptText = "[E] Pick Up Gate Key"; break;
                 case COL_MEDKIT: activePromptText = "[E] Pick Up Medkit"; break;
                 case COL_AMMO: activePromptText = "[E] Pick Up Ammo"; break;
@@ -922,7 +929,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         }
     }
 
-    if (activePromptText.empty() && player.x >= 21400 && bossDefeated) {
+    if (activePromptText.empty() && player.x >= 13000 && bossDefeated) {
         activePromptText = "[E] Interact with Exit Gate";
         activePromptX = (int)(player.x - camX);
         activePromptY = (int)(player.y - camY + player.height + 30.0);
@@ -1071,6 +1078,11 @@ double GameManager::GetPropWorldScale(const std::string& assetPath) const {
         return kPropScaleTall; // 1.8x
     }
 
+    // Dedicated calibrated scale for Exit Gate (586px width x 440px height)
+    if (assetPath.find("Exit_Gate") != std::string::npos) {
+        return 1.0;
+    }
+
     // Other large vehicle/building fallbacks
     if (assetPath.find("Vehicles/") != std::string::npos ||
         assetPath.find("Military/") != std::string::npos ||
@@ -1116,6 +1128,21 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
 
         // Viewport frustum culling check (-100 to 1380)
         if (renderX + renderW >= -100 && renderX <= 1380) {
+            // Render grounded contact shadow underneath Exit Gate base
+            if (worldProps[i].assetPath.find("Exit_Gate") != std::string::npos) {
+                glDisable(GL_TEXTURE_2D);
+                glBegin(GL_QUADS);
+                // Soft dark ambient occlusion contact shadow on terrain line
+                glColor4f(0.02f, 0.04f, 0.06f, 0.55f);
+                glVertex2f((float)(renderX + 15.0), (float)(renderY + 4.0));
+                glVertex2f((float)(renderX + renderW - 15.0), (float)(renderY + 4.0));
+                glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
+                glVertex2f((float)(renderX + renderW - 5.0), (float)(renderY - 10.0));
+                glVertex2f((float)(renderX + 5.0), (float)(renderY - 10.0));
+                glEnd();
+                glEnable(GL_TEXTURE_2D);
+            }
+
             if (worldProps[i].textureID != 0) {
                 iShowImage((int)renderX, (int)renderY, (int)renderW, (int)renderH, worldProps[i].textureID);
             }
@@ -1319,6 +1346,12 @@ void GameManager::RenderPlaying() {
     // ========================================================================
     if (hudAlpha >= 0.05) {
         const char* activeObjText = "Escape the Fallen Village";
+        if (!hasKeycard && player.x >= 8000) {
+            activeObjText = "Find NovaGen Keycard in Quarantine Zone";
+        }
+        else if (hasKeycard && !bossDefeated && !bossSpawned) {
+            activeObjText = "Reach the Steel Exit Gate";
+        }
         if (bossSpawned && !bossDefeated) {
             activeObjText = "DEFEAT MUTATED BRUTE";
         }
@@ -1758,9 +1791,92 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
         else if (key == 'e' || key == 'E') {
             if (!showInventory) {
+                bool itemInteracted = false;
                 for (size_t i = 0; i < collectibles.size(); ++i) {
                     if (collectibles[i].active && std::abs(player.x - collectibles[i].x) < 70.0) {
+                        collectibles[i].active = false;
+                        score += 100;
+                        itemInteracted = true;
+
+                        switch (collectibles[i].type) {
+                        case COL_KEYCARD:
+                            hasKeycard = true;
+                            currentState = STATE_DIALOGUE;
+                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
+                            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A NovaGen command keycard! This will grant me access to open the steel gate checkpoint.\"");
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "NOVAGEN KEYCARD ACQUIRED");
+                            g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
+                            g_pickupTimer = 2.5;
+                            g_pickupX = collectibles[i].x;
+                            g_pickupY = collectibles[i].y + 40.0;
+                            break;
+                        case COL_NOTE:
+                            currentState = STATE_DIALOGUE;
+                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Survivor's Clue Note");
+                            if (collectibles[i].x < 10000) {
+                                sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"NovaGen Memo:\nEvacuation path compromised.\nConvoy heading East to Blackwood Forest.\nSubject Luna immune.\"");
+                            } else {
+                                sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A crumpled note:\nDr. Kael took the silver-haired girl through the forest checkpoint.\nShe is our only hope...\"");
+                            }
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "MISSION NOTE DISCOVERED");
+                            g_pickupR = 0; g_pickupG = 230; g_pickupB = 255;
+                            g_pickupTimer = 2.5;
+                            g_pickupX = collectibles[i].x;
+                            g_pickupY = collectibles[i].y + 40.0;
+                            break;
+                        case COL_MEDKIT:
+                            player.medkits++;
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 FIRST AID MEDKIT");
+                            g_pickupR = 255; g_pickupG = 100; g_pickupB = 100;
+                            g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
+                            break;
+                        case COL_BATTERY:
+                            player.batteryCount++;
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 BATTERY");
+                            g_pickupR = 0; g_pickupG = 255; g_pickupB = 200;
+                            g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
+                            break;
+                        case COL_FOOD:
+                            player.foodCount++;
+                            player.hp = (player.hp + 15 > player.maxHp) ? player.maxHp : player.hp + 15;
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 RATION (+15 HP)");
+                            g_pickupR = 255; g_pickupG = 180; g_pickupB = 0;
+                            g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
+                            break;
+                        case COL_AMMO:
+                            player.ammo += 15;
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "+15 PISTOL AMMO");
+                            g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
+                            g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
+                            break;
+                        default:
+                            player.scrapCount++;
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 ITEM ACQUIRED");
+                            g_pickupR = 200; g_pickupG = 210; g_pickupB = 220;
+                            g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
+                            break;
+                        }
                         break;
+                    }
+                }
+
+                // If no item was near, check Exit Gate interaction
+                if (!itemInteracted && player.x >= 13000 && bossDefeated) {
+                    if (!hasKeycard) {
+                        currentState = STATE_DIALOGUE;
+                        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
+                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"The steel gate is locked. I need a NovaGen keycard from the quarantine checkpoint.\"");
+                    }
+                    else if (!ribbonCollected) {
+                        currentState = STATE_DIALOGUE;
+                        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
+                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Luna's silver-blue ribbon! It's caught on the steel gate latch... She survived. I will find you, Luna!\"");
+                        ribbonCollected = true;
+                    }
+                    else if (currentState != STATE_DIALOGUE && currentState != STATE_VICTORY) {
+                        currentState = STATE_VICTORY;
+                        menuTransitionAlpha = 1.0;
+                        leaderboard.AddScore("Arin", score);
                     }
                 }
             }
