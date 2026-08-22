@@ -61,6 +61,12 @@ std::vector<unsigned int> Enemy::seqHeavyAttack;
 std::vector<unsigned int> Enemy::seqHeavyHurt;
 std::vector<unsigned int> Enemy::seqHeavyDeath;
 
+std::vector<unsigned int> Enemy::seqAbominationIdle;
+std::vector<unsigned int> Enemy::seqAbominationWalk;
+std::vector<unsigned int> Enemy::seqAbominationAttack;
+std::vector<unsigned int> Enemy::seqAbominationHurt;
+std::vector<unsigned int> Enemy::seqAbominationDeath;
+
 // ============================================================================
 // Enemy Constructor & Texture Initialization
 // ============================================================================
@@ -369,6 +375,57 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
         animHurt.Init(seqHeavyHurt, 5, false);     // 5 ticks/frame (12 FPS responsive hurt stagger)
         animDeath.Init(seqHeavyDeath, 7, false);   // 7 ticks/frame (8.5 FPS heavy collapse)
     }
+    else if (type == TYPE_ABOMINATION) {
+        if (seqAbominationIdle.empty() || seqAbominationIdle[0] == 0) {
+            seqAbominationIdle.clear();
+            seqAbominationWalk.clear();
+            seqAbominationAttack.clear();
+            seqAbominationHurt.clear();
+            seqAbominationDeath.clear();
+
+            for (int i = 1; i <= 8; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/idle/muted_brute_Idle_%02d.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqAbominationIdle.push_back(handle);
+            }
+            for (int i = 1; i <= 8; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/walk/muted_brute_Walk_%02d.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqAbominationWalk.push_back(handle);
+            }
+            for (int i = 1; i <= 8; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/attack/muted_brute_Attack_%02d.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqAbominationAttack.push_back(handle);
+            }
+            for (int i = 1; i <= 8; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/slam/muted_brute_Ground_slam_%02d.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqAbominationHurt.push_back(handle);
+            }
+            for (int i = 1; i <= 8; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/death/muted_brute_Death_%02d.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqAbominationDeath.push_back(handle);
+            }
+
+            if (seqAbominationWalk.empty() && !seqAbominationIdle.empty()) seqAbominationWalk = seqAbominationIdle;
+            if (seqAbominationAttack.empty() && !seqAbominationIdle.empty()) seqAbominationAttack = seqAbominationIdle;
+            if (seqAbominationHurt.empty() && !seqAbominationIdle.empty()) seqAbominationHurt = seqAbominationIdle;
+            if (seqAbominationDeath.empty() && !seqAbominationHurt.empty()) seqAbominationDeath = seqAbominationHurt;
+        }
+
+        animIdle.Init(seqAbominationIdle, 8, true);      // 8 ticks/frame
+        animWalk.Init(seqAbominationWalk, 6, true);      // 6 ticks/frame
+        animAttack.Init(seqAbominationAttack, 6, false); // 6 ticks/frame
+        animHurt.Init(seqAbominationHurt, 5, false);     // 5 ticks/frame
+        animDeath.Init(seqAbominationDeath, 7, false);   // 7 ticks/frame
+    }
 }
 
 // ============================================================================
@@ -536,7 +593,7 @@ void Enemy::Render(double camX, double camY) {
 
     // Aligns bottom center of drawing box to collision bounds & ground baseline
     double drawXOffset = drawX - (drawSize - width) / 2.0;
-    double drawYOffset = (type == TYPE_HEAVY) ? (drawY + 2.0) : ((type == TYPE_SPITTER || type == TYPE_RUNNER || type == TYPE_RAIDER) ? (drawY - 6.0) : drawY);
+    double drawYOffset = (type == TYPE_HEAVY) ? (drawY + 2.0) : ((type == TYPE_SPITTER || type == TYPE_RUNNER || type == TYPE_RAIDER || type == TYPE_ABOMINATION) ? (drawY - 6.0) : drawY);
 
     // Select active animation based on state
     const Animation* activeAnim = &animIdle;

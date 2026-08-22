@@ -69,11 +69,12 @@ public:
     static unsigned int texRaiderIdle, texRaiderWalk, texRaiderRun, texRaiderAttackMelee, texRaiderAttackRanged, texRaiderHurt, texRaiderDeath;
     static unsigned int texHeavyIdle, texHeavyWalk, texHeavyAttack, texHeavyHurt, texHeavyDeath;
 
-    // Static Frame Sequence Vectors (Walker, Runner, Raider & Heavy)
+    // Static Frame Sequence Vectors (Walker, Runner, Raider, Heavy & Abomination)
     static std::vector<unsigned int> seqWalkerIdle, seqWalkerWalk, seqWalkerAttack, seqWalkerHurt, seqWalkerDeath;
     static std::vector<unsigned int> seqRunnerIdle, seqRunnerWalk, seqRunnerRun, seqRunnerAttack, seqRunnerHurt, seqRunnerDeath;
     static std::vector<unsigned int> seqRaiderIdle, seqRaiderWalk, seqRaiderAttack, seqRaiderHurt, seqRaiderDeath;
     static std::vector<unsigned int> seqHeavyIdle, seqHeavyWalk, seqHeavyAttack, seqHeavyHurt, seqHeavyDeath;
+    static std::vector<unsigned int> seqAbominationIdle, seqAbominationWalk, seqAbominationAttack, seqAbominationHurt, seqAbominationDeath;
 
     // Reusable Animation Objects
     Animation animIdle;
