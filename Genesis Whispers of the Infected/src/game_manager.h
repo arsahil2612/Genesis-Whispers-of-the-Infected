@@ -164,6 +164,7 @@ private:
     double missionNotifyTimer;
     int lastObjectiveID;
     double uiAnimTime;
+    double deathTimer;
     int pauseSubMenu; // 0 = Pause Main, 1 = Controls, 2 = Settings
 
     // Contextual Interaction Prompt

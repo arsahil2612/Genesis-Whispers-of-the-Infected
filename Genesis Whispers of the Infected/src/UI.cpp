@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <GL/gl.h>
 #include "UI.h"
+#include "ResourceManager.h"
 #include "igraphics_declarations.h"
 #include <cstdio>
 #include <cstring>
@@ -732,43 +733,106 @@ void UI::DrawInventoryIndicator(const Player& player, bool hasKeycard, bool ribb
 // 5. WEAPON DISPLAY UPGRADE
 // ----------------------------------------------------------------------------
 void UI::DrawWeaponDisplay(const char* weaponName, int ammo, bool usesAmmo) {
-    // Positioned in Bottom-Right Position (Phase 1 Requirement 5)
+    // Positioned in Bottom-Right Position
     int boxX = 1040;
     int boxY = 20;
     int boxW = 220;
     int boxH = 75;
 
+    // 1. Dark Charcoal / Black Metal Base Panel (Post-Apocalyptic Survival Equipment Theme)
     iSetColor(0, 0, 0);
     iFilledRectangle(boxX - 2, boxY - 2, boxW + 4, boxH + 4);
-    iSetColor(10, 14, 22);
-    iFilledRectangle(boxX, boxY, boxW, boxH);
-    iSetColor(0, 180, 220);
-    iRectangle(boxX, boxY, boxW, boxH);
 
-    // Katana / Weapon Icon (Left side of panel)
-    int iconX = boxX + 12;
-    int iconY = boxY + 22;
+    // Main dark charcoal body
+    iSetColor(14, 18, 22);
+    iFilledRectangle(boxX, boxY, boxW, boxH);
+
+    // Weathered inner plate with slight vertical gradient simulation
+    iSetColor(22, 28, 34);
+    iFilledRectangle(boxX + 2, boxY + 2, boxW - 4, boxH - 4);
+    iSetColor(18, 22, 28);
+    iFilledRectangle(boxX + 4, boxY + 4, boxW - 8, boxH / 2 - 4);
+
+    // Worn Dark Steel Border & Metallic Trim
+    iSetColor(65, 75, 85);
+    iRectangle(boxX, boxY, boxW, boxH);
+    iSetColor(45, 52, 60);
+    iRectangle(boxX + 1, boxY + 1, boxW - 2, boxH - 2);
+
+    // Rust Brown & Dark Steel Accents on Panel Corners
+    iSetColor(140, 70, 35); // Rust Brown accent corners
+    iFilledRectangle(boxX + 2, boxY + boxH - 6, 8, 4);
+    iFilledRectangle(boxX + boxW - 10, boxY + boxH - 6, 8, 4);
+    iFilledRectangle(boxX + 2, boxY + 2, 8, 4);
+    iFilledRectangle(boxX + boxW - 10, boxY + 2, 8, 4);
+
+    // Corner rivets (Metallic military hardware look)
+    iSetColor(110, 120, 130);
+    iFilledRectangle(boxX + 4, boxY + boxH - 5, 2, 2);
+    iFilledRectangle(boxX + boxW - 6, boxY + boxH - 5, 2, 2);
+    iFilledRectangle(boxX + 4, boxY + 3, 2, 2);
+    iFilledRectangle(boxX + boxW - 6, boxY + 3, 2, 2);
+
+    // Weathering scratch marks for post-apocalyptic survivor look
+    iSetColor(50, 60, 70);
+    iLine(boxX + 10, boxY + 12, boxX + 25, boxY + 8);
+    iLine(boxX + boxW - 35, boxY + boxH - 10, boxX + boxW - 15, boxY + boxH - 12);
+
+    // 2. Weapon Icon Well / Frame (Left Side of Panel)
+    int wellX = boxX + 10;
+    int wellY = boxY + 10;
+    int wellW = 64;
+    int wellH = 55;
+
+    // Recessed dark well for equipped Katana
+    iSetColor(8, 10, 14);
+    iFilledRectangle(wellX, wellY, wellW, wellH);
+    iSetColor(40, 48, 56);
+    iRectangle(wellX, wellY, wellW, wellH);
+    iSetColor(90, 50, 25); // Subtle rust-brown inner border accent
+    iRectangle(wellX + 1, wellY + 1, wellW - 2, wellH - 2);
+
+    // Load & Render Katana Icon Centered in Well
+    if (texIconKatana == 0) {
+        texIconKatana = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/katana.png").c_str());
+        if (texIconKatana == 0) {
+            texIconKatana = ResourceManager::GetInstance().GetTexture("Assets/Items/KeyItems/katana.png");
+        }
+    }
 
     if (texIconKatana != 0) {
-        iShowImage(iconX, iconY, 32, 32, texIconKatana);
+        // Katana resolution 1536x1024 (aspect ratio 1.5).
+        // Center Katana image inside 64x55 well: 54px width x 36px height
+        int imgW = 54;
+        int imgH = 36;
+        int imgX = wellX + (wellW - imgW) / 2;
+        int imgY = wellY + (wellH - imgH) / 2;
+        iShowImage(imgX, imgY, imgW, imgH, texIconKatana);
     } else {
-        // Sleek Katana Blade Vector Icon
+        // Sleek Katana Blade Vector Icon Fallback
+        int iconX = wellX + 18;
+        int iconY = wellY + 14;
         iSetColor(220, 230, 245); // Silver Katana Blade
         iLine(iconX + 2, iconY + 4, iconX + 26, iconY + 28);
         iLine(iconX + 3, iconY + 3, iconX + 27, iconY + 27);
-        iSetColor(255, 215, 0); // Gold Tsuba (Guard)
+        iSetColor(215, 110, 40); // Muted Orange/Gold Guard
         iFilledCircle(iconX + 9, iconY + 11, 4);
-        iSetColor(180, 30, 30); // Red Wrapped Tsuka (Handle)
+        iSetColor(140, 40, 30); // Dark Red Handle Wrap
         iLine(iconX + 2, iconY + 4, iconX + 9, iconY + 11);
     }
 
-    // Weapon Name & Type Text
-    DrawOutlinedText(boxX + 48, boxY + boxH - 22, weaponName ? weaponName : "KATANA", GLUT_BITMAP_HELVETICA_18, 255, 255, 255);
+    // 3. Text Presentation (Military / Survivor Equipment Style)
+    int textX = boxX + 84;
 
+    // Weapon Name: KATANA (Off-white / Steel Ivory)
+    DrawOutlinedText(textX, boxY + boxH - 24, weaponName ? weaponName : "KATANA", GLUT_BITMAP_HELVETICA_18, 235, 230, 220);
+
+    // Sub-text: MELEE WEAPON [J] or AMMO counter (Muted survival orange / rust accent)
     if (usesAmmo) {
         DrawAmmoCounter(ammo, 48);
     } else {
-        DrawShadowText(boxX + 48, boxY + 16, "MELEE WEAPON [J]", GLUT_BITMAP_HELVETICA_10, 0, 220, 255);
+        // Muted Survival Amber/Orange indicator instead of bright cyan
+        DrawShadowText(textX, boxY + 16, "MELEE WEAPON [J]", GLUT_BITMAP_HELVETICA_10, 215, 120, 45);
     }
 }
 
@@ -778,7 +842,7 @@ void UI::DrawAmmoCounter(int ammo, int reserveAmmo) {
 
     char ammoStr[32];
     sprintf_s(ammoStr, sizeof(ammoStr), "AMMO %d / %d", ammo, reserveAmmo);
-    DrawShadowText(boxX + 48, boxY + 16, ammoStr, GLUT_BITMAP_HELVETICA_12, 255, 215, 0);
+    DrawShadowText(boxX + 84, boxY + 16, ammoStr, GLUT_BITMAP_HELVETICA_12, 215, 120, 45);
 }
 
 void UI::DrawInteractionPrompt(const char* promptText, int screenX, int screenY) {

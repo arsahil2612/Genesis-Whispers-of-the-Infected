@@ -158,19 +158,21 @@ void Map::RenderBackground(double camX, bool bossDefeated) {
 void Map::RenderTiles(double camX, double camY) {
     ResourceManager& rm = ResourceManager::GetInstance();
 
-    // Bridge Tiles
+    // ========================================================================
+    // SPECIAL RIVER & BRIDGE TILES (Broken Bridge area: World X 17500+)
+    // ========================================================================
     unsigned int texBridgeFloor = rm.GetBridgeFloorTile();
     unsigned int texBrokenBridge = rm.GetBrokenBridgeFloorTile();
     unsigned int texRiverWater = rm.GetRiverWaterTile();
 
-    const int kTileWidth = 160;
+    const int kBridgeTileWidth = 160;
 
     // Render River Water beneath the Broken Bridge gap (World X: 17500 to 19400)
     if (17500 - camX <= 1480 && 19400 - camX >= -200) {
-        for (double wx = 17500; wx < 19400; wx += kTileWidth) {
+        for (double wx = 17500; wx < 19400; wx += kBridgeTileWidth) {
             double screenWX = wx - camX;
-            if (screenWX + kTileWidth >= -200 && screenWX <= 1480) {
-                iShowImage((int)screenWX, 0, kTileWidth, 140, texRiverWater);
+            if (screenWX + kBridgeTileWidth >= -200 && screenWX <= 1480) {
+                iShowImage((int)screenWX, 0, kBridgeTileWidth, 140, texRiverWater);
             }
         }
     }
@@ -183,10 +185,10 @@ void Map::RenderTiles(double camX, double camY) {
             double screenPy = p.y - camY;
 
             if (screenPx + p.width >= -200 && screenPx <= 1480) {
-                int count = (int)(p.width / kTileWidth) + 1;
+                int count = (int)(p.width / kBridgeTileWidth) + 1;
                 for (int t = 0; t < count; ++t) {
-                    double tileX = p.x + (t * kTileWidth) - camX;
-                    double drawW = kTileWidth;
+                    double tileX = p.x + (t * kBridgeTileWidth) - camX;
+                    double drawW = kBridgeTileWidth;
                     if (tileX + drawW > (p.x + p.width - camX)) {
                         drawW = (p.x + p.width - camX) - tileX;
                     }

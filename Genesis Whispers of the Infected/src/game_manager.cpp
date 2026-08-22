@@ -102,6 +102,8 @@ static unsigned int g_texItemFirstAid = 0;
 static unsigned int g_texItemBandage = 0;
 static unsigned int g_texItemScrapMetal = 0;
 static unsigned int g_texItemRustyKey = 0;
+static unsigned int g_texItemNovagenKeycard = 0;
+static unsigned int g_texItemMissionNote = 0;
 static unsigned int g_texItemCoin = 0;
 
 // Instant Floating Item Pickup Notification Data
@@ -239,6 +241,7 @@ void GameManager::Initialize() {
     missionNotifyTimer = 0.0;
     lastObjectiveID = 0;
     uiAnimTime = 0.0;
+    deathTimer = 0.0;
     pauseSubMenu = 0;
     activePromptText = "";
     activePromptX = 0;
@@ -411,6 +414,17 @@ void GameManager::Initialize() {
         g_texItemWaterBottle = iLoadImage((char*)GetAssetPath("Assets/Items/Food/water_bottle.png").c_str());
         g_texItemScrapMetal = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/Scrap_Metal.png").c_str());
         g_texItemRustyKey = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/Rusty_Key.png").c_str());
+        if (g_texItemRustyKey == 0) {
+            g_texItemRustyKey = ResourceManager::GetInstance().GetTexture("Assets/Items/KeyItems/Rusty_Key.png");
+        }
+        g_texItemNovagenKeycard = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/Novagen_keycard.png").c_str());
+        if (g_texItemNovagenKeycard == 0) {
+            g_texItemNovagenKeycard = ResourceManager::GetInstance().GetTexture("Assets/Items/KeyItems/Novagen_keycard.png");
+        }
+        g_texItemMissionNote = iLoadImage((char*)GetAssetPath("Assets/Items/Documents/Mission_note.png").c_str());
+        if (g_texItemMissionNote == 0) {
+            g_texItemMissionNote = ResourceManager::GetInstance().GetTexture("Assets/Items/Documents/Mission_note.png");
+        }
         g_texItemCoin = iLoadImage((char*)GetAssetPath("Assets/Collectibles/coin.png").c_str());
     }
 
@@ -548,6 +562,22 @@ void GameManager::Update(bool keys[], bool specialKeys[]) {
 }
 
 void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
+    // 0. Check Arin death transition to STATE_GAMEOVER
+    if (player.hp <= 0 || player.state == STATE_DEAD) {
+        if (player.state != STATE_DEAD) {
+            player.SetState(STATE_DEAD);
+        }
+        deathTimer += 0.016;
+        if (deathTimer >= 1.5) { // 1.5s delay to allow death animation playback
+            currentState = STATE_GAMEOVER;
+            menuTransitionAlpha = 1.0;
+            deathTimer = 0.0;
+            return;
+        }
+    } else {
+        deathTimer = 0.0;
+    }
+
     // Smooth HUD fade-in animation
     hudAlpha += 3.0 * 0.016;
     if (hudAlpha > 1.0) hudAlpha = 1.0;
@@ -882,19 +912,21 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     }
 
     // 8. Exit Gate Ending Trigger
-    if (player.x >= 13050 && bossDefeated) {
+    if (player.x >= 12900 && bossDefeated) {
         if (!hasKeycard) {
-            if (currentState == STATE_PLAYING && player.x >= 13050) {
+            if (currentState == STATE_PLAYING) {
                 currentState = STATE_DIALOGUE;
                 sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
                 sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"The steel gate is locked. I need a NovaGen keycard from the quarantine checkpoint.\"");
             }
         }
         else if (!ribbonCollected) {
-            currentState = STATE_DIALOGUE;
-            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
-            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Luna's silver-blue ribbon! It's caught on the steel gate latch... She survived. I will find you, Luna!\"");
-            ribbonCollected = true;
+            if (currentState == STATE_PLAYING) {
+                currentState = STATE_DIALOGUE;
+                sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
+                sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Luna's silver-blue ribbon! It's caught on the steel gate latch... She survived. I will find you, Luna!\"");
+                ribbonCollected = true;
+            }
         }
         else if (currentState != STATE_DIALOGUE && currentState != STATE_VICTORY) {
             currentState = STATE_VICTORY;
@@ -1252,10 +1284,16 @@ void GameManager::RenderPlaying() {
                     itemDrawW = 42; itemDrawH = 42;
                     break;
                 case COL_KEYCARD:
-                    itemTex = g_texItemRustyKey;
-                    itemLabel = "KEYCARD";
+                    if (g_texItemNovagenKeycard == 0) {
+                        g_texItemNovagenKeycard = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/Novagen_keycard.png").c_str());
+                        if (g_texItemNovagenKeycard == 0) {
+                            g_texItemNovagenKeycard = ResourceManager::GetInstance().GetTexture("Assets/Items/KeyItems/Novagen_keycard.png");
+                        }
+                    }
+                    itemTex = g_texItemNovagenKeycard;
+                    itemLabel = "NOVAGEN KEYCARD";
                     lR = 255; lG = 215; lB = 0;
-                    itemDrawW = 42; itemDrawH = 42;
+                    itemDrawW = 48; itemDrawH = 48;
                     break;
                 case COL_COIN:
                     itemTex = g_texItemCoin;
@@ -1276,10 +1314,16 @@ void GameManager::RenderPlaying() {
                     itemDrawW = 36; itemDrawH = 46;
                     break;
                 case COL_NOTE:
-                    itemTex = 0;
+                    if (g_texItemMissionNote == 0) {
+                        g_texItemMissionNote = iLoadImage((char*)GetAssetPath("Assets/Items/Documents/Mission_note.png").c_str());
+                        if (g_texItemMissionNote == 0) {
+                            g_texItemMissionNote = ResourceManager::GetInstance().GetTexture("Assets/Items/Documents/Mission_note.png");
+                        }
+                    }
+                    itemTex = g_texItemMissionNote;
                     itemLabel = "MISSION NOTE";
                     lR = 0; lG = 230; lB = 255;
-                    itemDrawW = 38; itemDrawH = 46;
+                    itemDrawW = 44; itemDrawH = 44;
                     break;
                 default:
                     break;
@@ -1288,9 +1332,14 @@ void GameManager::RenderPlaying() {
                 int drawX = px - itemDrawW / 2;
                 int drawY = py;
 
-                // Render item sprite texture or clean subtle marker
+                // Render item sprite texture or clean gold marker fallback
                 if (itemTex != 0) {
                     iShowImage(drawX, drawY, itemDrawW, itemDrawH, itemTex);
+                } else {
+                    iSetColor(255, 215, 0);
+                    iFilledRectangle(drawX, drawY + 6, itemDrawW, itemDrawH - 12);
+                    iSetColor(20, 20, 30);
+                    iRectangle(drawX, drawY + 6, itemDrawW, itemDrawH - 12);
                 }
 
                 // Outlined text label above item
@@ -1861,7 +1910,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                 }
 
                 // If no item was near, check Exit Gate interaction
-                if (!itemInteracted && player.x >= 13000 && bossDefeated) {
+                if (!itemInteracted && player.x >= 12900 && bossDefeated) {
                     if (!hasKeycard) {
                         currentState = STATE_DIALOGUE;
                         sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
@@ -1873,7 +1922,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                         sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Luna's silver-blue ribbon! It's caught on the steel gate latch... She survived. I will find you, Luna!\"");
                         ribbonCollected = true;
                     }
-                    else if (currentState != STATE_DIALOGUE && currentState != STATE_VICTORY) {
+                    else {
                         currentState = STATE_VICTORY;
                         menuTransitionAlpha = 1.0;
                         leaderboard.AddScore("Arin", score);
@@ -1928,9 +1977,15 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
     }
     else if (currentState == STATE_DIALOGUE) {
-        if (key == 13) { // Enter key
-            currentState = STATE_PLAYING;
-            menuTransitionAlpha = 1.0;
+        if (key == 13 || key == 'e' || key == 'E' || key == 32 || key == 27) { // Enter, E, Space, or ESC key
+            if (ribbonCollected || (player.x >= 12800 && hasKeycard && bossDefeated)) {
+                currentState = STATE_VICTORY;
+                menuTransitionAlpha = 1.0;
+                leaderboard.AddScore("Arin", score);
+            } else {
+                currentState = STATE_PLAYING;
+                menuTransitionAlpha = 1.0;
+            }
         }
     }
     else if (currentState == STATE_GAMEOVER) {
@@ -2039,6 +2094,16 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                         currentState = STATE_MENU;
                         menuTransitionAlpha = 1.0;
                     }
+                }
+            }
+            else if (currentState == STATE_DIALOGUE) {
+                if (ribbonCollected || (player.x >= 12800 && hasKeycard && bossDefeated)) {
+                    currentState = STATE_VICTORY;
+                    menuTransitionAlpha = 1.0;
+                    leaderboard.AddScore("Arin", score);
+                } else {
+                    currentState = STATE_PLAYING;
+                    menuTransitionAlpha = 1.0;
                 }
             }
             else if (currentState == STATE_GAMEOVER) {
