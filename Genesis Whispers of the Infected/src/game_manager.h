@@ -146,6 +146,7 @@ private:
     bool bossDefeated;
     int bossHp;
     int bossMaxHp;
+    double displayedBossHp;
 
     // Environmental Ribbon status
     bool ribbonCollected;

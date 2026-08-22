@@ -22,6 +22,10 @@ unsigned int UI::texLevelCompleteBg = 0;
 unsigned int UI::texMainMenuBg = 0;
 unsigned int UI::texBossFrame = 0;
 unsigned int UI::texBossFill = 0;
+unsigned int UI::texScoreLabel = 0;
+unsigned int UI::texSeparator = 0;
+unsigned int UI::texHealLabel = 0;
+unsigned int UI::texScoreHeal = 0;
 
 // Item & HUD Icon Handles
 unsigned int UI::texIconMedkit = 0;
@@ -354,6 +358,22 @@ void UI::Initialize() {
         texStaminaFill = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/stamina_fill.png").c_str());
         if (texStaminaFill == 0) texStaminaFill = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/ui_stamina_fill.png").c_str());
     }
+    if (texScoreLabel == 0) {
+        texScoreLabel = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/score_label.png").c_str());
+        if (texScoreLabel == 0) texScoreLabel = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/score_label.bmp").c_str());
+    }
+    if (texSeparator == 0) {
+        texSeparator = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/separator.png").c_str());
+        if (texSeparator == 0) texSeparator = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/separator.bmp").c_str());
+    }
+    if (texHealLabel == 0) {
+        texHealLabel = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/heal_label.png").c_str());
+        if (texHealLabel == 0) texHealLabel = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/heal_label.bmp").c_str());
+    }
+    if (texScoreHeal == 0) {
+        texScoreHeal = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/Score_heal.png").c_str());
+        if (texScoreHeal == 0) texScoreHeal = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/score_heal.png").c_str());
+    }
     if (texMissionBox == 0) {
         texMissionBox = iLoadImage((char*)GetAssetPath("Assets/UI/Mission/mission_update_box.png").c_str());
         if (texMissionBox == 0) texMissionBox = iLoadImage((char*)GetAssetPath("Assets/UI/Mission/ui_mission_box.png").c_str());
@@ -425,16 +445,36 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
     DrawInventoryHUD(player, false, false);
 
     // 5. Score Banner (Upper Right Header)
+    int hudX = 950;
+    int hudY = 580;
+    int hudW = 310;
+    int hudH = 30;
+
     iSetColor(0, 0, 0);
-    iFilledRectangle(948, 578, 314, 34);
+    iFilledRectangle(hudX - 2, hudY - 2, hudW + 4, hudH + 4);
     iSetColor(12, 16, 24);
-    iFilledRectangle(950, 580, 310, 30);
+    iFilledRectangle(hudX, hudY, hudW, hudH);
     iSetColor(0, 180, 220);
-    iRectangle(950, 580, 310, 30);
-    
-    char scoreStr[48];
-    sprintf_s(scoreStr, sizeof(scoreStr), "SCORE: %07d | [H] HEAL", score);
-    DrawShadowText(965, 588, scoreStr, GLUT_BITMAP_HELVETICA_12, 255, 215, 0);
+    iRectangle(hudX, hudY, hudW, hudH);
+
+    // Adjustable HUD text variables (Tactical 9x15 font, 15% larger)
+    int hudTextX = 974;
+    int hudTextY = 587;
+    int hudFontSize = 15; // 9x15 compact tactical military font
+
+    // 1) Render "SCORE:" label in warm gold
+    DrawShadowText(hudTextX, hudTextY, "SCORE:", GLUT_BITMAP_9_BY_15, 255, 215, 0);
+
+    // 2) Render dynamic C++ score value (%07d) in white
+    char scoreNumStr[16];
+    sprintf_s(scoreNumStr, sizeof(scoreNumStr), "%07d", score);
+    DrawShadowText(hudTextX + 63, hudTextY, scoreNumStr, GLUT_BITMAP_9_BY_15, 255, 255, 255);
+
+    // 3) Render "   |   " separator with tactical spacing in cyan accent
+    DrawShadowText(hudTextX + 126, hudTextY, "   |   ", GLUT_BITMAP_9_BY_15, 0, 180, 220);
+
+    // 4) Render "[H] HEAL" prompt in warm gold
+    DrawShadowText(hudTextX + 189, hudTextY, "[H] HEAL", GLUT_BITMAP_9_BY_15, 255, 215, 0);
 
     // 6. Sleek Cinematic Area & Village Title Banner
     DrawAreaBanner(areaName, areaBannerAlpha);
@@ -534,7 +574,7 @@ void UI::DrawHealthBar(int hp, int maxHp, double displayedHp) {
 }
 
 // ----------------------------------------------------------------------------
-// 2. STAMINA BAR (PERFECT INSIDE SPEAR FRAME ALIGNMENT)
+// 2. STAMINA BAR (PERFECT INSIDE FRAME ALIGNMENT)
 // ----------------------------------------------------------------------------
 void UI::DrawStaminaBar(int stamina, int maxStamina, double displayedStamina) {
     int startX = 20;
@@ -546,48 +586,15 @@ void UI::DrawStaminaBar(int stamina, int maxStamina, double displayedStamina) {
     if (staminaRatio < 0.0) staminaRatio = 0.0;
     if (staminaRatio > 1.0) staminaRatio = 1.0;
 
-    // Header Text placed cleanly ABOVE the spiked frame
+    // Header Text placed cleanly ABOVE the frame
     DrawShadowText(startX + 10, startY + frameH + 6, "ENERGY STATUS", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
 
     char stmStr[32];
     int pct = (int)(((double)stamina / maxStamina) * 100.0);
     sprintf_s(stmStr, sizeof(stmStr), "STAMINA %d%%", pct);
-    DrawShadowText(startX + 230, startY + frameH + 6, stmStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    DrawShadowText(startX + 210, startY + frameH + 6, stmStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
 
-    // STEP 1: Draw empty metal frame base
-    if (texStaminaFrame != 0) {
-        iShowImage(startX, startY, frameW, frameH, texStaminaFrame);
-    }
-
-    // STEP 2: Calculate fill width and inner clipping area (Centered 6px line inside spear channel)
-    int innerBarWidth = 312;
-    int innerBarHeight = 6;
-    int staminaFillWidth = (int)(innerBarWidth * staminaRatio);
-
-    int fillX = startX + 54;
-    int fillY = startY + 14;
-
-    // STEP 3 & 4: Draw gold fill INSIDE clipping rectangle ONLY
-    if (staminaFillWidth > 0) {
-        glEnable(GL_SCISSOR_TEST);
-        glScissor(fillX, fillY, staminaFillWidth, innerBarHeight);
-
-        // Base Deep Gold Fill
-        iSetColor(240, 175, 15);
-        iFilledRectangle(fillX, fillY, staminaFillWidth, innerBarHeight);
-
-        // Top Highlight Streak
-        iSetColor(255, 220, 50);
-        iFilledRectangle(fillX, fillY + innerBarHeight - 2, staminaFillWidth, 2);
-
-        if (texStaminaFill != 0) {
-            iShowImageSub(fillX, fillY, staminaFillWidth, innerBarHeight, texStaminaFill, 0.0, 0.0, staminaRatio, 1.0);
-        }
-
-        glDisable(GL_SCISSOR_TEST);
-    }
-
-    // STEP 5: Draw metal frame again as final overlay
+    // STEP 1: Draw metal frame base FIRST (Underneath fill so fill is NEVER obscured!)
     if (texStaminaFrame != 0) {
         iShowImage(startX, startY, frameW, frameH, texStaminaFrame);
     } else {
@@ -595,6 +602,46 @@ void UI::DrawStaminaBar(int stamina, int maxStamina, double displayedStamina) {
         iRectangle(startX, startY, frameW, frameH);
         iSetColor(65, 78, 98);
         iRectangle(startX + 1, startY + 1, frameW - 2, frameH - 2);
+    }
+
+    // STEP 2: Calculate fill width and inner slot coordinates (Exact PNG texture metrics)
+    int fillX = startX + (int)(frameW * 0.1172); // 62
+    int maxFillW = (int)(frameW * 0.7630);      // 274
+    int fillY = startY + (int)(frameH * 0.4873); // 576
+    int fillH = 5;                              // 5px height fill
+
+    int staminaFillWidth = (int)(maxFillW * staminaRatio);
+
+    // Dark Track Base inside stamina bar slot
+    iSetColor(12, 8, 10);
+    iFilledRectangle(fillX, fillY, maxFillW, fillH);
+
+    // STEP 3: Draw Gold Stamina Fill ON TOP of Frame Base so it is 100% visible!
+    if (staminaFillWidth > 0) {
+        // Base Deep Gold Fill
+        iSetColor(240, 175, 15);
+        iFilledRectangle(fillX, fillY, staminaFillWidth, fillH);
+
+        // Mid-tone Bright Gold Highlight
+        iSetColor(255, 205, 30);
+        iFilledRectangle(fillX, fillY + 1, staminaFillWidth, fillH - 2);
+
+        // Top Gloss Highlight Streak
+        iSetColor(255, 240, 100);
+        iFilledRectangle(fillX, fillY + fillH - 1, staminaFillWidth, 1);
+
+        // Bottom Inset Shadow
+        iSetColor(150, 100, 5);
+        iFilledRectangle(fillX, fillY, staminaFillWidth, 1);
+
+        if (texStaminaFill != 0) {
+            glEnable(GL_SCISSOR_TEST);
+            glScissor(fillX, fillY, staminaFillWidth, fillH);
+
+            iShowImageSub(fillX, fillY, staminaFillWidth, fillH, texStaminaFill, 0.0, 0.0, staminaRatio, 1.0);
+
+            glDisable(GL_SCISSOR_TEST);
+        }
     }
 }
 
@@ -867,42 +914,134 @@ void UI::DrawInteractionPrompt(const char* promptText, int screenX, int screenY)
 // ============================================================================
 // BOSS HEALTH BAR
 // ============================================================================
-void UI::DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp) {
-    int barW = 600;
-    int barH = 48;
-    int barX = 640 - (barW / 2);
-    int barY = 645;
+void UI::DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp, double displayedHp) {
+    if (displayedHp < 0.0) {
+        displayedHp = (double)bossHp;
+    }
 
-    double bossHpPercent = (double)bossHp / bossMaxHp;
+    // Boss HUD dimensions & top-centered positioning
+    int barW = 600;
+    int barH = 40;
+    int barX = 640 - (barW / 2); // 340 (left margin 340, right margin 340)
+    int barY = 605;              // Positioned downward with generous top margin
+
+    double bossHpPercent = (double)bossHp / (double)bossMaxHp;
     if (bossHpPercent < 0.0) bossHpPercent = 0.0;
     if (bossHpPercent > 1.0) bossHpPercent = 1.0;
 
-    iSetColor(0, 0, 0);
-    iFilledRectangle(barX - 4, barY - 4, barW + 8, barH + 8);
-    iSetColor(15, 15, 22);
-    iFilledRectangle(barX, barY, barW, barH);
-    iSetColor(220, 40, 40);
-    iRectangle(barX, barY, barW, barH);
+    double displayedPercent = displayedHp / (double)bossMaxHp;
+    if (displayedPercent < 0.0) displayedPercent = 0.0;
+    if (displayedPercent > 1.0) displayedPercent = 1.0;
 
-    iSetColor(40, 10, 10);
-    iFilledRectangle(barX + 10, barY + 10, barW - 20, 16);
+    // 1. Calculate Inner Health Slot Coordinates (Matching boss_health_bar_frame.png inner opening)
+    int fillX = barX + 80;    // 420
+    int maxFillW = barW - 150; // 450
+    int fillY = barY + 16;    // 621
+    int fillH = 7;            // 7px height fill
 
-    if (texBossFill != 0) {
-        int fillW = (int)((barW - 20) * bossHpPercent);
-        if (fillW > 0) {
-            iShowImageSub(barX + 10, barY + 10, fillW, 16, texBossFill, 0.0, 0.0, bossHpPercent, 1.0);
-        }
-    } else {
-        iSetColor(220, 30, 30);
-        iFilledRectangle(barX + 10, barY + 10, (int)((barW - 20) * bossHpPercent), 16);
-    }
+    int innerFillW = (int)(maxFillW * bossHpPercent);
+    int innerLagFillW = (int)(maxFillW * displayedPercent);
 
+    // 2. Render Frame Base / Asset Texture Frame FIRST (Underneath fill so fill is NEVER obscured!)
     if (texBossFrame != 0) {
         iShowImage(barX, barY, barW, barH, texBossFrame);
+    } else {
+        iSetColor(22, 24, 32);
+        iRectangle(barX, barY, barW, barH);
+        iSetColor(180, 30, 35);
+        iRectangle(barX + 1, barY + 1, barW - 2, barH - 2);
     }
 
-    int nameLen = (int)strlen(bossName);
-    DrawOutlinedText(640 - (nameLen * 4), barY + 30, bossName, GLUT_BITMAP_HELVETICA_12, 255, 230, 230);
+    // Dark Track Base inside health bar slot
+    iSetColor(12, 8, 10);
+    iFilledRectangle(fillX, fillY, maxFillW, fillH);
+
+    // 3. Trailing Hit Lag Damage Bar (Amber/Yellow Catch-up Bar inside slot)
+    if (innerLagFillW > innerFillW && innerLagFillW > 0) {
+        int lagW = innerLagFillW - innerFillW;
+        if (innerFillW + lagW > maxFillW) lagW = maxFillW - innerFillW;
+        if (lagW > 0) {
+            iSetColor(235, 155, 20);
+            iFilledRectangle(fillX + innerFillW, fillY, lagW, fillH);
+            iSetColor(255, 215, 60);
+            iFilledRectangle(fillX + innerFillW, fillY + fillH - 2, lagW, 2);
+        }
+    }
+
+    // 4. Primary Crimson Health Fill (Drawn ON TOP of Frame Base so it is 100% visible!)
+    if (innerFillW > 0) {
+        // Base Vibrant Red Fill
+        iSetColor(220, 25, 30);
+        iFilledRectangle(fillX, fillY, innerFillW, fillH);
+
+        // Mid-tone Gradient Highlight
+        iSetColor(245, 55, 55);
+        iFilledRectangle(fillX, fillY + 2, innerFillW, fillH - 3);
+
+        // Top Gloss Highlight Streak
+        iSetColor(255, 160, 160);
+        iFilledRectangle(fillX, fillY + fillH - 2, innerFillW, 2);
+
+        // Bottom Shadow Streak
+        iSetColor(130, 10, 15);
+        iFilledRectangle(fillX, fillY, innerFillW, 1);
+
+        // Leading Pulse Edge Tip
+        iSetColor(255, 240, 180);
+        iFilledRectangle(fillX + innerFillW - 2, fillY, 2, fillH);
+
+        // If texture fill is loaded, overlay texBossFill precisely inside slot using glScissor
+        if (texBossFill != 0) {
+            glEnable(GL_SCISSOR_TEST);
+            glScissor(fillX, fillY, innerFillW, fillH);
+
+            iShowImageSub(fillX, fillY, innerFillW, fillH, texBossFill, 0.0, 0.0, bossHpPercent, 1.0);
+
+            glDisable(GL_SCISSOR_TEST);
+        }
+    }
+
+    // 5. Left Boss Skull Emblem Badge
+    int skullX = barX - 22;
+    int skullY = barY + 2;
+    int skullW = 36;
+    int skullH = 36;
+
+    iSetColor(10, 8, 12);
+    iFilledRectangle(skullX, skullY, skullW, skullH);
+    iSetColor(200, 30, 30);
+    iRectangle(skullX, skullY, skullW, skullH);
+    iSetColor(255, 80, 80);
+    iRectangle(skullX + 2, skullY + 2, skullW - 4, skullH - 4);
+
+    iSetColor(230, 220, 210);
+    iFilledRectangle(skullX + 10, skullY + 14, 16, 14); // Skull Head
+    iFilledRectangle(skullX + 13, skullY + 8, 10, 6);   // Skull Jaw
+    iSetColor(20, 10, 10);
+    iFilledRectangle(skullX + 12, skullY + 18, 4, 5);  // Left Eye Socket
+    iFilledRectangle(skullX + 20, skullY + 18, 4, 5);  // Right Eye Socket
+    iFilledRectangle(skullX + 15, skullY + 8, 2, 4);   // Teeth
+    iFilledRectangle(skullX + 19, skullY + 8, 2, 4);
+    iSetColor(255, 30, 30);
+    iFilledRectangle(skullX + 13, skullY + 20, 2, 2);  // Glowing Pupil L
+    iFilledRectangle(skullX + 21, skullY + 20, 2, 2);  // Glowing Pupil R
+
+    // 6. Centered Header Display (FINAL BOSS & MUTATED BRUTE centered at X = 640)
+    int tagW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_10, "FINAL BOSS");
+    int tagX = 640 - (tagW / 2);
+    DrawShadowText(tagX, 672, "FINAL BOSS", GLUT_BITMAP_HELVETICA_10, 255, 70, 70);
+
+    int nameW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_12, bossName);
+    int nameX = 640 - (nameW / 2);
+    DrawOutlinedText(nameX, 652, bossName, GLUT_BITMAP_HELVETICA_12, 255, 220, 100);
+
+    // 7. Centered Numerical Health & Percentage Text
+    char hpStr[64];
+    int pct = (int)(bossHpPercent * 100.0);
+    sprintf_s(hpStr, sizeof(hpStr), "%d / %d (%d%%)", bossHp, bossMaxHp, pct);
+    int hpW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_10, hpStr);
+    int hpX = 640 - (hpW / 2);
+    DrawShadowText(hpX, 631, hpStr, GLUT_BITMAP_HELVETICA_10, 240, 240, 250);
 }
 
 // ============================================================================

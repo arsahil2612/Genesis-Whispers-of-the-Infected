@@ -32,6 +32,10 @@ private:
     static unsigned int texMainMenuBg;
     static unsigned int texBossFrame;
     static unsigned int texBossFill;
+    static unsigned int texScoreLabel;
+    static unsigned int texSeparator;
+    static unsigned int texHealLabel;
+    static unsigned int texScoreHeal;
 
     // Item & HUD Icon Handles
     static unsigned int texIconMedkit;
@@ -63,7 +67,7 @@ public:
     static void DrawWeaponDisplay(const char* weaponName, int ammo, bool usesAmmo);
     static void DrawAmmoCounter(int ammo, int reserveAmmo);
     static void DrawInteractionPrompt(const char* promptText, int screenX, int screenY);
-    static void DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp);
+    static void DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp, double displayedHp = -1.0);
     
     // Menu & State Overlays
     static void DrawPauseMenu(int mouseX, int mouseY, bool isMouseDown, double animTime, int pauseSubMenu);

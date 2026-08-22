@@ -149,6 +149,7 @@ GameManager::GameManager() {
     bossDefeated = false;
     bossHp = 300;
     bossMaxHp = 300;
+    displayedBossHp = 300.0;
     ribbonCollected = false;
     hasKeycard = false;
     showInventory = false;
@@ -228,6 +229,7 @@ void GameManager::Initialize() {
     bossDefeated = false;
     bossHp = 300;
     bossMaxHp = 300;
+    displayedBossHp = 300.0;
     ribbonCollected = false;
     hasKeycard = false;
     showInventory = false;
@@ -655,6 +657,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
             if (enemies[i].type == TYPE_ABOMINATION) {
                 bossMaxHp = enemies[i].maxHp;
                 bossHp = enemies[i].hp;
+                displayedBossHp = (double)enemies[i].hp;
             }
         }
     }
@@ -907,7 +910,18 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
             // Check if boss died
             if (enemies[i].type == TYPE_ABOMINATION) {
                 bossDefeated = true;
+                bossHp = 0;
             }
+        }
+    }
+
+    // Smooth boss HP interpolation for trailing damage hit lag bar
+    if (bossSpawned) {
+        if (displayedBossHp > (double)bossHp) {
+            displayedBossHp -= (displayedBossHp - (double)bossHp) * 0.08;
+            if (displayedBossHp < (double)bossHp) displayedBossHp = (double)bossHp;
+        } else if (displayedBossHp < (double)bossHp) {
+            displayedBossHp = (double)bossHp;
         }
     }
 
@@ -1402,7 +1416,7 @@ void GameManager::RenderPlaying() {
             activeObjText = "Reach the Steel Exit Gate";
         }
         if (bossSpawned && !bossDefeated) {
-            activeObjText = "DEFEAT MUTATED BRUTE";
+            activeObjText = "DEFEAT MUTATED BRUTE (FINAL BOSS)";
         }
         else if (bossDefeated && !ribbonCollected) {
             activeObjText = "Reach the Steel Exit Gate";
@@ -1421,7 +1435,7 @@ void GameManager::RenderPlaying() {
 
         // Render Boss Health Bar centered at top if Boss fight active
         if (bossSpawned && !bossDefeated) {
-            UI::DrawBossHealthBar("MUTATED BRUTE (MINI BOSS)", bossHp, bossMaxHp);
+            UI::DrawBossHealthBar("MUTATED BRUTE", bossHp, bossMaxHp, displayedBossHp);
         }
     }
 
