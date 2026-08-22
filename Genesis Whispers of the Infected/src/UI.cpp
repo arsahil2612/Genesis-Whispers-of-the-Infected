@@ -51,41 +51,285 @@ void UI::DrawOutlinedText(int x, int y, const char* str, void* font, int r, int 
     iText(x, y, (char*)str, font);
 }
 
-void UI::DrawButtonSlot(int slotIdx, int textX, int textY, const char* label, void* font, int mouseX, int mouseY, bool isMouseDown, double animTime) {
-    int boxX = 440, boxW = 400;
-    int yMin = 420, yMax = 470;
-    
-    if (slotIdx == 1) { yMin = 430; yMax = 475; }
-    else if (slotIdx == 2) { yMin = 375; yMax = 420; }
-    else if (slotIdx == 3) { yMin = 320; yMax = 365; }
-    else if (slotIdx == 4) { yMin = 265; yMax = 310; }
-    else if (slotIdx == 5) { yMin = 210; yMax = 255; }
-    else if (slotIdx == 6) { yMin = 155; yMax = 200; }
+static int GetGlutStringWidth(void* font, const char* str) {
+    if (!str) return 0;
+    int w = 0;
+    for (int i = 0; str[i] != '\0'; i++) {
+        w += glutBitmapWidth(font, (unsigned char)str[i]);
+    }
+    return w;
+}
 
+static void RenderButtonLabelWithShortcut(int boxX, int boxW, int targetCenterY, const char* label, void* font, bool isHovered, bool isMouseDown) {
+    std::string fullStr(label);
+    size_t bracketPos = fullStr.find('[');
+    
+    int labelWidth = GetGlutStringWidth(font, label);
+    int startX = boxX + (boxW - labelWidth) / 2;
+    int renderY = targetCenterY;
+
+    if (isMouseDown) {
+        startX += 1;
+        renderY -= 1;
+    }
+
+    if (bracketPos != std::string::npos) {
+        std::string mainText = fullStr.substr(0, bracketPos);
+        std::string shortcutText = fullStr.substr(bracketPos);
+
+        // Dark inset shadow line
+        iSetColor(8, 10, 14);
+        iText(startX + 1, renderY - 1, (char*)mainText.c_str(), font);
+
+        // White metallic main text
+        if (isHovered) {
+            iSetColor(255, 255, 255);
+        } else {
+            iSetColor(215, 220, 225);
+        }
+        iText(startX, renderY, (char*)mainText.c_str(), font);
+
+        // Calculate offset for shortcut text
+        int mainWidth = GetGlutStringWidth(font, mainText.c_str());
+        int shortcutX = startX + mainWidth;
+
+        // Shadow offset for shortcut
+        iSetColor(8, 10, 14);
+        iText(shortcutX + 1, renderY - 1, (char*)shortcutText.c_str(), font);
+
+        // Cyan highlight ONLY for keyboard shortcuts
+        if (isHovered) {
+            iSetColor(0, 230, 255);
+        } else {
+            iSetColor(0, 180, 215);
+        }
+        iText(shortcutX, renderY, (char*)shortcutText.c_str(), font);
+    } else {
+        // No shortcut
+        iSetColor(8, 10, 14);
+        iText(startX + 1, renderY - 1, (char*)label, font);
+
+        if (isHovered) {
+            iSetColor(255, 255, 255);
+        } else {
+            iSetColor(215, 220, 225);
+        }
+        iText(startX, renderY, (char*)label, font);
+    }
+}
+
+void UI::DrawButtonSlot(int slotIdx, int textX, int textY, const char* label, void* font, int mouseX, int mouseY, bool isMouseDown, double animTime) {
+    int boxW = 340;               // Reduced width by 15% (340px) leaving visible space from frame edges
+    int boxX = (1280 - boxW) / 2; // 470 (Horizontally centered: buttonCenterX = 640)
+    int yMin = 233, yMax = 275;
+    
+    // Compact vertical layout: 42px height + 8px uniform gap (50px stride)
+    if (slotIdx == 1) { yMin = 483; yMax = 525; }
+    else if (slotIdx == 2) { yMin = 433; yMax = 475; }
+    else if (slotIdx == 3) { yMin = 383; yMax = 425; }
+    else if (slotIdx == 4) { yMin = 333; yMax = 375; }
+    else if (slotIdx == 5) { yMin = 283; yMax = 325; }
+    else if (slotIdx == 6) { yMin = 233; yMax = 275; }
+
+    int boxH = yMax - yMin; // 42px
     bool isHovered = (mouseX >= boxX && mouseX <= boxX + boxW && mouseY >= yMin && mouseY <= yMax);
 
-    // Dark base slot panel
-    iSetColor(12, 18, 28);
-    iFilledRectangle(boxX, yMin, boxW, yMax - yMin);
-    iSetColor(40, 50, 65);
-    iRectangle(boxX, yMin, boxW, yMax - yMin);
+    // 1. Dark steel button backing plate
+    iSetColor(12, 14, 18);
+    iFilledRectangle(boxX, yMin, boxW, boxH);
 
+    // 2. Scratched gunmetal inner plate
     if (isHovered) {
-        double pulse = 0.8 + 0.2 * sin(animTime * 8.0);
-        int gVal = (int)(230 * pulse);
-        int bVal = (int)(255 * pulse);
-
-        iSetColor(0, gVal, bVal);
-        iRectangle(boxX - 2, yMin - 2, boxW + 4, yMax - yMin + 4);
-        iRectangle(boxX - 1, yMin - 1, boxW + 2, yMax - yMin + 2);
-
-        if (isMouseDown) {
-            DrawShadowText(textX + 2, textY - 2, label, font, 255, 220, 0);
-        } else {
-            DrawShadowText(textX, textY, label, font, 0, 240, 255);
-        }
+        iSetColor(38, 46, 58); // Metallic highlight when hovered
     } else {
-        DrawShadowText(textX, textY, label, font, 220, 225, 235);
+        iSetColor(24, 28, 35);
+    }
+    iFilledRectangle(boxX + 2, yMin + 2, boxW - 4, boxH - 4);
+
+    // 3. Rusted weathered bevel & outer border
+    if (isHovered) {
+        // Selected / Hover state: brighter metal edge with subtle orange rust highlight
+        iSetColor(160, 175, 190);
+        iRectangle(boxX, yMin, boxW, boxH);
+        iSetColor(200, 115, 25); // Subtle orange rust glow line
+        iRectangle(boxX + 1, yMin + 1, boxW - 2, boxH - 2);
+    } else {
+        // Normal state: dark rusted steel border
+        iSetColor(64, 70, 80);
+        iRectangle(boxX, yMin, boxW, boxH);
+        iSetColor(38, 42, 50);
+        iRectangle(boxX + 1, yMin + 1, boxW - 2, boxH - 2);
+    }
+
+    // 4. Post-apocalyptic rust spots & metal scratches
+    iSetColor(125, 55, 18);
+    iFilledRectangle(boxX + 8, yMin + 2, 24, 2);
+    iFilledRectangle(boxX + boxW - 32, yMin + boxH - 4, 24, 2);
+
+    // 5. Corner metallic hex bolts / rivets
+    int boltColor = isHovered ? 175 : 135;
+    iSetColor(boltColor, boltColor - 5, boltColor - 10);
+    iFilledRectangle(boxX + 5, yMin + boxH - 7, 4, 4);
+    iFilledRectangle(boxX + boxW - 9, yMin + boxH - 7, 4, 4);
+    iFilledRectangle(boxX + 5, yMin + 3, 4, 4);
+    iFilledRectangle(boxX + boxW - 9, yMin + 3, 4, 4);
+
+    iSetColor(15, 16, 18);
+    iRectangle(boxX + 5, yMin + boxH - 7, 4, 4);
+    iRectangle(boxX + boxW - 9, yMin + boxH - 7, 4, 4);
+    iRectangle(boxX + 5, yMin + 3, 4, 4);
+    iRectangle(boxX + boxW - 9, yMin + 3, 4, 4);
+
+    // 6. Draw Text Label & Shortcut (Exact Vertical & Horizontal Centering)
+    int targetCenterY = yMin + (boxH - 18) / 2 + 3;
+    RenderButtonLabelWithShortcut(boxX, boxW, targetCenterY, label, font, isHovered, isMouseDown);
+}
+
+// ============================================================================
+// PAUSE MENU
+// ============================================================================
+void UI::DrawPauseMenu(int mouseX, int mouseY, bool isMouseDown, double animTime, int pauseSubMenu) {
+    // 1. Darkened gameplay backdrop dimmer
+    iSetColor(0, 0, 0);
+    iFilledRectangle(0, 0, 1280, 720);
+
+    int frameX = 360, frameY = 120, frameW = 560, frameH = 480;
+
+    // 2. Render Existing Pause Menu Base Frame Asset
+    if (texPauseOverlay != 0) {
+        iShowImage(240, 90, 800, 540, texPauseOverlay);
+    } else {
+        // Procedural Rusted Dark Steel Base Frame (Fallback when PNG overlay not loaded)
+        iSetColor(14, 16, 20);
+        iFilledRectangle(frameX, frameY, frameW, frameH);
+        iSetColor(52, 58, 68);
+        iRectangle(frameX, frameY, frameW, frameH);
+        iSetColor(32, 36, 44);
+        iRectangle(frameX + 1, frameY + 1, frameW - 2, frameH - 2);
+
+        // Rust corner details on base frame
+        iSetColor(115, 50, 15);
+        iFilledRectangle(frameX + 4, frameY + 4, 18, 2);
+        iFilledRectangle(frameX + frameW - 22, frameY + 4, 18, 2);
+        iFilledRectangle(frameX + 4, frameY + frameH - 6, 18, 2);
+        iFilledRectangle(frameX + frameW - 22, frameY + frameH - 6, 18, 2);
+    }
+
+    // 3. ENGRAVED TITLE: "PAUSED" (Centering calculation for 100% alignment)
+    int titleW = GetGlutStringWidth(GLUT_BITMAP_TIMES_ROMAN_24, "PAUSED");
+    int titleX = 640 - titleW / 2;
+    int titleY = 544;
+
+    // Dark inset engraved shadow
+    iSetColor(10, 8, 6);
+    iText(titleX + 1, titleY - 1, "PAUSED", GLUT_BITMAP_TIMES_ROMAN_24);
+    iText(titleX + 2, titleY - 2, "PAUSED", GLUT_BITMAP_TIMES_ROMAN_24);
+
+    // Weathered silver / dirty white engraved title text
+    iSetColor(215, 220, 225);
+    iText(titleX, titleY, "PAUSED", GLUT_BITMAP_TIMES_ROMAN_24);
+
+    // 4. Render Menu Buttons & Sub-menus
+    if (pauseSubMenu == 0) {
+        DrawButtonSlot(1, 470, 504, "1. RESUME GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
+        DrawButtonSlot(2, 470, 454, "2. INVENTORY [TAB]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
+        DrawButtonSlot(3, 470, 404, "3. CONTROLS [C]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
+        DrawButtonSlot(4, 470, 354, "4. SETTINGS [S]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
+        DrawButtonSlot(5, 470, 304, "5. RESTART LEVEL", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
+        DrawButtonSlot(6, 470, 254, "6. QUIT TO MENU [M]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
+
+        // 5. ENGRAVED BOTTOM INSTRUCTION METAL LABEL (Slightly taller & 10px below Button 6)
+        int lblW = 340;
+        int lblH = 30;
+        int lblX = (1280 - lblW) / 2; // 470 (Centered)
+        int lblY = 193;              // 10px directly below Button 6 (yMin = 233)
+
+        // Dark steel backing panel
+        iSetColor(12, 14, 18);
+        iFilledRectangle(lblX, lblY, lblW, lblH);
+
+        // Scratched gunmetal inner plate fill
+        iSetColor(24, 28, 35);
+        iFilledRectangle(lblX + 2, lblY + 2, lblW - 4, lblH - 4);
+
+        // Rusted iron borders
+        iSetColor(58, 64, 74);
+        iRectangle(lblX, lblY, lblW, lblH);
+        iSetColor(36, 40, 48);
+        iRectangle(lblX + 1, lblY + 1, lblW - 2, lblH - 2);
+
+        // Corner rivets
+        iSetColor(130, 125, 115);
+        iFilledRectangle(lblX + 4, lblY + lblH - 5, 3, 3);
+        iFilledRectangle(lblX + lblW - 7, lblY + lblH - 5, 3, 3);
+        iFilledRectangle(lblX + 4, lblY + 3, 3, 3);
+        iFilledRectangle(lblX + lblW - 7, lblY + 3, 3, 3);
+
+        // Centered instruction text inside label
+        const char* msgText = "Press ESC to Resume or Click Options to Select";
+        int msgW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_12, msgText);
+        int msgX = 640 - msgW / 2;
+        int msgY = lblY + 10;
+
+        iSetColor(8, 10, 12);
+        iText(msgX + 1, msgY - 1, (char*)msgText, GLUT_BITMAP_HELVETICA_12);
+        iSetColor(190, 195, 205);
+        iText(msgX, msgY, (char*)msgText, GLUT_BITMAP_HELVETICA_12);
+    }
+    else if (pauseSubMenu == 1) {
+        int subW = 480, subH = 360;
+        int subX = (1280 - subW) / 2; // 400
+        int subY = 160;
+
+        iSetColor(14, 18, 24);
+        iFilledRectangle(subX, subY, subW, subH);
+        iSetColor(54, 62, 72);
+        iRectangle(subX, subY, subW, subH);
+
+        const char* headStr = "GAME CONTROLS";
+        int headW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_18, headStr);
+        int headX = 640 - headW / 2;
+        iSetColor(220, 225, 230);
+        iText(headX, 485, (char*)headStr, GLUT_BITMAP_HELVETICA_18);
+
+        DrawShadowText(430, 430, "A / D or LEFT / RIGHT  - Move Character", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(430, 390, "W / SPACE / UP         - Jump", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(430, 350, "J / LEFT CLICK         - Katana Slash", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(430, 310, "K / RIGHT CLICK        - Ranged Attack", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(430, 270, "E                      - Interact / Pick Up", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(430, 230, "H                      - Use First Aid Kit", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(430, 190, "TAB / I                - Open Inventory", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+
+        const char* retStr = "Press ESC or Click to Return";
+        int retW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_12, retStr);
+        int retX = 640 - retW / 2;
+        DrawShadowText(retX, 180, retStr, GLUT_BITMAP_HELVETICA_12, 220, 180, 50);
+    }
+    else if (pauseSubMenu == 2) {
+        int subW = 480, subH = 360;
+        int subX = (1280 - subW) / 2; // 400
+        int subY = 160;
+
+        iSetColor(14, 18, 24);
+        iFilledRectangle(subX, subY, subW, subH);
+        iSetColor(54, 62, 72);
+        iRectangle(subX, subY, subW, subH);
+
+        const char* headStr = "AUDIO & DISPLAY";
+        int headW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_18, headStr);
+        int headX = 640 - headW / 2;
+        iSetColor(220, 225, 230);
+        iText(headX, 485, (char*)headStr, GLUT_BITMAP_HELVETICA_18);
+
+        DrawShadowText(440, 410, "Resolution        : 1280 x 720 (Native)", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(440, 360, "Display Mode      : Windowed", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(440, 310, "Master Volume     : [==========] 100%", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(440, 260, "SFX & Music       : ENABLED", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+
+        const char* retStr = "Press ESC or Click to Return";
+        int retW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_12, retStr);
+        int retX = 640 - retW / 2;
+        DrawShadowText(retX, 180, retStr, GLUT_BITMAP_HELVETICA_12, 220, 180, 50);
     }
 }
 
@@ -596,67 +840,6 @@ void UI::DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp) {
 
     int nameLen = (int)strlen(bossName);
     DrawOutlinedText(640 - (nameLen * 4), barY + 30, bossName, GLUT_BITMAP_HELVETICA_12, 255, 230, 230);
-}
-
-// ============================================================================
-// PAUSE MENU
-// ============================================================================
-void UI::DrawPauseMenu(int mouseX, int mouseY, bool isMouseDown, double animTime, int pauseSubMenu) {
-    iSetColor(0, 0, 0);
-    iFilledRectangle(0, 0, 1280, 720);
-
-    if (texPauseOverlay != 0) {
-        iShowImage(240, 90, 800, 540, texPauseOverlay);
-    } else {
-        iSetColor(12, 16, 24);
-        iFilledRectangle(360, 120, 560, 480);
-        iSetColor(0, 180, 220);
-        iRectangle(360, 120, 560, 480);
-    }
-
-    DrawOutlinedText(545, 545, "PAUSED", GLUT_BITMAP_TIMES_ROMAN_24, 0, 230, 255);
-
-    if (pauseSubMenu == 0) {
-        DrawButtonSlot(1, 525, 442, "1. RESUME GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
-        DrawButtonSlot(2, 535, 387, "2. INVENTORY [TAB]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
-        DrawButtonSlot(3, 545, 332, "3. CONTROLS [C]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
-        DrawButtonSlot(4, 550, 277, "4. SETTINGS [S]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
-        DrawButtonSlot(5, 545, 222, "5. RESTART LEVEL", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
-        DrawButtonSlot(6, 530, 167, "6. QUIT TO MENU [M]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
-
-        DrawShadowText(480, 125, "Press ESC to Resume or Click Options to Select", GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
-    }
-    else if (pauseSubMenu == 1) {
-        iSetColor(18, 24, 36);
-        iFilledRectangle(400, 160, 480, 360);
-        iSetColor(0, 220, 255);
-        iRectangle(400, 160, 480, 360);
-
-        DrawOutlinedText(560, 480, "GAME CONTROLS", GLUT_BITMAP_HELVETICA_18, 0, 240, 255);
-        DrawShadowText(430, 430, "A / D or LEFT / RIGHT  - Move Character", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-        DrawShadowText(430, 390, "W / SPACE / UP         - Jump", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-        DrawShadowText(430, 350, "J / LEFT CLICK         - Katana Slash", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-        DrawShadowText(430, 310, "K / RIGHT CLICK        - Ranged Attack", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-        DrawShadowText(430, 270, "E                      - Interact / Pick Up", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-        DrawShadowText(430, 230, "H                      - Use First Aid Kit", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-        DrawShadowText(430, 190, "TAB / I                - Open Inventory", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-
-        DrawShadowText(520, 130, "Press ESC or Click to Return", GLUT_BITMAP_HELVETICA_12, 255, 215, 0);
-    }
-    else if (pauseSubMenu == 2) {
-        iSetColor(18, 24, 36);
-        iFilledRectangle(400, 160, 480, 360);
-        iSetColor(0, 220, 255);
-        iRectangle(400, 160, 480, 360);
-
-        DrawOutlinedText(555, 480, "AUDIO & DISPLAY", GLUT_BITMAP_HELVETICA_18, 0, 240, 255);
-        DrawShadowText(440, 410, "Resolution        : 1280 x 720 (Native)", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-        DrawShadowText(440, 360, "Display Mode      : Windowed", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-        DrawShadowText(440, 310, "Master Volume     : [==========] 100%", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-        DrawShadowText(440, 260, "SFX & Music       : ENABLED", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
-
-        DrawShadowText(520, 130, "Press ESC or Click to Return", GLUT_BITMAP_HELVETICA_12, 255, 215, 0);
-    }
 }
 
 // ============================================================================

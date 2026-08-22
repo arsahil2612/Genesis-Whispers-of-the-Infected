@@ -38,10 +38,25 @@ enum CollectibleType {
 
 struct Collectible {
     double x, y;
-    double width, height;
+    int width, height;
     CollectibleType type;
     bool active;
     int subType;
+};
+
+struct InventoryItem {
+    bool isOccupied;
+    std::string id;
+    std::string name;
+    std::string description;
+    int count;
+    std::string iconPath;
+    std::string altIconPath;
+    unsigned int textureID;
+
+    InventoryItem() : isOccupied(false), count(0), textureID(0) {}
+    InventoryItem(std::string itemId, std::string itemName, std::string itemDesc, int itemCnt, std::string path, std::string altPath = "")
+        : isOccupied(true), id(itemId), name(itemName), description(itemDesc), count(itemCnt), iconPath(path), altIconPath(altPath), textureID(0) {}
 };
 
 enum PropType {
@@ -158,6 +173,11 @@ private:
 
     int score;
     int currentLevel;
+
+    // Inventory Management
+    InventoryItem inventory[12];
+    void InitInventory();
+    void LoadInventoryTextures();
 
     // Helper functions for localized state updates/rendering
     void UpdatePlaying(bool keys[], bool specialKeys[]);

@@ -88,6 +88,7 @@ static unsigned int g_texMissionBox = 0;
 // Inventory UI PNG Texture Handles
 static unsigned int g_texInventoryPanel = 0;
 static unsigned int g_texInventorySlot = 0;
+static unsigned int g_texBackpackIcon = 0;
 static unsigned int g_texPauseOverlay = 0;
 static unsigned int g_texMainMenuBg = 0;
 static unsigned int g_texGameOverBg = 0;
@@ -163,6 +164,49 @@ GameManager::GameManager() {
     activePromptText = "";
     activePromptX = 0;
     activePromptY = 0;
+
+    InitInventory();
+}
+
+void GameManager::InitInventory() {
+    for (int i = 0; i < 12; ++i) {
+        inventory[i] = InventoryItem();
+    }
+
+    // Slot 1: Medkit x2
+    inventory[0] = InventoryItem("medkit", "MEDKIT", "Restores 40 HP", 2, "Assets/Items/Medicine/first_aid.png", "Assets/Items/Medicine/bandage.png");
+
+    // Slot 2: Food Can x1
+    inventory[1] = InventoryItem("food_can", "FOOD CAN", "Restores 25 Stamina", 1, "Assets/Items/Food/food_can.png", "Assets/Items/Food/Bread.png");
+
+    // Slot 3: Water Bottle x1
+    inventory[2] = InventoryItem("water_bottle", "WATER BOTTLE", "Restores 30 Stamina", 1, "Assets/Items/Food/water_bottle.png");
+
+    // Slot 4: Battery x1
+    inventory[3] = InventoryItem("battery", "BATTERY", "Powers flashlight & devices", 1, "Assets/Items/KeyItems/battery.png");
+
+    // Slot 5: Scrap Metal x1
+    inventory[4] = InventoryItem("scrap_metal", "SCRAP METAL", "Crafting & upgrade material", 1, "Assets/Items/KeyItems/Scrap_Metal.png");
+
+    // Slot 6: Katana
+    inventory[5] = InventoryItem("katana", "KATANA", "Sharp melee weapon (50 DMG)", 1, "Assets/Items/KeyItems/katana.png");
+
+    LoadInventoryTextures();
+}
+
+void GameManager::LoadInventoryTextures() {
+    for (int i = 0; i < 12; ++i) {
+        if (inventory[i].isOccupied) {
+            if (inventory[i].textureID == 0 && !inventory[i].iconPath.empty()) {
+                std::string fullPath = GetAssetPath(inventory[i].iconPath.c_str());
+                inventory[i].textureID = iLoadImage((char*)fullPath.c_str());
+            }
+            if (inventory[i].textureID == 0 && !inventory[i].altIconPath.empty()) {
+                std::string altPath = GetAssetPath(inventory[i].altIconPath.c_str());
+                inventory[i].textureID = iLoadImage((char*)altPath.c_str());
+            }
+        }
+    }
 }
 
 void GameManager::Initialize() {
@@ -199,6 +243,8 @@ void GameManager::Initialize() {
     activePromptText = "";
     activePromptX = 0;
     activePromptY = 0;
+
+    InitInventory();
 
     // Initialize Independent Environment Prop System & Destroyed House Area Props (Arin's Family Home)
     worldProps.clear();
@@ -345,6 +391,9 @@ void GameManager::Initialize() {
     if (g_texInventorySlot == 0) {
         g_texInventorySlot = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/single_empty_inventory_slot.png").c_str());
         if (g_texInventorySlot == 0) g_texInventorySlot = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/ui_inventory_slot.png").c_str());
+    }
+    if (g_texBackpackIcon == 0) {
+        g_texBackpackIcon = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/backpack_icon.png").c_str());
     }
     if (g_texPauseOverlay == 0) {
         g_texPauseOverlay = iLoadImage((char*)GetAssetPath("Assets/UI/Pause/pause_menu.png").c_str());
@@ -1481,6 +1530,9 @@ void GameManager::RenderPlaying() {
     // INVENTORY OVERLAY (Rendered when TAB or [I] is pressed)
     // ------------------------------------------------------------------------
     if (showInventory) {
+        // Ensure textures are loaded
+        LoadInventoryTextures();
+
         // Semi-transparent dark background dimmer
         iSetColor(0, 0, 0);
         iFilledRectangle(0, 0, 1280, 720);
@@ -1496,9 +1548,72 @@ void GameManager::RenderPlaying() {
             iRectangle(panelX, panelY, panelW, panelH);
         }
 
-        // Header Title
-        iSetColor(0, 220, 255);
-        iText(panelX + 200, panelY + panelH - 40, "SURVIVAL INVENTORY", GLUT_BITMAP_HELVETICA_18);
+        // --------------------------------------------------------------------
+        // EMBEDDED RUSTED METAL TITLE PLATE (ATTACHED TO INVENTORY FRAME)
+        // --------------------------------------------------------------------
+        int plateW = 340;
+        int plateH = 34;
+        int plateX = panelX + (panelW - plateW) / 2;
+        int plateY = panelY + panelH - 42;
+
+        // 1. Dark engraved inset groove in top frame
+        iSetColor(10, 12, 14);
+        iFilledRectangle(plateX, plateY, plateW, plateH);
+
+        // 2. Weathered gunmetal & rusted iron label plate
+        iSetColor(32, 36, 42);
+        iFilledRectangle(plateX + 2, plateY + 2, plateW - 4, plateH - 4);
+
+        // 3. Post-apocalyptic rust details & heavy worn bevel
+        iSetColor(58, 64, 72);
+        iRectangle(plateX + 1, plateY + 1, plateW - 2, plateH - 2);
+        iSetColor(125, 55, 18); // Natural rust stain highlights
+        iFilledRectangle(plateX + 8, plateY + 2, 28, 2);
+        iFilledRectangle(plateX + plateW - 36, plateY + 2, 28, 2);
+        iFilledRectangle(plateX + 14, plateY + plateH - 4, 20, 2);
+
+        // 4. Corner rivets/bolts (physically attaching label to panel frame)
+        iSetColor(140, 135, 125);
+        iFilledRectangle(plateX + 5, plateY + plateH - 7, 4, 4);
+        iFilledRectangle(plateX + plateW - 9, plateY + plateH - 7, 4, 4);
+        iFilledRectangle(plateX + 5, plateY + 3, 4, 4);
+        iFilledRectangle(plateX + plateW - 9, plateY + 3, 4, 4);
+
+        iSetColor(18, 16, 14);
+        iRectangle(plateX + 5, plateY + plateH - 7, 4, 4);
+        iRectangle(plateX + plateW - 9, plateY + plateH - 7, 4, 4);
+        iRectangle(plateX + 5, plateY + 3, 4, 4);
+        iRectangle(plateX + plateW - 9, plateY + 3, 4, 4);
+
+        // 5. Left side Survival Backpack Icon
+        int iconSize = 22;
+        int iconX = plateX + 18;
+        int iconY = plateY + (plateH - iconSize) / 2;
+
+        if (g_texBackpackIcon != 0) {
+            iShowImage(iconX, iconY, iconSize, iconSize, g_texBackpackIcon);
+        } else {
+            iSetColor(45, 52, 46);
+            iFilledRectangle(iconX + 2, iconY + 2, 18, 18);
+            iSetColor(70, 80, 72);
+            iFilledRectangle(iconX + 4, iconY + 12, 14, 6);
+            iSetColor(28, 32, 30);
+            iRectangle(iconX + 2, iconY + 2, 18, 18);
+        }
+
+        // 6. Title Text: "SURVIVAL INVENTORY"
+        // Weathered dirty white / silver text engraved into metal plate
+        int titleX = iconX + iconSize + 16;
+        int titleY = plateY + 9;
+
+        // Dark engraved inset shadow
+        iSetColor(12, 10, 8);
+        iText(titleX + 1, titleY - 1, "SURVIVAL INVENTORY", GLUT_BITMAP_HELVETICA_18);
+        iText(titleX + 2, titleY - 2, "SURVIVAL INVENTORY", GLUT_BITMAP_HELVETICA_18);
+
+        // Dirty white / silver engraved text
+        iSetColor(210, 205, 195);
+        iText(titleX, titleY, "SURVIVAL INVENTORY", GLUT_BITMAP_HELVETICA_18);
 
         // Render Inventory Grid Slots (using ui_inventory_slot.png / single_empty_inventory_slot.png)
         int cols = 4, rows = 3;
@@ -1507,11 +1622,15 @@ void GameManager::RenderPlaying() {
         int startY = panelY + panelH - 160;
         int gapX = 35, gapY = 20;
 
+        int hoveredSlotIdx = -1;
+
         for (int r = 0; r < rows; ++r) {
             for (int c = 0; c < cols; ++c) {
+                int slotIdx = r * cols + c;
                 int slotX = startX + c * (slotW + gapX);
                 int slotY = startY - r * (slotH + gapY);
 
+                // 1. Draw Slot Background Box
                 if (g_texInventorySlot != 0) {
                     iShowImage(slotX, slotY, slotW, slotH, g_texInventorySlot);
                 } else {
@@ -1520,7 +1639,82 @@ void GameManager::RenderPlaying() {
                     iSetColor(0, 150, 180);
                     iRectangle(slotX, slotY, slotW, slotH);
                 }
+
+                // Check Hover on Slot
+                if (mouseX >= slotX && mouseX <= slotX + slotW && mouseY >= slotY && mouseY <= slotY + slotH) {
+                    // Hover highlight frame
+                    iSetColor(0, 220, 255);
+                    iRectangle(slotX - 1, slotY - 1, slotW + 2, slotH + 2);
+
+                    if (slotIdx < 12 && inventory[slotIdx].isOccupied) {
+                        hoveredSlotIdx = slotIdx;
+                    }
+                }
+
+                // 2. Draw Occupied Item inside slot
+                if (slotIdx < 12 && inventory[slotIdx].isOccupied) {
+                    const InventoryItem& item = inventory[slotIdx];
+
+                    // Scale & Center item icon inside slot box (52x52 inside 85x85)
+                    int iconSize = 52;
+                    int iconX = slotX + (slotW - iconSize) / 2;
+                    int iconY = slotY + (slotH - iconSize) / 2;
+
+                    if (item.textureID != 0) {
+                        iShowImage(iconX, iconY, iconSize, iconSize, item.textureID);
+                    } else {
+                        // Fallback shape if texture failed to load
+                        iSetColor(0, 180, 220);
+                        iFilledRectangle(iconX, iconY, iconSize, iconSize);
+                    }
+
+                    // Stack Count Badge (bottom-right corner)
+                    if (item.count > 1) {
+                        char countStr[16];
+                        sprintf_s(countStr, sizeof(countStr), "x%d", item.count);
+
+                        // Count badge background pill for high legibility
+                        iSetColor(5, 10, 18);
+                        iFilledRectangle(slotX + slotW - 28, slotY + 4, 24, 16);
+                        iSetColor(0, 200, 240);
+                        iRectangle(slotX + slotW - 28, slotY + 4, 24, 16);
+
+                        iSetColor(255, 255, 255);
+                        iText(slotX + slotW - 24, slotY + 8, countStr, GLUT_BITMAP_HELVETICA_10);
+                    }
+                }
             }
+        }
+
+        // 3. Render Hover Tooltip Overlay
+        if (hoveredSlotIdx >= 0 && hoveredSlotIdx < 12 && inventory[hoveredSlotIdx].isOccupied) {
+            const InventoryItem& item = inventory[hoveredSlotIdx];
+
+            int boxW = 220;
+            int boxH = 56;
+            int boxX = mouseX + 15;
+            int boxY = mouseY - 45;
+
+            // Clamp tooltip within screen boundaries
+            if (boxX + boxW > 1260) boxX = mouseX - boxW - 15;
+            if (boxY < 15) boxY = 15;
+            if (boxY + boxH > 705) boxY = 705 - boxH;
+
+            // Background Frame
+            iSetColor(8, 12, 22);
+            iFilledRectangle(boxX, boxY, boxW, boxH);
+            iSetColor(0, 220, 255);
+            iRectangle(boxX, boxY, boxW, boxH);
+            iSetColor(0, 100, 140);
+            iRectangle(boxX + 2, boxY + 2, boxW - 4, boxH - 4);
+
+            // Item Name Header (e.g., "MEDKIT")
+            iSetColor(255, 220, 0);
+            iText(boxX + 12, boxY + boxH - 22, (char*)item.name.c_str(), GLUT_BITMAP_HELVETICA_12);
+
+            // Item Description (e.g., "Restores 40 HP")
+            iSetColor(200, 225, 245);
+            iText(boxX + 12, boxY + 12, (char*)item.description.c_str(), GLUT_BITMAP_HELVETICA_10);
         }
 
         // Bottom instruction label
