@@ -443,11 +443,10 @@ void UI::DrawAreaBanner(const char* areaName, double alpha) {
     if (alpha <= 0.01 || !areaName) return;
 
     int textLen = (int)strlen(areaName);
-    int bannerW = 320 + (textLen * 8);
-    if (bannerW < 380) bannerW = 380;
-    int bannerH = 48;
-    int bannerX = 640 - (bannerW / 2);
-    int bannerY = 605;
+    int bannerW = 340;
+    int bannerH = 46;
+    int bannerX = 470;
+    int bannerY = 615;
 
     // Dark glass background panel
     iSetColor(10, 14, 22);
@@ -460,12 +459,12 @@ void UI::DrawAreaBanner(const char* areaName, double alpha) {
     iRectangle(bannerX + 2, bannerY + 2, bannerW - 4, bannerH - 4);
 
     // Level 1 Chapter Title (Upper Header)
-    int headerX = 640 - 55;
-    DrawOutlinedText(headerX, bannerY + 30, "THE FALLEN VILLAGE", GLUT_BITMAP_HELVETICA_10, 0, 240, 255);
+    int headerX = bannerX + (bannerW / 2) - 55;
+    DrawOutlinedText(headerX, bannerY + 28, "THE FALLEN VILLAGE", GLUT_BITMAP_HELVETICA_10, 0, 240, 255);
 
     // Current Area Name (Main Title)
-    int titleX = 640 - (textLen * 4);
-    DrawShadowText(titleX, bannerY + 10, areaName, GLUT_BITMAP_HELVETICA_12, 255, 220, 0);
+    int titleX = bannerX + (bannerW / 2) - (textLen * 4);
+    DrawShadowText(titleX, bannerY + 8, areaName, GLUT_BITMAP_HELVETICA_12, 255, 220, 0);
 }
 
 // ----------------------------------------------------------------------------
@@ -474,7 +473,7 @@ void UI::DrawAreaBanner(const char* areaName, double alpha) {
 void UI::DrawHealthBar(int hp, int maxHp, double displayedHp) {
     int startX = 20;
     int startY = 638;
-    int frameW = 420;
+    int frameW = 360;
     int frameH = 34;
 
     double hpRatio = (double)hp / (double)maxHp;
@@ -487,15 +486,15 @@ void UI::DrawHealthBar(int hp, int maxHp, double displayedHp) {
     char hpStr[32];
     int pct = (int)(((double)hp / maxHp) * 100.0);
     sprintf_s(hpStr, sizeof(hpStr), "HP %d/%d (%d%%)", hp, maxHp, pct);
-    DrawShadowText(startX + 260, startY + frameH + 6, hpStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    DrawShadowText(startX + 210, startY + frameH + 6, hpStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
 
     // STEP 1: Draw empty metal frame base
     if (texHealthFrame != 0) {
         iShowImage(startX, startY, frameW, frameH, texHealthFrame);
     }
 
-    // STEP 2: Calculate fill width and inner clipping area (Centered 6px line inside spear channel)
-    int innerBarWidth = 312;
+    // STEP 2: Calculate fill width and inner clipping area
+    int innerBarWidth = 260;
     int innerBarHeight = 6;
     int healthFillWidth = (int)(innerBarWidth * hpRatio);
 
@@ -539,7 +538,7 @@ void UI::DrawHealthBar(int hp, int maxHp, double displayedHp) {
 void UI::DrawStaminaBar(int stamina, int maxStamina, double displayedStamina) {
     int startX = 20;
     int startY = 560;
-    int frameW = 420;
+    int frameW = 360;
     int frameH = 34;
 
     double staminaRatio = (double)stamina / (double)maxStamina;
@@ -552,7 +551,7 @@ void UI::DrawStaminaBar(int stamina, int maxStamina, double displayedStamina) {
     char stmStr[32];
     int pct = (int)(((double)stamina / maxStamina) * 100.0);
     sprintf_s(stmStr, sizeof(stmStr), "STAMINA %d%%", pct);
-    DrawShadowText(startX + 280, startY + frameH + 6, stmStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    DrawShadowText(startX + 230, startY + frameH + 6, stmStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
 
     // STEP 1: Draw empty metal frame base
     if (texStaminaFrame != 0) {

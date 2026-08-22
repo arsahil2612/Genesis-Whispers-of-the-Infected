@@ -5,6 +5,8 @@
 #include "igraphics_declarations.h"
 #include <cstdio>
 #include <cmath>
+#include <windows.h>
+#include <GL/gl.h>
 
 // Map rendering layout constants
 namespace {
@@ -12,6 +14,53 @@ namespace {
     const int kBgSliceHeight = 768;
     const int kScreenHeight = 768;
     const int kBgDrawYOffset = 0; // Align background bottom to y=0 so visual ground matches feet
+
+#ifndef GL_CLAMP_TO_EDGE
+#define GL_CLAMP_TO_EDGE 0x812F
+#endif
+
+    // OpenGL quad renderer with horizontal linear alpha gradient for smooth map background cross-fading
+    void RenderTexturedQuadGradientAlpha(unsigned int texture, float x1, float y1, float x2, float y2, float u1, float v1, float u2, float v2, float alpha1, float alpha2) {
+        if (texture == 0) return;
+
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, texture);
+
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
+        glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
+        glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE);
+
+        glBegin(GL_QUADS);
+
+        // Bottom-Left
+        glColor4f(1.0f, 1.0f, 1.0f, alpha1);
+        glTexCoord2f(u1, 0.999f);
+        glVertex2f(x1, y1);
+
+        // Bottom-Right
+        glColor4f(1.0f, 1.0f, 1.0f, alpha2);
+        glTexCoord2f(u2, 0.999f);
+        glVertex2f(x2, y1);
+
+        // Top-Right
+        glColor4f(1.0f, 1.0f, 1.0f, alpha2);
+        glTexCoord2f(u2, 0.001f);
+        glVertex2f(x2, y2);
+
+        // Top-Left
+        glColor4f(1.0f, 1.0f, 1.0f, alpha1);
+        glTexCoord2f(u1, 0.001f);
+        glVertex2f(x1, y2);
+
+        glEnd();
+
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_BLEND);
+    }
 }
 
 // ============================================================================
@@ -47,38 +96,6 @@ void Map::LoadLevel(int levelNumber) {
 
         // Segment 4: Sections 10-11 (Boss Arena and Exit Gate)
         platforms.push_back({19400, 165, 2320, 20});
-
-        // --- Environmental Platform Mechanics (Floating Platforms) ---
-        // Section 2: Destroyed House second floors
-        platforms.push_back({2500, 300, 300, 20});
-        platforms.push_back({2700, 450, 200, 20});
-
-        // Section 3: Village Street barricade tops
-        platforms.push_back({4800, 250, 180, 20});
-
-        // Section 4: Village Square fountain highlight
-        platforms.push_back({6800, 220, 250, 30});
-
-        // Section 5: Abandoned Market shelves
-        platforms.push_back({9500, 280, 220, 20});
-        platforms.push_back({9800, 400, 180, 20});
-
-        // Section 6: Raider Camp watchtowers
-        platforms.push_back({11500, 320, 300, 20});
-        platforms.push_back({11600, 450, 150, 20});
-
-        // Section 7: Abandoned Church rafters
-        platforms.push_back({13800, 350, 400, 20});
-
-        // Section 8: Quarantine Zone command post tent top
-        platforms.push_back({16000, 280, 250, 20});
-
-        // Section 9: Broken Bridge platforming assists (floating wood/debris)
-        platforms.push_back({17900, 300, 100, 20});
-        platforms.push_back({18600, 320, 100, 20});
-
-        // Section 10: Boss Arena destroyed military trucks
-        platforms.push_back({20100, 260, 200, 20});
     }
 }
 
@@ -86,17 +103,50 @@ void Map::LoadLevel(int levelNumber) {
 // Background Layer Render Loop
 // ============================================================================
 void Map::RenderBackground(double camX, bool bossDefeated) {
-    // Render main background layer with smooth side-scrolling across 1280-wide window
+    // Pass 1: Render main background slices
     for (int i = 0; i < 10; ++i) {
         double xPos = (i * kBgSliceWidth) - camX;
 
-        // Render all slices that overlap or border the 1280-wide screen viewport
         if (xPos + kBgSliceWidth >= -200 && xPos <= 1480) {
             unsigned int tex = LoadLevel1BackgroundTexture(i, bossDefeated);
             if (tex != 0) {
-                // Use floor() so negative screen coordinates round down accurately, with 1px precision edge alignment
                 int drawX = (int)floor(xPos);
                 iShowImage(drawX, kBgDrawYOffset, kBgSliceWidth + 1, kBgSliceHeight, tex);
+            }
+        }
+    }
+
+    // Pass 2: Soft, natural 360px centered cross-fade over map slice boundaries
+    const float kBlendHalf = 180.0f;
+    float uSpan = (kBlendHalf * 2.0f) / (float)kBgSliceWidth;
+
+    for (int i = 0; i < 9; ++i) {
+        double boundaryX = ((i + 1) * kBgSliceWidth) - camX;
+        double blendLeft = boundaryX - kBlendHalf;
+        double blendRight = boundaryX + kBlendHalf;
+
+        if (blendRight >= -100 && blendLeft <= 1380) {
+            unsigned int prevTex = LoadLevel1BackgroundTexture(i, bossDefeated);
+            unsigned int nextTex = LoadLevel1BackgroundTexture(i + 1, bossDefeated);
+
+            if (prevTex != 0 && nextTex != 0) {
+                // Render previous slice (i) right edge fading from 1.0 to 0.0 alpha
+                RenderTexturedQuadGradientAlpha(
+                    prevTex,
+                    (float)blendLeft, (float)kBgDrawYOffset,
+                    (float)blendRight, (float)(kBgDrawYOffset + kBgSliceHeight),
+                    1.0f - uSpan, 0.001f, 0.999f, 0.999f,
+                    1.0f, 0.0f
+                );
+
+                // Render next slice (i+1) left edge fading from 0.0 to 1.0 alpha
+                RenderTexturedQuadGradientAlpha(
+                    nextTex,
+                    (float)blendLeft, (float)kBgDrawYOffset,
+                    (float)blendRight, (float)(kBgDrawYOffset + kBgSliceHeight),
+                    0.001f, 0.001f, uSpan, 0.999f,
+                    0.0f, 1.0f
+                );
             }
         }
     }
@@ -108,36 +158,12 @@ void Map::RenderBackground(double camX, bool bossDefeated) {
 void Map::RenderTiles(double camX, double camY) {
     ResourceManager& rm = ResourceManager::GetInstance();
 
-    // Wooden Tiles
-    unsigned int texWood = rm.GetWoodFloorTile();
-    unsigned int texBrokenWood = rm.GetBrokenWoodFloorTile();
-    unsigned int texEdge = rm.GetWoodFloorEdgeTile();
-    unsigned int texPlatform = rm.GetWoodPlatformTile();
-
-    // Ground & Road Tiles
-    unsigned int texDirt = rm.GetDirtTile();
-    unsigned int texGrass = rm.GetVillageGrassTile();
-    unsigned int texRoad = rm.GetBrokenRoadTile();
-
-    // Church Tiles
-    unsigned int texChurchStone = rm.GetChurchStoneFloorTile();
-    unsigned int texChurchEdge = rm.GetChurchStoneFloorEdge();
-    unsigned int texChurchPlatform = rm.GetChurchStonePlatform();
-
-    // Quarantine Zone & Military Concrete Tiles
-    unsigned int texMilitaryConcrete = rm.GetMilitaryConcreteFloorTile();
-    unsigned int texCrackedConcrete = rm.GetCrackedMilitaryConcreteTile();
-    unsigned int texHazardConcrete = rm.GetHazardMilitaryConcreteTile();
-    unsigned int texConcreteEdge = rm.GetConcreteToGroundEdgeTile();
-
     // Bridge Tiles
     unsigned int texBridgeFloor = rm.GetBridgeFloorTile();
     unsigned int texBrokenBridge = rm.GetBrokenBridgeFloorTile();
-    unsigned int texBrokenBridgeEdge = rm.GetBrokenBridgeEdgeTile();
     unsigned int texRiverWater = rm.GetRiverWaterTile();
 
     const int kTileWidth = 160;
-    const int kTileHeight = 64;
 
     // Render River Water beneath the Broken Bridge gap (World X: 17500 to 19400)
     if (17500 - camX <= 1480 && 19400 - camX >= -200) {
@@ -149,91 +175,25 @@ void Map::RenderTiles(double camX, double camY) {
         }
     }
 
+    // Render Bridge steps across the river gap
     for (size_t i = 0; i < platforms.size(); ++i) {
         const Platform& p = platforms[i];
+        if (p.x >= 17500 && p.x < 19400) {
+            double screenPx = p.x - camX;
+            double screenPy = p.y - camY;
 
-        double screenPx = p.x - camX;
-        double screenPy = p.y - camY;
-
-        if (screenPx + p.width >= -200 && screenPx <= 1480) {
-            if (p.y > 200) {
-                // --- Elevated Platforms ---
+            if (screenPx + p.width >= -200 && screenPx <= 1480) {
                 int count = (int)(p.width / kTileWidth) + 1;
                 for (int t = 0; t < count; ++t) {
                     double tileX = p.x + (t * kTileWidth) - camX;
-                    double worldX = p.x + (t * kTileWidth);
                     double drawW = kTileWidth;
                     if (tileX + drawW > (p.x + p.width - camX)) {
                         drawW = (p.x + p.width - camX) - tileX;
                     }
 
                     if (tileX + drawW >= -200 && tileX <= 1480 && drawW > 0) {
-                        unsigned int currentPlatformTex = texPlatform;
-
-                        // Area-based platform styling
-                        if (worldX >= 13000 && worldX < 15000) {
-                            // Abandoned Church rafters / platform
-                            currentPlatformTex = texChurchPlatform;
-                        } else if (worldX >= 15000) {
-                            // Quarantine Zone & Boss Arena elevated structures
-                            currentPlatformTex = texHazardConcrete;
-                        }
-
-                        iShowImage((int)tileX, (int)(screenPy - 10), (int)drawW, 36, currentPlatformTex);
-                    }
-                }
-            } else {
-                // --- Main Ground Platforms ---
-                int count = (int)(p.width / kTileWidth) + 1;
-                for (int t = 0; t < count; ++t) {
-                    double tileX = p.x + (t * kTileWidth) - camX;
-                    double worldX = p.x + (t * kTileWidth);
-                    double drawW = kTileWidth;
-                    if (tileX + drawW > (p.x + p.width - camX)) {
-                        drawW = (p.x + p.width - camX) - tileX;
-                    }
-
-                    if (tileX + drawW >= -200 && tileX <= 1480 && drawW > 0) {
-                        unsigned int currentTex = texWood;
-
-                        // 10 Level 1 Area Tile Themes
-                        if (worldX < 3500) {
-                            // Area 1 & 2: Spawn Area & Destroyed House (Wooden Floor)
-                            currentTex = (t % 4 == 3) ? texBrokenWood : texWood;
-                        } else if (worldX >= 3500 && worldX < 7500) {
-                            // Area 3 & 4: Village Street & Square (Broken Road & Grass)
-                            currentTex = (t % 3 == 0) ? texRoad : ((t % 3 == 1) ? texGrass : texDirt);
-                        } else if (worldX >= 7500 && worldX < 12500) {
-                            // Area 5 & 6: Abandoned Market & Raider Camp (Decayed Wood & Dirt)
-                            currentTex = (t % 3 == 0) ? texBrokenWood : texWood;
-                        } else if (worldX >= 12500 && worldX < 15000) {
-                            // Area 7: Abandoned Church (Stone Floor)
-                            currentTex = texChurchStone;
-                        } else if (worldX >= 15000 && worldX < 17500) {
-                            // Area 8: Quarantine Zone (Military Concrete & Hazard Paint)
-                            currentTex = (t % 4 == 0) ? texHazardConcrete : texMilitaryConcrete;
-                        } else if (worldX >= 17500 && worldX < 19400) {
-                            // Area 9: Broken Bridge (Bridge Floor & Broken Edge)
-                            currentTex = (t % 2 == 0) ? texBridgeFloor : texBrokenBridge;
-                        } else if (worldX >= 19400) {
-                            // Area 10 & 11: Boss Arena & Exit Gate (Cracked Military Concrete)
-                            currentTex = (t % 3 == 0) ? texHazardConcrete : texCrackedConcrete;
-                        }
-
-                        // Boundary / Ledge Edge Alignment
-                        if (t == count - 1 && p.width < 2000) {
-                            if (worldX >= 12500 && worldX < 15000) {
-                                currentTex = texChurchEdge;
-                            } else if (worldX >= 15000 && worldX < 17500) {
-                                currentTex = texConcreteEdge;
-                            } else if (worldX >= 17500 && worldX < 19400) {
-                                currentTex = texBrokenBridgeEdge;
-                            } else {
-                                currentTex = texEdge;
-                            }
-                        }
-
-                        iShowImage((int)tileX, (int)(screenPy - 40), (int)drawW, kTileHeight, currentTex);
+                        unsigned int currentTex = (t % 2 == 0) ? texBridgeFloor : texBrokenBridge;
+                        iShowImage((int)tileX, (int)(screenPy - 40), (int)drawW, 64, currentTex);
                     }
                 }
             }

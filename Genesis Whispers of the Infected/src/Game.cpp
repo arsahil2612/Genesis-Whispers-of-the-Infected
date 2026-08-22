@@ -117,11 +117,7 @@ void Game::Render() {
 // ============================================================================
 void Game::HandleKeyPress(unsigned char key) {
     if (m_engineState == GAME_STATE_STORY) {
-        if (key == 32 || key == ' ' || key == 13 || key == '\r' || key == 10 || key == '\n') {
-            m_storyManager.NextPanel();
-        } else if (key == 27 || key == 0x1B) {
-            m_storyManager.SkipStory();
-        }
+        m_storyManager.HandleKeyPress(key);
 
         // Reset keyPressed state in iGraphics to prevent double triggering
         keyPressed[key] = 0;

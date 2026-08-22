@@ -247,91 +247,78 @@ void GameManager::Initialize() {
     InitInventory();
 
     // Initialize Independent Environment Prop System & Destroyed House Area Props (Arin's Family Home)
+    // Initialize Independent Environment Prop System & World Props
     worldProps.clear();
 
     // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
-    // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
-    // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
     // 1. Entrance / Living Room (x = 300 to 1000)
     AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 420.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_missing_luna.png", 650.0, 270.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Story: Family photo / Missing Luna portrait
     AddWorldProp("Assets/Props/Furniture/furn_dining_table_01.png", 750.0, 185.0, 110.0, 70.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Items/Medicine/first_aid.png", 840.0, 185.0, 36.0, 36.0, PROP_LAYER_BACKGROUND); // Story: Personal belongings / medical supplies
 
     // 2. Kitchen / Storage Area (x = 1000 to 1700)
     AddWorldProp("Assets/Props/Furniture/furn_wooden_cabinet_01.png", 1120.0, 185.0, 85.0, 115.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 1320.0, 280.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Story: Evacuation notice
     AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 1520.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // 3. Arin & Luna's Bedrooms (x = 1700 to 2400)
     AddWorldProp("Assets/Props/Furniture/furn_broken_bed_01.png", 1820.0, 185.0, 130.0, 75.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_missing_luna.png", 1950.0, 260.0, 40.0, 52.0, PROP_LAYER_BACKGROUND); // Story: Children's sketch / Luna's picture in bedroom
     AddWorldProp("Assets/Props/Furniture/furn_broken_bench_01.png", 2150.0, 185.0, 80.0, 45.0, PROP_LAYER_BACKGROUND);
 
-    // 4. Second Floor Upper Platforms (x = 2400 to 3000)
-    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 2520.0, 300.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 2720.0, 450.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
-
-    // 5. Exit Ledge / Destroyed Wall Boundary (x = 3000 to 3400)
+    // 4. Grounded Storage & Boundary (x = 2400 to 3400)
+    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 2520.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 3120.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND);
 
     // --- AREA 3 & 4: VILLAGE STREET & SQUARE (x = 3500 to 7500) ---
     // 1. Entrance to Village Street (x = 3500 to 4400)
     AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 3650.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 3655.0, 270.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Evacuation poster on pole
+    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 3655.0, 250.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Story: Evacuation poster attached cleanly to telephone pole
     AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 3900.0, 185.0, 120.0, 180.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 4200.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4220.0, 215.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning sign attached cleanly to pickup truck door
 
     // 2. Mid Street & Barricade Zone (x = 4400 to 5500)
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 4550.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4555.0, 250.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Military warning sign on lamp
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4555.0, 240.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning sign attached cleanly to street lamp post
     AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 4750.0, 185.0, 48.0, 60.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 4900.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Abandoned luggage / backpack cart
     AddWorldProp("Assets/Props/Vehicles/veh_destroyed_car_01.png", 5100.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Nature/dry_bush.png", 5350.0, 185.0, 48.0, 36.0, PROP_LAYER_FOREGROUND); // Foreground Grass
+    AddWorldProp("Assets/Props/Nature/dry_bush.png", 5350.0, 185.0, 48.0, 36.0, PROP_LAYER_FOREGROUND);
 
     // 3. Village Square Approach (x = 5500 to 6700)
     AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 5600.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 5900.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 6200.0, 185.0, 56.0, 40.0, PROP_LAYER_FOREGROUND); // Foreground Rocks
+    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 5920.0, 220.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Story: Poster attached cleanly to burned ambulance side
+    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 6200.0, 185.0, 56.0, 40.0, PROP_LAYER_FOREGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 6450.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // 4. Village Square Edge (x = 6700 to 7400)
     AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 6850.0, 185.0, 130.0, 190.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7150.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 7155.0, 250.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Military quarantine warning
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 7155.0, 240.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning attached cleanly to lamp post
     AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 7300.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND);
 
     // --- AREA 4: VILLAGE SQUARE & QUARANTINE (x = 7500 to 9000) ---
-    // 1. Village Square West Entrance & Sandbag Perimeter (x = 7500 to 7900)
+    // 1. Sandbag Perimeter & Checkpoint (x = 7500 to 7900)
     AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 7600.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7850.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
 
-    // 2. Central Fountain Plaza & Abandoned Ambulance (x = 7900 to 8400)
+    // 2. Central Plaza & Rubble (x = 7900 to 8400)
     AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 7950.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 8150.0, 220.0, 90.0, 55.0, PROP_LAYER_BACKGROUND); // Destroyed Fountain Highlight
-    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 8320.0, 185.0, 64.0, 45.0, PROP_LAYER_FOREGROUND); // Foreground Rubble
+    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 8150.0, 185.0, 90.0, 55.0, PROP_LAYER_BACKGROUND);
 
     // 3. Military Checkpoint Barricade & East Exit (x = 8400 to 9000)
     AddWorldProp("Assets/Props/Military/bld_military_checkpoint.png", 8550.0, 185.0, 130.0, 85.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 8580.0, 235.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Story: NovaGen propaganda poster on checkpoint
-    AddWorldProp("Assets/Items/Medicine/first_aid.png", 8650.0, 185.0, 36.0, 36.0, PROP_LAYER_BACKGROUND); // Story: Abandoned medical equipment
+    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 8575.0, 220.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Story: NovaGen poster attached cleanly to checkpoint wall
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 8750.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 8800.0, 240.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Warning sign on checkpoint gate
     AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 8900.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // --- AREA 5: ABANDONED MARKET (x = 9000 to 11000) ---
     // 1. Market Storefront & Entrance (x = 9000 to 9400)
     AddWorldProp("Assets/Props/Buildings/bld_grocery_store_abandoned.png", 9100.0, 185.0, 160.0, 130.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 9150.0, 260.0, 48.0, 64.0, PROP_LAYER_BACKGROUND); // Story: NovaGen poster on store facade
+    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 9125.0, 225.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Story: NovaGen poster attached cleanly to store facade
     AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 9320.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND);
 
-    // 2. Inner Market Aisles & Upper Shelf Platforms (x = 9400 to 10200)
+    // 2. Inner Market Aisles (x = 9400 to 10200)
     AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 9450.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 9520.0, 280.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Items/Medicine/first_aid.png", 9600.0, 185.0, 36.0, 36.0, PROP_LAYER_BACKGROUND); // Story: Abandoned medical kit in market aisle
-    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 9820.0, 400.0, 70.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/crate.png", 9950.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 9520.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
 
     // 3. Market Storage & Rear Exit (x = 10200 to 11000)
     AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10300.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
@@ -341,21 +328,19 @@ void GameManager::Initialize() {
     // --- AREA 6: RAIDER CAMP & EXIT GATE (x = 11000 to 13500) ---
     // 1. West Camp Outpost & Perimeter Barricade (x = 11000 to 11400)
     AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 11100.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 11150.0, 240.0, 44.0, 60.0, PROP_LAYER_BACKGROUND); // Story: Biohazard warning sign
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 11130.0, 210.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning attached cleanly to sandbag post
     AddWorldProp("Assets/Props/Decorations/prop_generator_01.png", 11350.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // 2. Watchtower & Campfire Hub (x = 11400 to 12200)
     AddWorldProp("Assets/Props/Military/bld_raider_watchtower.png", 11500.0, 185.0, 180.0, 280.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 11550.0, 320.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 11620.0, 450.0, 36.0, 45.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 11550.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 11620.0, 185.0, 36.0, 45.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 11850.0, 185.0, 48.0, 60.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/crate.png", 12050.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND);
 
     // 3. Exit Gate & Luna's Ribbon Checkpoint (x = 12200 to 13500)
     AddWorldProp("Assets/Props/Buildings/Quarantine_CheckpointQuarantine_Checkpoint.png", 12400.0, 185.0, 160.0, 120.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/drum.png", 12700.0, 185.0, 50.0, 60.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 13000.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Military/Exit_Gate.png", 13200.0, 185.0, 180.0, 220.0, PROP_LAYER_BACKGROUND); // Story: Steel Exit Gate
+    AddWorldProp("Assets/Props/Military/Exit_Gate.png", 13200.0, 185.0, 180.0, 220.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 13300.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
 
     // Load props texture sheet (4x4 gameplay atlas)
@@ -472,24 +457,8 @@ void GameManager::Initialize() {
 
     // Section 10: Exit Gate (Background 10: 13032 - 14480px) - 0 enemies
 
-    // Populate Props (X, Y, W, H, Type, animFrame) aligned with ground baseline
+    // Populate Props (Handled via high-res WorldProps system)
     props.clear();
-    // Spawn Area - family photographs and NovaGen poster
-    props.push_back({ 120, 245, 32, 32, PROP_POSTER_MISSING, 0 });
-    props.push_back({ 420, 225, 32, 32, PROP_POSTER_NOVAGEN, 0 });
-    props.push_back({ 720, kLevel1GroundY, 48, 48, PROP_CRATE, 0 });
-    props.push_back({ 900, kLevel1GroundY, 64, 64, PROP_BARREL_FIRE, 0 });
-    // Destroyed House - burned furniture debris
-    props.push_back({ 2800, kLevel1GroundY, 48, 48, PROP_CRATE, 0 });
-    props.push_back({ 3100, kLevel1GroundY, 64, 64, PROP_BARREL_FIRE, 0 });
-    // Village street props
-    props.push_back({ 3800, kLevel1GroundY, 128, 64, PROP_CAR, 0 });
-    props.push_back({ 4400, kLevel1GroundY, 64, 64, PROP_BARREL_FIRE, 0 });
-    props.push_back({ 5100, kLevel1GroundY, 48, 48, PROP_CRATE, 0 });
-    // Village square ambulance and barricades
-    props.push_back({ 7200, kLevel1GroundY, 192, 96, PROP_CAR, 0 });
-    props.push_back({ 7600, kLevel1GroundY, 96, 48, PROP_SANDBAG, 0 });
-    props.push_back({ 7400, 255, 48, 64, PROP_POSTER_NOVAGEN, 0 });
 
     // Populate Collectibles aligned with ground baseline
     collectibles.clear();
@@ -498,9 +467,9 @@ void GameManager::Initialize() {
     // Section 2 (Village Street: Food, Ammo, Battery)
     collectibles.push_back({ 3500, kLevel1GroundY, 32, 32, COL_FOOD, true, 0 });     // Food (Bread)
     collectibles.push_back({ 4200, kLevel1GroundY, 32, 32, COL_AMMO, true, 0 });     // Ammo
-    collectibles.push_back({ 4900, 270, 32, 32, COL_BATTERY, true, 0 });  // Battery (Floating platform)
+    collectibles.push_back({ 4900, kLevel1GroundY, 32, 32, COL_BATTERY, true, 0 });  // Battery
     // Section 3 (Village Square: Mission Note, Medkit)
-    collectibles.push_back({ 6925, 250, 32, 32, COL_NOTE, true, 0 });      // Mission Note (Fountain)
+    collectibles.push_back({ 6925, kLevel1GroundY, 32, 32, COL_NOTE, true, 0 });      // Mission Note
     collectibles.push_back({ 7300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0 });    // Medkit (First Aid)
 
     // Initialize rain particle simulation
@@ -1116,40 +1085,8 @@ double GameManager::GetPropWorldScale(const std::string& assetPath) const {
 }
 
 double GameManager::GetPropGroundOffset(const std::string& assetPath) const {
-    // 1. Chair & Shopping Cart: PNG transparent bottom padding (~12px)
-    if (assetPath.find("chair") != std::string::npos ||
-        assetPath.find("shopping_cart") != std::string::npos) {
-        return 12.0;
-    }
-
-    // 2. Other Furniture (Table, Bed, Bench, Cabinet, Shelf): PNG padding (~8px)
-    if (assetPath.find("Furniture/") != std::string::npos ||
-        assetPath.find("table") != std::string::npos ||
-        assetPath.find("bed") != std::string::npos ||
-        assetPath.find("bench") != std::string::npos ||
-        assetPath.find("cabinet") != std::string::npos ||
-        assetPath.find("shelf") != std::string::npos) {
-        return 8.0;
-    }
-
-    // 3. Barrels, Drums, Crates & Fences: PNG padding (~6px)
-    if (assetPath.find("barrel") != std::string::npos ||
-        assetPath.find("drum") != std::string::npos ||
-        assetPath.find("crate") != std::string::npos ||
-        assetPath.find("fence") != std::string::npos) {
-        return 6.0;
-    }
-
-    // 4. Sandbags, Generators, Stones & Bushes (~4px)
-    if (assetPath.find("sandbags") != std::string::npos ||
-        assetPath.find("generator") != std::string::npos ||
-        assetPath.find("stone") != std::string::npos ||
-        assetPath.find("bush") != std::string::npos) {
-        return 4.0;
-    }
-
-    // 5. Default ground offset for all other environment props
-    return 4.0;
+    // Return 0.0 offset so prop bottom bounds align flush with Arin's boot ground baseline (y = 179.0)
+    return 0.0;
 }
 
 void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
@@ -1214,14 +1151,6 @@ void GameManager::RenderPlaying() {
 
             switch (props[i].type) {
             case PROP_BARREL_FIRE: {
-                // Dark oil barrel base
-                iSetColor(25, 28, 35);
-                iFilledRectangle(px, py, pw, ph);
-                iSetColor(80, 85, 95);
-                iRectangle(px, py, pw, ph);
-                iSetColor(180, 40, 20); // Rust band
-                iFilledRectangle(px + 2, py + ph / 2 - 3, pw - 4, 6);
-
                 // Animated flickering fire flames on top of barrel
                 double fTime = uiAnimTime * 12.0 + i;
                 int fHeight = 24 + (int)(sin(fTime) * 6.0);
@@ -1231,39 +1160,6 @@ void GameManager::RenderPlaying() {
                 iFilledRectangle(px + 14, py + ph - 4, pw - 28, fHeight - 8);
                 break;
             }
-            case PROP_CRATE:
-                iSetColor(55, 40, 25); // Wooden crate body
-                iFilledRectangle(px, py, pw, ph);
-                iSetColor(120, 90, 50); // Wood frame border
-                iRectangle(px, py, pw, ph);
-                iSetColor(90, 70, 40); // Diagonal braces
-                iLine(px + 2, py + 2, px + pw - 2, py + ph - 2);
-                iLine(px + pw - 2, py + 2, px + 2, py + ph - 2);
-                break;
-            case PROP_SANDBAG:
-                iSetColor(70, 65, 50); // Sandbag burlap wall
-                iFilledRectangle(px, py, pw, ph);
-                iSetColor(140, 130, 100);
-                iRectangle(px, py, pw, ph);
-                iSetColor(40, 35, 25);
-                iLine(px, py + ph / 2, px + pw, py + ph / 2);
-                break;
-            case PROP_DRUM:
-                iSetColor(30, 40, 50); // Steel fuel drum
-                iFilledRectangle(px, py, pw, ph);
-                iSetColor(0, 180, 220); // Cyan hazmat stripe
-                iRectangle(px, py, pw, ph);
-                iSetColor(0, 200, 240);
-                iFilledRectangle(px + 4, py + ph / 2 - 4, pw - 8, 8);
-                break;
-            case PROP_CAR:
-                iSetColor(20, 24, 30); // Destroyed car chassis
-                iFilledRectangle(px, py, pw, ph);
-                iSetColor(60, 70, 85);
-                iRectangle(px, py, pw, ph);
-                iSetColor(180, 30, 30); // Broken tail lamps
-                iFilledRectangle(px + 4, py + ph - 16, 12, 8);
-                break;
             case PROP_RIBBON: {
                 // Luna's silver-blue ribbon fluttering at exit gate
                 double flutter = sin(uiAnimTime * 8.0) * 6.0;
@@ -1280,12 +1176,12 @@ void GameManager::RenderPlaying() {
         }
     }
 
-    // Render Collectibles with floating animation, ground pod indicators, and high visibility
+    // Render Collectibles aligned statically to ground baseline
     for (size_t i = 0; i < collectibles.size(); ++i) {
         if (collectibles[i].active) {
             double screenPx = collectibles[i].x - camX;
             double groundY = collectibles[i].y - (std::abs(collectibles[i].y - kLevel1GroundY) < 1.0 ? 6.0 : 0.0);
-            double bobY = groundY + (sin(uiAnimTime * 4.0 + i) * 3.0 + 3.0);
+            double bobY = groundY;
 
             if (screenPx + 80 >= -100 && screenPx - 80 <= 1380) {
                 int px = (int)screenPx;
@@ -1365,91 +1261,12 @@ void GameManager::RenderPlaying() {
                 int drawX = px - itemDrawW / 2;
                 int drawY = py;
 
-                // 1. Ground highlight aura pod (Visibility indicator on floor)
-                int groundScreenY = (int)(groundY - camY);
-                iSetColor(lR / 4, lG / 4, lB / 4);
-                iFilledRectangle(drawX - 4, groundScreenY, itemDrawW + 8, 4);
-                iSetColor(lR / 2, lG / 2, lB / 2);
-                iFilledRectangle(drawX, groundScreenY + 1, itemDrawW, 2);
-
-                // 2. Render item sprite texture or procedural fallback
+                // Render item sprite texture or clean subtle marker
                 if (itemTex != 0) {
                     iShowImage(drawX, drawY, itemDrawW, itemDrawH, itemTex);
                 }
-                else {
-                    // Procedural fallback rendering cleanly scaled to item dimensions
-                    switch (collectibles[i].type) {
-                    case COL_MEDKIT:
-                        iSetColor(180, 20, 20);
-                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(0, 220, 255);
-                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(255, 255, 255);
-                        iFilledRectangle(drawX + itemDrawW / 3, drawY + 8, itemDrawW / 3, itemDrawH - 16);
-                        iFilledRectangle(drawX + 8, drawY + itemDrawH / 3, itemDrawW - 16, itemDrawH / 3);
-                        break;
-                    case COL_AMMO:
-                    case COL_COIN:
-                        iSetColor(40, 45, 50);
-                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(255, 215, 0);
-                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(220, 180, 20);
-                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 8, itemDrawW / 2, itemDrawH - 16);
-                        break;
-                    case COL_WATER:
-                        iSetColor(15, 60, 100);
-                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(0, 240, 255);
-                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(0, 200, 255);
-                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
-                        break;
-                    case COL_BATTERY:
-                        iSetColor(30, 30, 35);
-                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(0, 255, 200);
-                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(0, 255, 180);
-                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
-                        break;
-                    case COL_FOOD:
-                        iSetColor(60, 45, 20);
-                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(255, 180, 0);
-                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(240, 160, 40);
-                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
-                        break;
-                    case COL_NOTE:
-                        iSetColor(20, 25, 35);
-                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(0, 220, 255);
-                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(0, 240, 255);
-                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
-                        break;
-                    case COL_KEYCARD:
-                    case COL_RUSTY_KEY:
-                        iSetColor(10, 30, 50);
-                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(255, 215, 0);
-                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(0, 220, 255);
-                        iFilledRectangle(drawX + 6, drawY + itemDrawH / 3, itemDrawW - 12, itemDrawH / 3);
-                        break;
-                    case COL_SCRAP:
-                        iSetColor(45, 50, 60);
-                        iFilledRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(200, 210, 220);
-                        iRectangle(drawX, drawY, itemDrawW, itemDrawH);
-                        iSetColor(180, 190, 200);
-                        iFilledRectangle(drawX + itemDrawW / 4, drawY + 6, itemDrawW / 2, itemDrawH - 12);
-                        break;
-                    }
-                }
 
-                // 3. Outlined text label above item
+                // Outlined text label above item
                 int labelX = px - ((int)strlen(itemLabel) * 6) / 2;
                 DrawOutlinedText(labelX, drawY + itemDrawH + 6, itemLabel, GLUT_BITMAP_HELVETICA_10, lR, lG, lB);
             }

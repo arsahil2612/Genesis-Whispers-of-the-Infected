@@ -226,28 +226,17 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
                 unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
                 if (handle != 0) seqRunnerHurt.push_back(handle);
             }
-            for (int i = 1; i <= 4; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Runner/Stagger/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle == 0) {
-                    sprintf_s(path, sizeof(path), "Assets/Characters/Runner/Hurt/frame_%02d.png", i);
-                    handle = iLoadImage((char*)GetAssetPath(path).c_str());
+            seqRunnerDeath.clear();
+            if (!seqRunnerHurt.empty()) {
+                seqRunnerDeath.push_back(seqRunnerHurt[0]);
+                if (seqRunnerHurt.size() > 1) seqRunnerDeath.push_back(seqRunnerHurt[1]);
+            }
+            if (!seqWalkerDeath.empty()) {
+                int startIdx = (int)seqWalkerDeath.size() - 3;
+                if (startIdx < 0) startIdx = 0;
+                for (size_t i = startIdx; i < seqWalkerDeath.size(); ++i) {
+                    seqRunnerDeath.push_back(seqWalkerDeath[i]);
                 }
-                if (handle != 0) seqRunnerDeath.push_back(handle);
-            }
-
-            // Fallback to single static textures if subfolder frames are missing
-            if (seqRunnerIdle.empty() && texRunnerIdle != 0) seqRunnerIdle.push_back(texRunnerIdle);
-            if (seqRunnerRun.empty()) {
-                if (texRunnerRun != 0) seqRunnerRun.push_back(texRunnerRun);
-                else if (texRunnerWalk != 0) seqRunnerRun.push_back(texRunnerWalk);
-            }
-            if (seqRunnerAttack.empty() && texRunnerAttack != 0) seqRunnerAttack.push_back(texRunnerAttack);
-            if (seqRunnerHurt.empty() && texRunnerHurt != 0) seqRunnerHurt.push_back(texRunnerHurt);
-            if (seqRunnerDeath.empty()) {
-                if (texRunnerDeath != 0) seqRunnerDeath.push_back(texRunnerDeath);
-                else if (!seqRunnerHurt.empty()) seqRunnerDeath = seqRunnerHurt;
             }
         }
 
@@ -555,10 +544,6 @@ void Enemy::Render(double camX, double camY) {
         if (animDeath.IsValid()) activeAnim = &animDeath;
         else if (animHurt.IsValid()) activeAnim = &animHurt;
         else activeAnim = &animIdle;
-
-        // Render dark crimson death pool / blood stain underneath collapsed corpse
-        iSetColor(120, 15, 15);
-        iFilledEllipse((int)drawXOffset + drawSize / 2, (int)drawYOffset + 12, drawSize / 3, 10);
     }
     else if (state == ENEMY_HURT && animHurt.IsValid()) {
         activeAnim = &animHurt;

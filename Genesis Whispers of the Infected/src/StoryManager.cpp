@@ -242,6 +242,14 @@ void StoryManager::StartStory() {
 void StoryManager::NextPanel() {
     if (!m_isActive) return;
 
+    // If current panel is still fading in, instantly make image & text fully visible on first press
+    if (m_phase != PHASE_IDLE && m_phase != PHASE_FADE_OUT) {
+        m_phase = PHASE_IDLE;
+        m_imageAlpha = 1.0f;
+        m_textAlpha = 1.0f;
+        return;
+    }
+
     if (m_currentIndex < static_cast<int>(m_panels.size()) - 1) {
         m_previousTexture = (m_currentIndex < static_cast<int>(m_panelTextures.size())) ? m_panelTextures[m_currentIndex] : 0;
         m_currentIndex++;
@@ -286,25 +294,6 @@ void StoryManager::Update(float dt, const bool keys[], const bool specialKeys[])
     if (!m_isActive) return;
 
     m_animTime += dt;
-
-    // Process polled key array inputs with edge detection
-    if (keys != NULL) {
-        bool spaceCurr = keys[32]; // SPACE
-        bool enterCurr = keys[13]; // ENTER
-        bool escCurr = keys[27];   // ESC
-
-        if (spaceCurr && !m_spacePrev) {
-            NextPanel();
-        } else if (enterCurr && !m_enterPrev) {
-            NextPanel();
-        } else if (escCurr && !m_escPrev) {
-            SkipStory();
-        }
-
-        m_spacePrev = spaceCurr;
-        m_enterPrev = enterCurr;
-        m_escPrev = escCurr;
-    }
 
     switch (m_phase) {
     case PHASE_IMAGE_FADE_IN:
@@ -698,12 +687,12 @@ void StoryManager::Render() {
 void StoryManager::HandleKeyPress(unsigned char key) {
     if (!m_isActive) return;
 
-    if (key == 32 || key == 13 || key == 'd' || key == 'D' || key == ' ') {
-        m_continueGlowTimer = 0.25f;
-        NextPanel();
-    } else if (key == 27 || key == 0x1B) {
+    if (key == 27 || key == 0x1B) {
         m_skipGlowTimer = 0.25f;
         SkipStory();
+    } else if (key == 32 || key == ' ' || key == 13 || key == '\r' || key == '\n' || key == 10 || key == 'd' || key == 'D') {
+        m_continueGlowTimer = 0.25f;
+        NextPanel();
     }
 }
 

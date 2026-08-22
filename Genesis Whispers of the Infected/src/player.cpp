@@ -347,8 +347,16 @@ void Player::Update(bool keys[], bool specialKeys[]) {
     bool moveLeft = (GetAsyncKeyState('A') & 0x8000) != 0 || (GetAsyncKeyState(VK_LEFT) & 0x8000) != 0;
     bool moveRight = (GetAsyncKeyState('D') & 0x8000) != 0 || (GetAsyncKeyState(VK_RIGHT) & 0x8000) != 0;
     bool isShiftHeld = (GetAsyncKeyState(VK_SHIFT) & 0x8000) != 0 || (GetAsyncKeyState(VK_LSHIFT) & 0x8000) != 0;
-    bool isRunning = isShiftHeld && (moveLeft || moveRight);
 
+    // Automatic Sprinting at Exit Gate (Level 1 Final Approach: x >= 12800.0)
+    bool isNearExitGate = (x >= 12800.0);
+    if (isNearExitGate && (state != STATE_DEAD && state != STATE_ATTACK_MELEE && state != STATE_HURT)) {
+        moveRight = true;
+        isFacingRight = true;
+        isShiftHeld = true;
+    }
+
+    bool isRunning = isShiftHeld && (moveLeft || moveRight);
     double targetSpeed = isRunning ? RUN_SPEED : WALK_SPEED;
     double targetVx = 0.0;
 
