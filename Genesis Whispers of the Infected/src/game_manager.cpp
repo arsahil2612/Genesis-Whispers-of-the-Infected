@@ -176,23 +176,23 @@ void GameManager::InitInventory() {
         inventory[i] = InventoryItem();
     }
 
-    // Slot 1: Medkit x2
-    inventory[0] = InventoryItem("medkit", "MEDKIT", "Restores 40 HP", 2, "Assets/Items/Medicine/first_aid.png", "Assets/Items/Medicine/bandage.png");
+    // Row 1: Medicine & Supplies
+    inventory[0] = InventoryItem("medkit", "FIRST AID MEDKIT", "Restores 40 HP [Click or H]", 2, "Assets/Items/Medicine/first_aid.png");
+    inventory[1] = InventoryItem("bandage", "MEDICAL BANDAGE", "Restores 20 HP [Click to Use]", 3, "Assets/Items/Medicine/bandage.png");
+    inventory[2] = InventoryItem("food_can", "FOOD CAN", "Restores 25 Stamina [Click or F]", 2, "Assets/Items/Food/food_can.png");
+    inventory[3] = InventoryItem("water_bottle", "WATER BOTTLE", "Restores 30 Stamina [Click to Use]", 2, "Assets/Items/Food/water_bottle.png");
 
-    // Slot 2: Food Can x1
-    inventory[1] = InventoryItem("food_can", "FOOD CAN", "Restores 25 Stamina", 1, "Assets/Items/Food/food_can.png", "Assets/Items/Food/Bread.png");
+    // Row 2: Rations & Key Items
+    inventory[4] = InventoryItem("bread", "FRESH BREAD", "Restores 35 Stamina [Click to Use]", 2, "Assets/Items/Food/Bread.png");
+    inventory[5] = InventoryItem("apple", "FRESH APPLE", "Restores 15 Stamina & 10 HP", 4, "Assets/Items/Food/apple.png");
+    inventory[6] = InventoryItem("keycard", "NOVAGEN KEYCARD", "Level 1 Exit Gate Clearance", 1, "Assets/Items/KeyItems/Novagen_keycard.png");
+    inventory[7] = InventoryItem("rusty_key", "RUSTY KEY", "Unlocks village gates & lockers", 1, "Assets/Items/KeyItems/Rusty_Key.png");
 
-    // Slot 3: Water Bottle x1
-    inventory[2] = InventoryItem("water_bottle", "WATER BOTTLE", "Restores 30 Stamina", 1, "Assets/Items/Food/water_bottle.png");
-
-    // Slot 4: Battery x1
-    inventory[3] = InventoryItem("battery", "BATTERY", "Powers flashlight & devices", 1, "Assets/Items/KeyItems/battery.png");
-
-    // Slot 5: Scrap Metal x1
-    inventory[4] = InventoryItem("scrap_metal", "SCRAP METAL", "Crafting & upgrade material", 1, "Assets/Items/KeyItems/Scrap_Metal.png");
-
-    // Slot 6: Katana
-    inventory[5] = InventoryItem("katana", "KATANA", "Sharp melee weapon (50 DMG)", 1, "Assets/Items/KeyItems/katana.png");
+    // Row 3: Survival Gear & Documents
+    inventory[8] = InventoryItem("battery", "BATTERY", "Powers flashlight & electronics", 2, "Assets/Items/KeyItems/battery.png");
+    inventory[9] = InventoryItem("scrap_metal", "SCRAP METAL", "Crafting & upgrade material", 5, "Assets/Items/KeyItems/Scrap_Metal.png");
+    inventory[10] = InventoryItem("katana", "KATANA", "Sharp melee weapon (50 DMG) [Attack: J]", 1, "Assets/Items/KeyItems/katana.png");
+    inventory[11] = InventoryItem("mission_note", "CLASSIFIED NOTE", "Intel on Project Genesis & Luna [Click to Read]", 1, "Assets/Items/Documents/Mission_note.png");
 
     LoadInventoryTextures();
 }
@@ -208,6 +208,155 @@ void GameManager::LoadInventoryTextures() {
                 std::string altPath = GetAssetPath(inventory[i].altIconPath.c_str());
                 inventory[i].textureID = iLoadImage((char*)altPath.c_str());
             }
+        }
+    }
+}
+
+void GameManager::UseInventorySlot(int slotIndex) {
+    if (slotIndex < 0 || slotIndex >= 12 || !inventory[slotIndex].isOccupied) return;
+
+    InventoryItem& item = inventory[slotIndex];
+    std::string id = item.id;
+
+    if (id == "medkit") {
+        if (player.hp < player.maxHp) {
+            player.hp = player.maxHp;
+            player.displayedHp = (double)player.hp;
+            if (player.medkits > 0) player.medkits--;
+            item.count--;
+        }
+    }
+    else if (id == "bandage") {
+        if (player.hp < player.maxHp) {
+            player.hp = (player.hp + 40 > player.maxHp) ? player.maxHp : player.hp + 40;
+            player.displayedHp = (double)player.hp;
+            item.count--;
+        }
+    }
+    else if (id == "food_can") {
+        if (player.staminaDouble < player.maxStamina || player.hp < player.maxHp) {
+            player.staminaDouble = (double)player.maxStamina;
+            player.stamina = player.maxStamina;
+            player.displayedStamina = (double)player.maxStamina;
+            player.isExhausted = false;
+            player.hp = (player.hp + 20 > player.maxHp) ? player.maxHp : player.hp + 20;
+            player.displayedHp = (double)player.hp;
+            if (player.foodCount > 0) player.foodCount--;
+            item.count--;
+        }
+    }
+    else if (id == "water_bottle") {
+        if (player.staminaDouble < player.maxStamina || player.hp < player.maxHp) {
+            player.staminaDouble = (double)player.maxStamina;
+            player.stamina = player.maxStamina;
+            player.displayedStamina = (double)player.maxStamina;
+            player.isExhausted = false;
+            player.hp = (player.hp + 20 > player.maxHp) ? player.maxHp : player.hp + 20;
+            player.displayedHp = (double)player.hp;
+            item.count--;
+        }
+    }
+    else if (id == "bread") {
+        if (player.staminaDouble < player.maxStamina || player.hp < player.maxHp) {
+            player.staminaDouble = (double)player.maxStamina;
+            player.stamina = player.maxStamina;
+            player.displayedStamina = (double)player.maxStamina;
+            player.isExhausted = false;
+            player.hp = (player.hp + 25 > player.maxHp) ? player.maxHp : player.hp + 25;
+            player.displayedHp = (double)player.hp;
+            item.count--;
+        }
+    }
+    else if (id == "apple") {
+        if (player.staminaDouble < player.maxStamina || player.hp < player.maxHp) {
+            player.staminaDouble = (double)player.maxStamina;
+            player.stamina = player.maxStamina;
+            player.displayedStamina = (double)player.maxStamina;
+            player.isExhausted = false;
+            player.hp = (player.hp + 25 > player.maxHp) ? player.maxHp : player.hp + 25;
+            player.displayedHp = (double)player.hp;
+            item.count--;
+        }
+    }
+    else if (id == "mission_note") {
+        currentState = STATE_DIALOGUE;
+        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "NovaGen Research Note");
+        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Project Genesis Intel:\nEvacuation path compromised. Convoy heading East.\nDr. Kael took Subject Luna through the checkpoint.\"");
+    }
+    else if (id == "keycard") {
+        currentState = STATE_DIALOGUE;
+        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "NovaGen Keycard");
+        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"NovaGen Command Security Keycard.\nRequired to open the main exit gate at the end of Level 1.\"");
+    }
+    else if (id == "rusty_key") {
+        currentState = STATE_DIALOGUE;
+        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Rusty Gate Key");
+        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"An old iron key recovered from the fallen village.\nUnlocks supply lockers and wooden gates.\"");
+    }
+    else if (id == "battery") {
+        currentState = STATE_DIALOGUE;
+        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "High-Capacity Battery");
+        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Powers tactical flashlights and electronic lab scanners.\"");
+    }
+    else if (id == "scrap_metal") {
+        currentState = STATE_DIALOGUE;
+        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Scrap Metal");
+        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Raw metal scrap collected from ruined structures. Used for crafting upgrades.\"");
+    }
+    else if (id == "katana") {
+        currentState = STATE_DIALOGUE;
+        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin's Katana");
+        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Tempered steel blade (50 Melee DMG).\nPress J during gameplay to perform melee katana slashes!\"");
+    }
+
+    if (item.count <= 0) {
+        item = InventoryItem();
+    }
+}
+
+void GameManager::AddInventoryItem(const std::string& itemId, int count) {
+    // 1. Try to stack in existing slot
+    for (int i = 0; i < 12; ++i) {
+        if (inventory[i].isOccupied && inventory[i].id == itemId) {
+            inventory[i].count += count;
+            return;
+        }
+    }
+
+    // 2. Add to first empty slot
+    for (int i = 0; i < 12; ++i) {
+        if (!inventory[i].isOccupied) {
+            if (itemId == "medkit") {
+                inventory[i] = InventoryItem("medkit", "FIRST AID MEDKIT", "Restores 40 HP [Click or H]", count, "Assets/Items/Medicine/first_aid.png");
+            } else if (itemId == "bandage") {
+                inventory[i] = InventoryItem("bandage", "MEDICAL BANDAGE", "Restores 20 HP [Click to Use]", count, "Assets/Items/Medicine/bandage.png");
+            } else if (itemId == "food_can") {
+                inventory[i] = InventoryItem("food_can", "FOOD CAN", "Restores 25 Stamina [Click or F]", count, "Assets/Items/Food/food_can.png");
+            } else if (itemId == "water_bottle") {
+                inventory[i] = InventoryItem("water_bottle", "WATER BOTTLE", "Restores 30 Stamina [Click to Use]", count, "Assets/Items/Food/water_bottle.png");
+            } else if (itemId == "bread") {
+                inventory[i] = InventoryItem("bread", "FRESH BREAD", "Restores 35 Stamina [Click to Use]", count, "Assets/Items/Food/Bread.png");
+            } else if (itemId == "apple") {
+                inventory[i] = InventoryItem("apple", "FRESH APPLE", "Restores 15 Stamina & 10 HP", count, "Assets/Items/Food/apple.png");
+            } else if (itemId == "keycard") {
+                inventory[i] = InventoryItem("keycard", "NOVAGEN KEYCARD", "Level 1 Exit Gate Clearance", count, "Assets/Items/KeyItems/Novagen_keycard.png");
+            } else if (itemId == "rusty_key") {
+                inventory[i] = InventoryItem("rusty_key", "RUSTY KEY", "Unlocks village gates & lockers", count, "Assets/Items/KeyItems/Rusty_Key.png");
+            } else if (itemId == "battery") {
+                inventory[i] = InventoryItem("battery", "BATTERY", "Powers flashlight & electronics", count, "Assets/Items/KeyItems/battery.png");
+            } else if (itemId == "scrap_metal") {
+                inventory[i] = InventoryItem("scrap_metal", "SCRAP METAL", "Crafting & upgrade material", count, "Assets/Items/KeyItems/Scrap_Metal.png");
+            } else if (itemId == "mission_note") {
+                inventory[i] = InventoryItem("mission_note", "CLASSIFIED NOTE", "Intel on Project Genesis & Luna", count, "Assets/Items/Documents/Mission_note.png");
+            } else {
+                inventory[i] = InventoryItem(itemId, "SURVIVAL ITEM", "Useful survival resource", count, "Assets/Items/KeyItems/Scrap_Metal.png");
+            }
+
+            if (!inventory[i].iconPath.empty()) {
+                std::string fullPath = GetAssetPath(inventory[i].iconPath.c_str());
+                inventory[i].textureID = iLoadImage((char*)fullPath.c_str());
+            }
+            return;
         }
     }
 }
@@ -1863,6 +2012,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                         switch (collectibles[i].type) {
                         case COL_KEYCARD:
                             hasKeycard = true;
+                            AddInventoryItem("keycard", 1);
                             currentState = STATE_DIALOGUE;
                             sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
                             sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A NovaGen command keycard! This will grant me access to open the steel gate checkpoint.\"");
@@ -1873,6 +2023,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             g_pickupY = collectibles[i].y + 40.0;
                             break;
                         case COL_NOTE:
+                            AddInventoryItem("mission_note", 1);
                             currentState = STATE_DIALOGUE;
                             sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Survivor's Clue Note");
                             if (collectibles[i].x < 10000) {
@@ -1888,18 +2039,21 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             break;
                         case COL_MEDKIT:
                             player.medkits++;
+                            AddInventoryItem("medkit", 1);
                             sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 FIRST AID MEDKIT");
                             g_pickupR = 255; g_pickupG = 100; g_pickupB = 100;
                             g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
                             break;
                         case COL_BATTERY:
                             player.batteryCount++;
+                            AddInventoryItem("battery", 1);
                             sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 BATTERY");
                             g_pickupR = 0; g_pickupG = 255; g_pickupB = 200;
                             g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
                             break;
                         case COL_FOOD:
                             player.foodCount++;
+                            AddInventoryItem("food_can", 1);
                             player.hp = (player.hp + 15 > player.maxHp) ? player.maxHp : player.hp + 15;
                             sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 RATION (+15 HP)");
                             g_pickupR = 255; g_pickupG = 180; g_pickupB = 0;
@@ -1913,6 +2067,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             break;
                         default:
                             player.scrapCount++;
+                            AddInventoryItem("scrap_metal", 1);
                             sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 ITEM ACQUIRED");
                             g_pickupR = 200; g_pickupG = 210; g_pickupB = 220;
                             g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
@@ -2157,7 +2312,29 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                 }
             }
             else if (currentState == STATE_PLAYING) {
-                if (!showInventory) player.AttackMelee();
+                if (showInventory) {
+                    int cols = 4, rows = 3;
+                    int slotW = 85, slotH = 85;
+                    int panelX = 340, panelY = 140, panelH = 440;
+                    int startX = panelX + 70;
+                    int startY = panelY + panelH - 160;
+                    int gapX = 35, gapY = 20;
+
+                    for (int r = 0; r < rows; ++r) {
+                        for (int c = 0; c < cols; ++c) {
+                            int slotIdx = r * cols + c;
+                            int slotX = startX + c * (slotW + gapX);
+                            int slotY = startY - r * (slotH + gapY);
+
+                            if (mx >= slotX && mx <= slotX + slotW && my >= slotY && my <= slotY + slotH) {
+                                UseInventorySlot(slotIdx);
+                                return;
+                            }
+                        }
+                    }
+                } else {
+                    player.AttackMelee();
+                }
             }
         }
     }

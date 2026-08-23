@@ -525,7 +525,9 @@ void UI::DrawHealthBar(int hp, int maxHp, double displayedHp) {
     DrawShadowText(startX + 10, startY + frameH + 6, "VITAL STATUS", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
 
     char hpStr[32];
-    int pct = (int)(((double)hp / maxHp) * 100.0);
+    int pct = (int)std::round(((double)hp / (double)maxHp) * 100.0);
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
     sprintf_s(hpStr, sizeof(hpStr), "HP %d/%d (%d%%)", hp, maxHp, pct);
     DrawShadowText(startX + 210, startY + frameH + 6, hpStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
 
@@ -590,7 +592,7 @@ void UI::DrawStaminaBar(int stamina, int maxStamina, double displayedStamina) {
     DrawShadowText(startX + 10, startY + frameH + 6, "ENERGY STATUS", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
 
     char stmStr[32];
-    int pct = (int)((displayedStamina / maxStamina) * 100.0);
+    int pct = (int)std::round((displayedStamina / (double)maxStamina) * 100.0);
     if (pct < 0) pct = 0;
     if (pct > 100) pct = 100;
 

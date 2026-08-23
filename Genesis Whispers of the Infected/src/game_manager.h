@@ -180,6 +180,8 @@ private:
     InventoryItem inventory[12];
     void InitInventory();
     void LoadInventoryTextures();
+    void UseInventorySlot(int slotIndex);
+    void AddInventoryItem(const std::string& itemId, int count = 1);
 
     // Helper functions for localized state updates/rendering
     void UpdatePlaying(bool keys[], bool specialKeys[]);

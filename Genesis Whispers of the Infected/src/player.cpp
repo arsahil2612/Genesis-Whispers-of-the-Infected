@@ -544,13 +544,19 @@ void Player::Update(bool keys[], bool specialKeys[]) {
     }
 
     // 10. Smooth animated Health & Stamina bar transitions for HUD
-    double hpSpeed = 8.0 * dt;
+    double hpSpeed = 10.0 * dt;
     if (hpSpeed > 1.0) hpSpeed = 1.0;
     displayedHp += ((double)hp - displayedHp) * hpSpeed;
+    if (std::abs((double)hp - displayedHp) < 0.1) {
+        displayedHp = (double)hp;
+    }
 
     double stamSpeed = 10.0 * dt;
     if (stamSpeed > 1.0) stamSpeed = 1.0;
     displayedStamina += (staminaDouble - displayedStamina) * stamSpeed;
+    if (std::abs(staminaDouble - displayedStamina) < 0.1) {
+        displayedStamina = staminaDouble;
+    }
 }
 
 // ============================================================================
@@ -629,19 +635,21 @@ void Player::UseHeal() {
     if (state == STATE_DEAD || state == STATE_HURT) return;
     if (medkits > 0 && hp < maxHp) {
         medkits--;
-        hp += 35;
-        if (hp > maxHp) hp = maxHp;
+        hp = maxHp;
+        displayedHp = (double)hp;
     }
 }
 
 void Player::UseFood() {
     if (state == STATE_DEAD || state == STATE_HURT) return;
-    if (foodCount > 0 && staminaDouble < maxStamina) {
+    if (foodCount > 0 && (staminaDouble < maxStamina || hp < maxHp)) {
         foodCount--;
-        staminaDouble += 45.0;
-        if (staminaDouble > maxStamina) staminaDouble = (double)maxStamina;
-        stamina = (int)std::round(staminaDouble);
+        staminaDouble = (double)maxStamina;
+        stamina = maxStamina;
+        displayedStamina = (double)maxStamina;
         isExhausted = false;
+        hp = (hp + 25 > maxHp) ? maxHp : hp + 25;
+        displayedHp = (double)hp;
     }
 }
 
