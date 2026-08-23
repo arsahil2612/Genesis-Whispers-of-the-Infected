@@ -110,6 +110,12 @@ unsigned int ResourceManager::GetConcreteGroundTile() {
 }
 
 void ResourceManager::ClearCache() {
+    for (std::map<std::string, unsigned int>::iterator it = m_textureCache.begin(); it != m_textureCache.end(); ++it) {
+        if (it->second != 0) {
+            GLuint tex = (GLuint)it->second;
+            glDeleteTextures(1, &tex);
+        }
+    }
     m_textureCache.clear();
     m_animationCache.clear();
 }

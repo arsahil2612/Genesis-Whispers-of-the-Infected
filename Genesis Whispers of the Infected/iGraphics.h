@@ -160,10 +160,12 @@ inline unsigned int iLoadImage(char filename[])
 {
     int width, height, bpp;
 
-    unsigned int texture;
+    BYTE* data = stbi_load(filename, &width, &height, &bpp, 4);
+    if (!data) {
+        return 0;
+    }
 
-    BYTE* data(0);
-    data = stbi_load(filename, &width, &height, &bpp, 4);
+    unsigned int texture;
     glGenTextures(1, &texture);
     glBindTexture(GL_TEXTURE_2D, texture);
     glTexImage2D(GL_TEXTURE_2D,

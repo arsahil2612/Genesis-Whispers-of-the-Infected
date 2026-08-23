@@ -735,7 +735,6 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                     g_pickupR = 255; g_pickupG = 180; g_pickupB = 0;
                     break;
                 case COL_WATER:
-                    player.foodCount++;
                     player.hp = (player.hp + 10 > player.maxHp) ? player.maxHp : player.hp + 10;
                     sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 WATER (+10 HP)");
                     g_pickupR = 0; g_pickupG = 220; g_pickupB = 255;
@@ -1759,17 +1758,17 @@ void GameManager::RenderVictory() {
     const char* vicTitle = "LEVEL 1 COMPLETE";
     DrawOutlinedText(515, 525, vicTitle, GLUT_BITMAP_TIMES_ROMAN_24, 0, 255, 120);
 
-    // 3. Option 1: Next Level (Slot 1)
-    RenderMenuButtonSlot(1, 525, 440, "1. NEXT LEVEL [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+    // 3. Option 1: Main Menu (Slot 1)
+    RenderMenuButtonSlot(1, 525, 440, "1. MAIN MENU [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
 
-    // 4. Option 2: Main Menu (Slot 2)
-    RenderMenuButtonSlot(2, 545, 362, "2. MAIN MENU [M]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+    // 4. Option 2: Restart Level (Slot 2)
+    RenderMenuButtonSlot(2, 545, 362, "2. RESTART LEVEL [R]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
 
     // 5. Option 3: Exit Game (Slot 3)
     RenderMenuButtonSlot(3, 535, 285, "3. EXIT GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
 
     // 6. Bottom Detail Slot: Instructions
-    const char* vicFooter = "Press [ENTER], [M], [ESC] or Click Options to Select";
+    const char* vicFooter = "Press [ENTER], [R], [ESC] or Click Options to Select";
     DrawShadowText(470, 148, vicFooter, GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
 }
 
@@ -2017,13 +2016,13 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
     }
     else if (currentState == STATE_VICTORY) {
-        if (key == 13 || key == '1') { // Enter or 1 = Next Level / Restart Level
-            Initialize();
-            currentState = STATE_PLAYING;
+        if (key == 13 || key == '1' || key == 'm' || key == 'M') { // Enter, 1, or M = Main Menu
+            currentState = STATE_MENU;
             menuTransitionAlpha = 1.0;
         }
-        else if (key == 'm' || key == 'M' || key == '2') { // M or 2 = Main Menu
-            currentState = STATE_MENU;
+        else if (key == 'r' || key == 'R' || key == '2') { // R or 2 = Restart Level
+            Initialize();
+            currentState = STATE_PLAYING;
             menuTransitionAlpha = 1.0;
         }
         else if (key == 27 || key == '3') { // ESC or 3 = Exit Game
@@ -2138,15 +2137,15 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                 }
             }
             else if (currentState == STATE_VICTORY) {
-                // Slot 1: Next Level
+                // Slot 1: Main Menu
                 if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
-                    Initialize();
-                    currentState = STATE_PLAYING;
+                    currentState = STATE_MENU;
                     menuTransitionAlpha = 1.0;
                 }
-                // Slot 2: Main Menu
+                // Slot 2: Restart Level
                 else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
-                    currentState = STATE_MENU;
+                    Initialize();
+                    currentState = STATE_PLAYING;
                     menuTransitionAlpha = 1.0;
                 }
                 // Slot 3: Exit Game
