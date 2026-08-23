@@ -51,10 +51,16 @@ private:
     int m_mouseY;
     bool m_isMouseDown;
 
-    // Key press edge detection flags
+    // Key press edge detection flags & debounce timer
     bool m_spacePrev;
     bool m_enterPrev;
     bool m_escPrev;
+    bool m_rightPrev;
+    bool m_leftPrev;
+    float m_debounceTimer;
+
+    // Window focus helper
+    void EnsureWindowFocus();
 
     // Cinematic Button interaction animation & hover state tracking
     float m_continueGlowTimer;

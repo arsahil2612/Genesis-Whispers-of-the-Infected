@@ -54,6 +54,18 @@ static void iShowImageAlpha(int x, int y, int width, int height, unsigned int te
 // ============================================================================
 // CONSTRUCTOR & DESTRUCTOR
 // ============================================================================
+void StoryManager::EnsureWindowFocus() {
+    HWND hwnd = GetActiveWindow();
+    if (!hwnd) {
+        hwnd = FindWindowA(NULL, "GENESIS: Whispers of the Infected");
+    }
+    if (hwnd) {
+        SetForegroundWindow(hwnd);
+        SetFocus(hwnd);
+        SetActiveWindow(hwnd);
+    }
+}
+
 StoryManager::StoryManager()
     : m_currentIndex(0)
     , m_isActive(false)
@@ -73,6 +85,9 @@ StoryManager::StoryManager()
     , m_spacePrev(false)
     , m_enterPrev(false)
     , m_escPrev(false)
+    , m_rightPrev(false)
+    , m_leftPrev(false)
+    , m_debounceTimer(0.0f)
     , m_continueGlowTimer(0.0f)
     , m_skipGlowTimer(0.0f)
     , m_isContinueHovered(false)
@@ -104,12 +119,15 @@ void StoryManager::Initialize(int width, int height) {
     m_spacePrev = false;
     m_enterPrev = false;
     m_escPrev = false;
+    m_rightPrev = false;
+    m_leftPrev = false;
+    m_debounceTimer = 0.0f;
     m_continueGlowTimer = 0.0f;
     m_skipGlowTimer = 0.0f;
     m_isContinueHovered = false;
     m_isSkipHovered = false;
-    m_enterPrev = false;
-    m_escPrev = false;
+
+    EnsureWindowFocus();
 
     m_panels.clear();
 
@@ -231,12 +249,18 @@ void StoryManager::StartStory() {
     m_spacePrev = false;
     m_enterPrev = false;
     m_escPrev = false;
+    m_rightPrev = false;
+    m_leftPrev = false;
+    m_debounceTimer = 0.0f;
 
     // Preload all 10 story panel textures when story starts
     PreloadAllStoryTextures();
 
     // Enable OS cursor visibility during Story Mode
     glutSetCursor(GLUT_CURSOR_LEFT_ARROW);
+
+    // Ensure application window has foreground input focus immediately on launch
+    EnsureWindowFocus();
 }
 
 void StoryManager::NextPanel() {
@@ -284,16 +308,53 @@ void StoryManager::FinishStory() {
     m_spacePrev = false;
     m_enterPrev = false;
     m_escPrev = false;
+    m_rightPrev = false;
+    m_leftPrev = false;
+    m_debounceTimer = 0.0f;
     ReleaseResources();
 }
 
 // ============================================================================
-// UPDATE LOOP - CINEMATIC PHASE STATE MACHINE
+// UPDATE LOOP - CINEMATIC PHASE STATE MACHINE & DIRECT INPUT POLLING
 // ============================================================================
 void StoryManager::Update(float dt, const bool keys[], const bool specialKeys[]) {
     if (!m_isActive) return;
 
     m_animTime += dt;
+
+    if (m_debounceTimer > 0.0f) {
+        m_debounceTimer -= dt;
+        if (m_debounceTimer < 0.0f) m_debounceTimer = 0.0f;
+    }
+
+    // Direct key state polling (falling back to Win32 GetAsyncKeyState if GLUT callbacks missed window focus)
+    bool spaceCur = (keys && keys[32]) || (keys && keys[' ']) || ((GetAsyncKeyState(VK_SPACE) & 0x8000) != 0);
+    bool enterCur = (keys && keys[13]) || (keys && keys['\r']) || (keys && keys['\n']) || ((GetAsyncKeyState(VK_RETURN) & 0x8000) != 0);
+    bool escCur   = (keys && keys[27]) || ((GetAsyncKeyState(VK_ESCAPE) & 0x8000) != 0);
+    bool rightCur = (specialKeys && specialKeys[GLUT_KEY_RIGHT]) || (keys && (keys['d'] || keys['D'])) || ((GetAsyncKeyState(VK_RIGHT) & 0x8000) != 0) || ((GetAsyncKeyState('D') & 0x8000) != 0);
+    bool leftCur  = (specialKeys && specialKeys[GLUT_KEY_LEFT])  || (keys && (keys['a'] || keys['A'])) || ((GetAsyncKeyState(VK_LEFT) & 0x8000) != 0) || ((GetAsyncKeyState('A') & 0x8000) != 0);
+
+    if (m_debounceTimer <= 0.0f) {
+        if (escCur && !m_escPrev) {
+            m_skipGlowTimer = 0.25f;
+            m_debounceTimer = 0.25f;
+            SkipStory();
+            return;
+        } else if ((spaceCur && !m_spacePrev) || (enterCur && !m_enterPrev) || (rightCur && !m_rightPrev)) {
+            m_continueGlowTimer = 0.25f;
+            m_debounceTimer = 0.25f;
+            NextPanel();
+        } else if (leftCur && !m_leftPrev) {
+            m_debounceTimer = 0.25f;
+            PreviousPanel();
+        }
+    }
+
+    m_spacePrev = spaceCur;
+    m_enterPrev = enterCur;
+    m_escPrev = escCur;
+    m_rightPrev = rightCur;
+    m_leftPrev = leftCur;
 
     switch (m_phase) {
     case PHASE_IMAGE_FADE_IN:
@@ -688,11 +749,17 @@ void StoryManager::HandleKeyPress(unsigned char key) {
     if (!m_isActive) return;
 
     if (key == 27 || key == 0x1B) {
-        m_skipGlowTimer = 0.25f;
-        SkipStory();
+        if (m_debounceTimer <= 0.0f) {
+            m_skipGlowTimer = 0.25f;
+            m_debounceTimer = 0.25f;
+            SkipStory();
+        }
     } else if (key == 32 || key == ' ' || key == 13 || key == '\r' || key == '\n' || key == 10 || key == 'd' || key == 'D') {
-        m_continueGlowTimer = 0.25f;
-        NextPanel();
+        if (m_debounceTimer <= 0.0f) {
+            m_continueGlowTimer = 0.25f;
+            m_debounceTimer = 0.25f;
+            NextPanel();
+        }
     }
 }
 
@@ -700,10 +767,16 @@ void StoryManager::HandleSpecialKeyPress(unsigned char key) {
     if (!m_isActive) return;
 
     if (key == GLUT_KEY_RIGHT) {
-        m_continueGlowTimer = 0.25f;
-        NextPanel();
+        if (m_debounceTimer <= 0.0f) {
+            m_continueGlowTimer = 0.25f;
+            m_debounceTimer = 0.25f;
+            NextPanel();
+        }
     } else if (key == GLUT_KEY_LEFT) {
-        PreviousPanel();
+        if (m_debounceTimer <= 0.0f) {
+            m_debounceTimer = 0.25f;
+            PreviousPanel();
+        }
     }
 }
 

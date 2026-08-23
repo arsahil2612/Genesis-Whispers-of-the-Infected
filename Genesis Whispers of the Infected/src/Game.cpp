@@ -40,6 +40,17 @@ void Game::Initialize(int width, int height) {
     m_storyManager.StartStory();
     m_engineState = GAME_STATE_STORY;
 
+    // Force window input focus immediately on game initialization
+    HWND hwnd = GetActiveWindow();
+    if (!hwnd) {
+        hwnd = FindWindowA(NULL, "GENESIS: Whispers of the Infected");
+    }
+    if (hwnd) {
+        SetForegroundWindow(hwnd);
+        SetFocus(hwnd);
+        SetActiveWindow(hwnd);
+    }
+
     printf("[GENESIS Engine] Game Engine Initialized. Initial State: GAME_STATE_STORY. Screen: %dx%d\n", width, height);
 }
 
