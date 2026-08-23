@@ -39,7 +39,10 @@ public:
     int scrapCount;
     int stamina;
     int maxStamina;
+    double staminaDouble;
     double displayedStamina;
+    double staminaRegenDelayTimer;
+    bool isExhausted;
 
     // Grounding & Orientation Flags
     bool isGrounded;
@@ -79,6 +82,7 @@ public:
     void AttackMelee();
     void AttackRanged();
     void UseHeal();
+    void UseFood();
     void SetState(PlayerState newState);
 };
 

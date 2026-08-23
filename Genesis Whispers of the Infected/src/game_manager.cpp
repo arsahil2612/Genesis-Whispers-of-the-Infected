@@ -1952,6 +1952,9 @@ void GameManager::HandleKeyPress(unsigned char key) {
         else if (key == 'h' || key == 'H') {
             if (!showInventory) player.UseHeal();
         }
+        else if (key == 'f' || key == 'F') {
+            if (!showInventory) player.UseFood();
+        }
     }
     else if (currentState == STATE_PAUSED) {
         if (key == 27) { // ESC resumes or closes sub menu

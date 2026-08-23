@@ -582,7 +582,7 @@ void UI::DrawStaminaBar(int stamina, int maxStamina, double displayedStamina) {
     int frameW = 360;
     int frameH = 34;
 
-    double staminaRatio = (double)stamina / (double)maxStamina;
+    double staminaRatio = displayedStamina / (double)maxStamina;
     if (staminaRatio < 0.0) staminaRatio = 0.0;
     if (staminaRatio > 1.0) staminaRatio = 1.0;
 
@@ -590,9 +590,17 @@ void UI::DrawStaminaBar(int stamina, int maxStamina, double displayedStamina) {
     DrawShadowText(startX + 10, startY + frameH + 6, "ENERGY STATUS", GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
 
     char stmStr[32];
-    int pct = (int)(((double)stamina / maxStamina) * 100.0);
-    sprintf_s(stmStr, sizeof(stmStr), "STAMINA %d%%", pct);
-    DrawShadowText(startX + 210, startY + frameH + 6, stmStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    int pct = (int)((displayedStamina / maxStamina) * 100.0);
+    if (pct < 0) pct = 0;
+    if (pct > 100) pct = 100;
+
+    if (pct <= 20) {
+        sprintf_s(stmStr, sizeof(stmStr), "STAMINA %d%% (LOW)", pct);
+        DrawShadowText(startX + 210, startY + frameH + 6, stmStr, GLUT_BITMAP_HELVETICA_12, 255, 100, 50);
+    } else {
+        sprintf_s(stmStr, sizeof(stmStr), "STAMINA %d%%", pct);
+        DrawShadowText(startX + 210, startY + frameH + 6, stmStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    }
 
     // STEP 1: Draw metal frame base FIRST (Underneath fill so fill is NEVER obscured!)
     if (texStaminaFrame != 0) {

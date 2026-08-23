@@ -30,8 +30,11 @@ Player::Player() {
     foodCount = 1;
     batteryCount = 1;
     scrapCount = 0;
+    staminaDouble = 100.0;
     stamina = maxStamina = 100;
     displayedStamina = 100.0;
+    staminaRegenDelayTimer = 0.0;
+    isExhausted = false;
     isGrounded = true;
     wasJumpPressed = false;
     isFacingRight = true;
@@ -60,8 +63,11 @@ void Player::Initialize(double startX, double startY) {
     foodCount = 1;
     batteryCount = 1;
     scrapCount = 0;
+    staminaDouble = 100.0;
     stamina = maxStamina = 100;
     displayedStamina = (double)stamina;
+    staminaRegenDelayTimer = 0.0;
+    isExhausted = false;
     isGrounded = true;
     wasJumpPressed = false;
     wasAttackPressed = false;
@@ -304,9 +310,17 @@ void Player::Update(bool keys[], bool specialKeys[]) {
     // 3. Jump System: Natural jump arc, variable jump height, apex floatiness, no double jump
     bool jumpPressed = keys[' '];
     if (jumpPressed && !wasJumpPressed && isGrounded && state != STATE_ATTACK_MELEE && state != STATE_DEAD && state != STATE_HURT) {
-        vy = 520.0; // Initial smooth upward launch velocity (px/sec)
-        isGrounded = false;
-        SetState(STATE_JUMP);
+        if (staminaDouble >= 10.0) {
+            vy = 520.0; // Initial smooth upward launch velocity (px/sec)
+            isGrounded = false;
+            SetState(STATE_JUMP);
+            staminaDouble -= 10.0;
+            if (staminaDouble <= 0.0) {
+                staminaDouble = 0.0;
+                isExhausted = true;
+            }
+            staminaRegenDelayTimer = 1.0;
+        }
     }
     wasJumpPressed = jumpPressed;
 
@@ -356,7 +370,47 @@ void Player::Update(bool keys[], bool specialKeys[]) {
         isShiftHeld = true;
     }
 
+    // Restrict sprinting if exhausted or zero stamina
+    if (isExhausted || staminaDouble <= 0.0) {
+        isShiftHeld = false;
+    }
+
     bool isRunning = isShiftHeld && (moveLeft || moveRight);
+
+    // Sprinting Stamina Drainage (18.0 stamina per second)
+    if (isRunning) {
+        staminaDouble -= 18.0 * dt;
+        staminaRegenDelayTimer = 1.0;
+        if (staminaDouble <= 0.0) {
+            staminaDouble = 0.0;
+            isExhausted = true;
+            isRunning = false;
+        }
+    }
+
+    // Stamina Auto-Regeneration when not sprinting (1.0s delay, 22.0 stamina/sec)
+    if (!isRunning && isGrounded) {
+        if (staminaRegenDelayTimer > 0.0) {
+            staminaRegenDelayTimer -= dt;
+            if (staminaRegenDelayTimer < 0.0) staminaRegenDelayTimer = 0.0;
+        } else {
+            staminaDouble += 22.0 * dt;
+            if (staminaDouble > (double)maxStamina) {
+                staminaDouble = (double)maxStamina;
+            }
+        }
+    }
+
+    // Clear exhaustion once stamina recovers above 15%
+    if (isExhausted && staminaDouble >= 15.0) {
+        isExhausted = false;
+    }
+
+    // Sync integer stamina value
+    stamina = (int)std::round(staminaDouble);
+    if (stamina < 0) stamina = 0;
+    if (stamina > maxStamina) stamina = maxStamina;
+
     double targetSpeed = isRunning ? RUN_SPEED : WALK_SPEED;
     double targetVx = 0.0;
 
@@ -496,7 +550,7 @@ void Player::Update(bool keys[], bool specialKeys[]) {
 
     double stamSpeed = 10.0 * dt;
     if (stamSpeed > 1.0) stamSpeed = 1.0;
-    displayedStamina += ((double)stamina - displayedStamina) * stamSpeed;
+    displayedStamina += (staminaDouble - displayedStamina) * stamSpeed;
 }
 
 // ============================================================================
@@ -577,6 +631,17 @@ void Player::UseHeal() {
         medkits--;
         hp += 35;
         if (hp > maxHp) hp = maxHp;
+    }
+}
+
+void Player::UseFood() {
+    if (state == STATE_DEAD || state == STATE_HURT) return;
+    if (foodCount > 0 && staminaDouble < maxStamina) {
+        foodCount--;
+        staminaDouble += 45.0;
+        if (staminaDouble > maxStamina) staminaDouble = (double)maxStamina;
+        stamina = (int)std::round(staminaDouble);
+        isExhausted = false;
     }
 }
 
