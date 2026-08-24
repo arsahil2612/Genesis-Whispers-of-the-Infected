@@ -708,78 +708,186 @@ void UI::DrawMissionBox(const char* objectiveText, const char* areaName, double 
 // 4. INVENTORY HUD UPGRADE
 // ----------------------------------------------------------------------------
 void UI::DrawInventoryHUD(const Player& player, bool hasKeycard, bool ribbonCollected) {
-    // Positioned in Bottom-Left Position (Phase 1 Requirement 4)
+    // Positioned in Bottom-Left Position - Post-Apocalyptic Military Survival Equipment Device
     int startX = 20;
     int startY = 20;
-    int barW = 360;
-    int barH = 58;
+    int barW = 370;
+    int barH = 66;
 
-    iSetColor(0, 0, 0);
+    // 1. MAIN PANEL BASE - Dark charcoal metal with blue-grey tint & worn surface layering
+    // Deep shadow background casing
+    iSetColor(8, 12, 16);
     iFilledRectangle(startX - 2, startY - 2, barW + 4, barH + 4);
-    iSetColor(10, 14, 22);
+
+    // Main dark charcoal body with slight blue-grey tint
+    iSetColor(20, 26, 34);
     iFilledRectangle(startX, startY, barW, barH);
-    iSetColor(0, 180, 220);
+
+    // Weathered inner metal plate (slightly lighter blue-grey metal)
+    iSetColor(28, 36, 46);
+    iFilledRectangle(startX + 2, startY + 2, barW - 4, barH - 4);
+
+    // Dark lower gradient plate simulation
+    iSetColor(16, 20, 26);
+    iFilledRectangle(startX + 4, startY + 4, barW - 8, (barH / 2) - 2);
+
+    // Surface wear: subtle diagonal scratches & panel seam details
+    iSetColor(58, 68, 78);
+    iLine(startX + 15, startY + 14, startX + 35, startY + 10);
+    iLine(startX + barW - 55, startY + barH - 12, startX + barW - 25, startY + barH - 16);
+    iSetColor(42, 50, 60);
+    iLine(startX + 16, startY + 13, startX + 36, startY + 9);
+
+    // 2. BORDER - Rusted iron / aged metal appearance
+    // Outer rusted iron border frame
+    iSetColor(125, 55, 20);
     iRectangle(startX, startY, barW, barH);
 
-    DrawOutlinedText(startX + 12, startY + barH - 18, "SURVIVAL SUPPLIES  [TAB]", GLUT_BITMAP_HELVETICA_10, 0, 220, 255);
+    // Inner aged dark steel border frame
+    iSetColor(60, 68, 78);
+    iRectangle(startX + 1, startY + 1, barW - 2, barH - 2);
 
-    // Render 4 Item Columns: [Medkit Icon] x2, [Food Icon] x1, [Battery Icon] x1, [Scrap Icon] x1
-    int colX[4] = { startX + 12, startX + 100, startX + 188, startX + 276 };
-    int iconY = startY + 10;
+    // Dark brown-orange rusted edges & corner patches
+    iSetColor(155, 75, 28); // Burnt rust brown corner accents
+    iFilledRectangle(startX + 2, startY + barH - 6, 9, 4);
+    iFilledRectangle(startX + barW - 11, startY + barH - 6, 9, 4);
+    iFilledRectangle(startX + 2, startY + 2, 9, 4);
+    iFilledRectangle(startX + barW - 11, startY + 2, 9, 4);
 
-    // 1. Medkit Icon & Count
+    // Subtle damaged notch cuts & rusted iron accents
+    iSetColor(95, 40, 15); // Deep oxidized rust halos
+    iRectangle(startX + 2, startY + barH - 6, 9, 4);
+    iRectangle(startX + barW - 11, startY + barH - 6, 9, 4);
+
+    // Corner rivets (Aged metal hardware look with rust halos)
+    iSetColor(115, 122, 130);
+    iFilledRectangle(startX + 4, startY + barH - 5, 2, 2);
+    iFilledRectangle(startX + barW - 6, startY + barH - 5, 2, 2);
+    iFilledRectangle(startX + 4, startY + 3, 2, 2);
+    iFilledRectangle(startX + barW - 6, startY + 3, 2, 2);
+
+    // Faded red warning accent mark (Small emergency gear tag on top right corner)
+    iSetColor(160, 45, 45);
+    iFilledRectangle(startX + barW - 32, startY + barH - 4, 12, 2);
+
+    // 3. TITLE & HEADER - Military terminal style with warm text & burnt orange highlight
+    // Muted military olive status LED
+    iSetColor(75, 105, 60); // Dark olive base
+    iFilledCircle(startX + 14, startY + barH - 13, 3);
+    iSetColor(95, 135, 75); // Faded olive ring
+    iCircle(startX + 14, startY + barH - 13, 3);
+
+    // Title text in warm off-white / light grey military terminal style
+    DrawShadowText(startX + 24, startY + barH - 17, "SURVIVAL SUPPLIES", GLUT_BITMAP_HELVETICA_10, 225, 220, 205);
+    // [TAB] keybind tag highlighted in muted burnt orange
+    DrawShadowText(startX + 138, startY + barH - 17, "[TAB]", GLUT_BITMAP_HELVETICA_10, 215, 115, 35);
+
+    // 4. ITEM SLOTS - Dark metal containers with rusted frames & depth shadow
+    int wellY = startY + 6;
+    int wellH = 34;
+    int wellW = 84;
+    int colX[4] = { startX + 8, startX + 98, startX + 188, startX + 278 };
+
+    for (int i = 0; i < 4; i++) {
+        // Outer dark metal container bevel frame
+        iSetColor(52, 60, 70);
+        iRectangle(colX[i] - 1, wellY - 1, wellW + 2, wellH + 2);
+
+        // Recessed deep dark metal container well
+        iSetColor(10, 14, 20);
+        iFilledRectangle(colX[i], wellY, wellW, wellH);
+
+        // Top/left inset drop shadow for container depth
+        iSetColor(6, 8, 12);
+        iFilledRectangle(colX[i], wellY + wellH - 2, wellW, 2);
+        iFilledRectangle(colX[i], wellY, 2, wellH);
+
+        // Rusted iron frame border
+        iSetColor(110, 55, 22);
+        iRectangle(colX[i], wellY, wellW, wellH);
+
+        // Inner highlight rim for metallic depth separation
+        iSetColor(75, 85, 98);
+        iRectangle(colX[i] + 1, wellY + 1, wellW - 2, wellH - 2);
+
+        // Subtle rusted corner accent on each slot frame
+        iSetColor(145, 65, 25);
+        iFilledRectangle(colX[i] + 1, wellY + wellH - 3, 3, 2);
+    }
+
+    int iconSize = 22;
+    int iconOffsetY = wellY + 6;
+
+    // 1. Medkit Slot & Count
+    int iconX0 = colX[0] + 6;
     if (texIconMedkit != 0) {
-        iShowImage(colX[0], iconY, 22, 22, texIconMedkit);
+        iShowImage(iconX0, iconOffsetY, iconSize, iconSize, texIconMedkit);
     } else {
-        iSetColor(180, 20, 20);
-        iFilledRectangle(colX[0], iconY, 20, 20);
-        iSetColor(255, 255, 255);
-        iFilledRectangle(colX[0] + 8, iconY + 3, 4, 14);
-        iFilledRectangle(colX[0] + 3, iconY + 8, 14, 4);
+        iSetColor(150, 35, 35); // Weathered rusty red medkit
+        iFilledRectangle(iconX0, iconOffsetY, iconSize, iconSize);
+        iSetColor(70, 20, 20);
+        iRectangle(iconX0, iconOffsetY, iconSize, iconSize);
+        iSetColor(235, 230, 218); // Warm off-white medical cross
+        iFilledRectangle(iconX0 + 9, iconOffsetY + 4, 4, 14);
+        iFilledRectangle(iconX0 + 4, iconOffsetY + 9, 14, 4);
     }
     char medStr[16];
     sprintf_s(medStr, sizeof(medStr), "x%d", player.medkits);
-    DrawShadowText(colX[0] + 26, iconY + 5, medStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    DrawShadowText(colX[0] + 35, iconOffsetY + 5, medStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
 
-    // 2. Food Icon & Count
+    // 2. Food Slot & Count
+    int iconX1 = colX[1] + 6;
     if (texIconFood != 0) {
-        iShowImage(colX[1], iconY, 22, 22, texIconFood);
+        iShowImage(iconX1, iconOffsetY, iconSize, iconSize, texIconFood);
     } else {
-        iSetColor(160, 100, 30);
-        iFilledRectangle(colX[1], iconY, 20, 20);
-        iSetColor(240, 180, 40);
-        iRectangle(colX[1], iconY, 20, 20);
+        iSetColor(140, 90, 30); // Survival MRE ration pouch
+        iFilledRectangle(iconX1, iconOffsetY, iconSize, iconSize);
+        iSetColor(180, 140, 60);
+        iRectangle(iconX1, iconOffsetY, iconSize, iconSize);
+        iSetColor(210, 150, 40);
+        iFilledRectangle(iconX1 + 4, iconOffsetY + 4, 14, 14);
+        iSetColor(90, 125, 75); // Muted military olive label band
+        iFilledRectangle(iconX1 + 6, iconOffsetY + 13, 10, 3);
     }
     char foodStr[16];
     sprintf_s(foodStr, sizeof(foodStr), "x%d", player.foodCount);
-    DrawShadowText(colX[1] + 26, iconY + 5, foodStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    DrawShadowText(colX[1] + 35, iconOffsetY + 5, foodStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
 
-    // 3. Battery Icon & Count
+    // 3. Battery / Power Slot & Count
+    int iconX2 = colX[2] + 6;
     if (texIconBattery != 0) {
-        iShowImage(colX[2], iconY, 22, 22, texIconBattery);
+        iShowImage(iconX2, iconOffsetY, iconSize, iconSize, texIconBattery);
     } else {
-        iSetColor(30, 30, 40);
-        iFilledRectangle(colX[2], iconY, 20, 20);
-        iSetColor(0, 255, 180);
-        iRectangle(colX[2], iconY, 20, 20);
-        iFilledRectangle(colX[2] + 5, iconY + 4, 10, 12);
+        iSetColor(25, 32, 40); // Tactical power cell casing
+        iFilledRectangle(iconX2, iconOffsetY, iconSize, iconSize);
+        iSetColor(70, 80, 95);
+        iRectangle(iconX2, iconOffsetY, iconSize, iconSize);
+        iSetColor(190, 115, 28); // Amber power core
+        iFilledRectangle(iconX2 + 6, iconOffsetY + 5, 10, 12);
+        iSetColor(220, 160, 45); // Terminal top
+        iFilledRectangle(iconX2 + 8, iconOffsetY + 17, 6, 2);
     }
     char batStr[16];
     sprintf_s(batStr, sizeof(batStr), "x%d", player.batteryCount);
-    DrawShadowText(colX[2] + 26, iconY + 5, batStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    DrawShadowText(colX[2] + 35, iconOffsetY + 5, batStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
 
-    // 4. Scrap Icon & Count
+    // 4. Scrap / Resources Slot & Count
+    int iconX3 = colX[3] + 6;
     if (texIconScrap != 0) {
-        iShowImage(colX[3], iconY, 22, 22, texIconScrap);
+        iShowImage(iconX3, iconOffsetY, iconSize, iconSize, texIconScrap);
     } else {
-        iSetColor(50, 55, 65);
-        iFilledRectangle(colX[3], iconY, 20, 20);
-        iSetColor(200, 210, 220);
-        iRectangle(colX[3], iconY, 20, 20);
+        iSetColor(45, 50, 60); // Salvaged metallic hardware plate
+        iFilledRectangle(iconX3, iconOffsetY, iconSize, iconSize);
+        iSetColor(120, 130, 140);
+        iRectangle(iconX3, iconOffsetY, iconSize, iconSize);
+        iSetColor(160, 85, 40); // Rusty gear fragment
+        iFilledRectangle(iconX3 + 4, iconOffsetY + 4, 8, 8);
+        iSetColor(150, 160, 170); // Steel hardware
+        iFilledRectangle(iconX3 + 10, iconOffsetY + 10, 8, 8);
     }
     char scrapStr[16];
     sprintf_s(scrapStr, sizeof(scrapStr), "x%d", player.scrapCount);
-    DrawShadowText(colX[3] + 26, iconY + 5, scrapStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    DrawShadowText(colX[3] + 35, iconOffsetY + 5, scrapStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
 }
 
 void UI::DrawInventoryIndicator(const Player& player, bool hasKeycard, bool ribbonCollected) {
