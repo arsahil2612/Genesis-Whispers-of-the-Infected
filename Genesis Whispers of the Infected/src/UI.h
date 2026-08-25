@@ -47,10 +47,11 @@ private:
     // Notification state
     static NotificationData currentNotification;
 
-    // Helper text utilities
+    // Helper text & UI frame utilities
     static void DrawShadowText(int x, int y, const char* str, void* font, int r, int g, int b, int shadowOffset = 1);
     static void DrawOutlinedText(int x, int y, const char* str, void* font, int r, int g, int b);
     static void DrawButtonSlot(int slotIdx, int textX, int textY, const char* label, void* font, int mouseX, int mouseY, bool isMouseDown, double animTime = 0.0);
+    static void DrawKatanaStyleBox(int boxX, int boxY, int boxW, int boxH);
 
 public:
     static void Initialize();

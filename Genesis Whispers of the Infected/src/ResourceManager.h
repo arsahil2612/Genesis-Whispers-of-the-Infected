@@ -50,6 +50,8 @@ public:
     unsigned int GetBrokenBridgeFloorTile();
     unsigned int GetBrokenBridgeEdgeTile();
     unsigned int GetRiverWaterTile();
+    unsigned int GetWoodenBridgeSupportBeamTile();
+    unsigned int GetRainSoakedBrokenBridgeTile();
 
     // Road & Ground Tiles
     unsigned int GetBrokenRoadTile();

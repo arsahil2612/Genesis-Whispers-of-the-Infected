@@ -764,22 +764,27 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         }
     }
 
-    // Default ground fallback if not in a pit
-    bool inPit = (player.x > 17800 && player.x < 18100) ||
-                 (player.x > 18500 && player.x < 18800) ||
-                 (player.x > 19200 && player.x < 19400);
+    // Broken Bridge Pit Detection (Gap 1: 10620 to 10760, Gap 2: 11000 to 11150)
+    bool inPitGap1 = (player.x > 10615.0 && player.x < 10765.0);
+    bool inPitGap2 = (player.x > 10995.0 && player.x < 11155.0);
+    bool inPit = inPitGap1 || inPitGap2;
 
     if (!inPit && player.y <= 185.0) {
         player.y = 185.0;
         player.vy = 0.0;
         player.isGrounded = true;
     }
-    else if (inPit && player.y < -100.0) {
-        // Pit safety respawn
-        player.x = 17700;
+    else if (inPit && player.y < 30.0) {
+        // Pit safety respawn after falling into broken bridge water chasm
+        if (inPitGap1) {
+            player.x = 10520.0; // Safe platform before Gap 1
+        } else {
+            player.x = 10920.0; // Safe platform before Gap 2
+        }
         player.y = 185.0;
         player.vy = 0.0;
         player.isGrounded = true;
+        player.TakeDamage(10); // Environmental hazard damage penalty
     }
 
     // 3. Environmental rain particle simulation update
@@ -1349,14 +1354,19 @@ void GameManager::RenderPlaying() {
     double camY = gameMap.GetCameraY();
 
     // ========================================================================
-    // LAYER 1: BACKGROUND (Parallax backdrop & surface tiles)
+    // LAYER 1: BACKGROUND (Parallax backdrop slices 0-9)
     // ========================================================================
     gameMap.RenderBackground(camX, bossDefeated);
-    gameMap.RenderTiles(camX, camY);
 
     // ========================================================================
-    // LAYER 2: LARGE ENVIRONMENT OBJECTS (Vehicles, buildings, trees, background props)
+    // LAYER 2: WATER / RIVER (Low river surface y=0 to 90, rendered under bridge)
     // ========================================================================
+    gameMap.RenderWater(camX, camY);
+
+    // ========================================================================
+    // LAYER 3: BRIDGE AND ENVIRONMENT SPRITES (Support beams, bridge deck, props)
+    // ========================================================================
+    gameMap.RenderBridgeAndEnvironmentSprites(camX, camY);
     RenderWorldProps(PROP_LAYER_BACKGROUND, camX, camY);
 
     // Render level props (Environmental obstacles & burning barrels)

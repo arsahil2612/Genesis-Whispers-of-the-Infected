@@ -56,6 +56,49 @@ void UI::DrawOutlinedText(int x, int y, const char* str, void* font, int r, int 
     iText(x, y, (char*)str, font);
 }
 
+void UI::DrawKatanaStyleBox(int boxX, int boxY, int boxW, int boxH) {
+    // 1. Dark Charcoal / Black Metal Base Panel (Post-Apocalyptic Survival Equipment Theme)
+    iSetColor(0, 0, 0);
+    iFilledRectangle(boxX - 2, boxY - 2, boxW + 4, boxH + 4);
+
+    // Main dark charcoal body
+    iSetColor(14, 18, 22);
+    iFilledRectangle(boxX, boxY, boxW, boxH);
+
+    // Weathered inner plate with slight vertical gradient simulation
+    iSetColor(22, 28, 34);
+    iFilledRectangle(boxX + 2, boxY + 2, boxW - 4, boxH - 4);
+    iSetColor(18, 22, 28);
+    iFilledRectangle(boxX + 4, boxY + 4, boxW - 8, (boxH / 2) - 4);
+
+    // Worn Dark Steel Border & Metallic Trim
+    iSetColor(65, 75, 85);
+    iRectangle(boxX, boxY, boxW, boxH);
+    iSetColor(45, 52, 60);
+    iRectangle(boxX + 1, boxY + 1, boxW - 2, boxH - 2);
+
+    // Rust Brown & Dark Steel Accents on Panel Corners
+    iSetColor(140, 70, 35); // Rust Brown accent corners
+    iFilledRectangle(boxX + 2, boxY + boxH - 6, 8, 4);
+    iFilledRectangle(boxX + boxW - 10, boxY + boxH - 6, 8, 4);
+    iFilledRectangle(boxX + 2, boxY + 2, 8, 4);
+    iFilledRectangle(boxX + boxW - 10, boxY + 2, 8, 4);
+
+    // Corner rivets (Metallic military hardware look)
+    iSetColor(110, 120, 130);
+    iFilledRectangle(boxX + 4, boxY + boxH - 5, 2, 2);
+    iFilledRectangle(boxX + boxW - 6, boxY + boxH - 5, 2, 2);
+    iFilledRectangle(boxX + 4, boxY + 3, 2, 2);
+    iFilledRectangle(boxX + boxW - 6, boxY + 3, 2, 2);
+
+    // Weathering scratch marks for post-apocalyptic survivor look
+    iSetColor(50, 60, 70);
+    if (boxW >= 50 && boxH >= 20) {
+        iLine(boxX + 10, boxY + 12, boxX + 25, boxY + 8);
+        iLine(boxX + boxW - 35, boxY + boxH - 10, boxX + boxW - 15, boxY + boxH - 12);
+    }
+}
+
 static int GetGlutStringWidth(void* font, const char* str) {
     if (!str) return 0;
     int w = 0;
@@ -444,37 +487,31 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
     // 4. Lower-Left: Icon-Based Survival Inventory Display
     DrawInventoryHUD(player, false, false);
 
-    // 5. Score Banner (Upper Right Header)
+    // 5. Score Banner (Upper Right Header) - Katana Weapon Box Theme
     int hudX = 950;
-    int hudY = 580;
+    int hudY = 576;
     int hudW = 310;
-    int hudH = 30;
+    int hudH = 34;
 
-    iSetColor(0, 0, 0);
-    iFilledRectangle(hudX - 2, hudY - 2, hudW + 4, hudH + 4);
-    iSetColor(12, 16, 24);
-    iFilledRectangle(hudX, hudY, hudW, hudH);
-    iSetColor(0, 180, 220);
-    iRectangle(hudX, hudY, hudW, hudH);
+    DrawKatanaStyleBox(hudX, hudY, hudW, hudH);
 
-    // Adjustable HUD text variables (Tactical 9x15 font, 15% larger)
+    // Adjustable HUD text variables (Tactical 9x15 font)
     int hudTextX = 974;
-    int hudTextY = 587;
-    int hudFontSize = 15; // 9x15 compact tactical military font
+    int hudTextY = 586;
 
-    // 1) Render "SCORE:" label in warm gold
-    DrawShadowText(hudTextX, hudTextY, "SCORE:", GLUT_BITMAP_9_BY_15, 255, 215, 0);
+    // 1) Render "SCORE:" label in steel ivory / warm gold
+    DrawShadowText(hudTextX, hudTextY, "SCORE:", GLUT_BITMAP_9_BY_15, 235, 230, 220);
 
     // 2) Render dynamic C++ score value (%07d) in white
     char scoreNumStr[16];
     sprintf_s(scoreNumStr, sizeof(scoreNumStr), "%07d", score);
     DrawShadowText(hudTextX + 63, hudTextY, scoreNumStr, GLUT_BITMAP_9_BY_15, 255, 255, 255);
 
-    // 3) Render "   |   " separator with tactical spacing in cyan accent
-    DrawShadowText(hudTextX + 126, hudTextY, "   |   ", GLUT_BITMAP_9_BY_15, 0, 180, 220);
+    // 3) Render "   |   " separator in rust brown accent
+    DrawShadowText(hudTextX + 126, hudTextY, "   |   ", GLUT_BITMAP_9_BY_15, 140, 70, 35);
 
-    // 4) Render "[H] HEAL" prompt in warm gold
-    DrawShadowText(hudTextX + 189, hudTextY, "[H] HEAL", GLUT_BITMAP_9_BY_15, 255, 215, 0);
+    // 4) Render "[H] HEAL" prompt in survival amber/orange accent
+    DrawShadowText(hudTextX + 189, hudTextY, "[H] HEAL", GLUT_BITMAP_9_BY_15, 215, 120, 45);
 
     // 6. Sleek Cinematic Area & Village Title Banner
     DrawAreaBanner(areaName, areaBannerAlpha);
@@ -905,43 +942,7 @@ void UI::DrawWeaponDisplay(const char* weaponName, int ammo, bool usesAmmo) {
     int boxH = 75;
 
     // 1. Dark Charcoal / Black Metal Base Panel (Post-Apocalyptic Survival Equipment Theme)
-    iSetColor(0, 0, 0);
-    iFilledRectangle(boxX - 2, boxY - 2, boxW + 4, boxH + 4);
-
-    // Main dark charcoal body
-    iSetColor(14, 18, 22);
-    iFilledRectangle(boxX, boxY, boxW, boxH);
-
-    // Weathered inner plate with slight vertical gradient simulation
-    iSetColor(22, 28, 34);
-    iFilledRectangle(boxX + 2, boxY + 2, boxW - 4, boxH - 4);
-    iSetColor(18, 22, 28);
-    iFilledRectangle(boxX + 4, boxY + 4, boxW - 8, boxH / 2 - 4);
-
-    // Worn Dark Steel Border & Metallic Trim
-    iSetColor(65, 75, 85);
-    iRectangle(boxX, boxY, boxW, boxH);
-    iSetColor(45, 52, 60);
-    iRectangle(boxX + 1, boxY + 1, boxW - 2, boxH - 2);
-
-    // Rust Brown & Dark Steel Accents on Panel Corners
-    iSetColor(140, 70, 35); // Rust Brown accent corners
-    iFilledRectangle(boxX + 2, boxY + boxH - 6, 8, 4);
-    iFilledRectangle(boxX + boxW - 10, boxY + boxH - 6, 8, 4);
-    iFilledRectangle(boxX + 2, boxY + 2, 8, 4);
-    iFilledRectangle(boxX + boxW - 10, boxY + 2, 8, 4);
-
-    // Corner rivets (Metallic military hardware look)
-    iSetColor(110, 120, 130);
-    iFilledRectangle(boxX + 4, boxY + boxH - 5, 2, 2);
-    iFilledRectangle(boxX + boxW - 6, boxY + boxH - 5, 2, 2);
-    iFilledRectangle(boxX + 4, boxY + 3, 2, 2);
-    iFilledRectangle(boxX + boxW - 6, boxY + 3, 2, 2);
-
-    // Weathering scratch marks for post-apocalyptic survivor look
-    iSetColor(50, 60, 70);
-    iLine(boxX + 10, boxY + 12, boxX + 25, boxY + 8);
-    iLine(boxX + boxW - 35, boxY + boxH - 10, boxX + boxW - 15, boxY + boxH - 12);
+    DrawKatanaStyleBox(boxX, boxY, boxW, boxH);
 
     // 2. Weapon Icon Well / Frame (Left Side of Panel)
     int wellX = boxX + 10;

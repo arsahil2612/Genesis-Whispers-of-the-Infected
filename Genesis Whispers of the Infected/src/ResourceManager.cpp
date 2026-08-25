@@ -101,6 +101,14 @@ unsigned int ResourceManager::GetRiverWaterTile() {
     return GetTexture("Assets/Tiles/Bridges/River_water.png");
 }
 
+unsigned int ResourceManager::GetWoodenBridgeSupportBeamTile() {
+    return GetTexture("Assets/Tiles/Bridges/wooden_bridge_support_beam_.png");
+}
+
+unsigned int ResourceManager::GetRainSoakedBrokenBridgeTile() {
+    return GetTexture("Assets/Tiles/Platform Tiles/Rain-soaked_broken_wooden_bridge_tile.png");
+}
+
 unsigned int ResourceManager::GetBrokenRoadTile() {
     return GetTexture("Assets/Tiles/Ground/broken_road.png");
 }
