@@ -76,6 +76,11 @@ Map::Map() {
 // ============================================================================
 // Level Geometry & Collision Setup
 // ============================================================================
+// ============================================================================
+// ============================================================================
+// ============================================================================
+// Level Geometry & Collision Setup
+// ============================================================================
 void Map::LoadLevel(int levelNumber) {
     platforms.clear();
 
@@ -85,24 +90,24 @@ void Map::LoadLevel(int levelNumber) {
         }
 
         // --- Level 1 Platform & Broken Bridge Geometry ---
-        // Section 1: Spawn Area to Quarantine Zone (World X: 0 to 10300)
+        // Section 1: Spawn Area to Quarantine Zone Ground (World X: 0 to 10300, Top Surface Y = 185)
         platforms.push_back({0, 165, 10300, 20});
 
-        // Section 2: Broken Bridge Section 8 Traversal Platforms (World X: 10300 to 11440)
-        // Segment 2A: Left Bridge Platform (10300 to 10620, Width 320)
+        // Section 2: Broken Bridge Section 8 Traversal Platforms (World X: 10300 to 11440, Top Surface Y = 185)
+        // Segment 2A: Left Bridge Platform (10300 to 10620, Width 320, Top Y = 185)
         platforms.push_back({10300, 165, 320, 20});
 
         // [Gap 1: Broken Gap from 10620 to 10760 (140px jump chasm)]
 
-        // Segment 2B: Middle Broken Bridge Plank / Island (10760 to 11000, Width 240)
+        // Segment 2B: Middle Broken Bridge Plank / Island (10760 to 11000, Width 240, Top Y = 185)
         platforms.push_back({10760, 165, 240, 20});
 
         // [Gap 2: Broken Gap from 11000 to 11150 (150px jump chasm)]
 
-        // Segment 2C: Right Bridge Platform (11150 to 11440, Width 290)
+        // Segment 2C: Right Bridge Platform (11150 to 11440, Width 290, Top Y = 185)
         platforms.push_back({11150, 165, 290, 20});
 
-        // Section 3: Mini Boss Arena to Exit Gate (World X: 11440 to 14480)
+        // Section 3: Mini Boss Arena to Exit Gate Ground (World X: 11440 to 14480, Top Surface Y = 185)
         platforms.push_back({11440, 165, 3040, 20});
     }
 }
@@ -161,7 +166,7 @@ void Map::RenderBackground(double camX, bool bossDefeated) {
 }
 
 // ============================================================================
-// LAYER 2: WATER / RIVER RENDERING (Low river surface y=0 to 90)
+// LAYER 2: WATER / RIVER RENDERING (River surface y=0 to 130)
 // ============================================================================
 void Map::RenderWater(double camX, double camY) {
     ResourceManager& rm = ResourceManager::GetInstance();
@@ -172,74 +177,51 @@ void Map::RenderWater(double camX, double camY) {
     double screenChasmStart = kChasmStartX - camX;
     double screenChasmEnd = kChasmEndX - camX;
 
-    // Render River Water low in the chasm (y = 0 to 90), safely below bridge platform at y = 165
+    // Render River Water low in the chasm (y = 0 to 130), clearly visible under bridge deck at y = 185
     if (screenChasmEnd >= -200 && screenChasmStart <= 1480) {
         unsigned int texRiverWater = rm.GetRiverWaterTile();
-        const int kTileW = 160;
-        const int kWaterH = 90;
+        if (texRiverWater != 0) {
+            const int kTileW = 160;
+            const int kWaterH = 130;
 
-        for (double wx = kChasmStartX; wx < kChasmEndX; wx += kTileW) {
-            double screenX = wx - camX;
-            if (screenX + kTileW >= -200 && screenX <= 1480) {
-                iShowImage((int)screenX, 0, kTileW, kWaterH, texRiverWater);
+            for (double wx = kChasmStartX; wx < kChasmEndX; wx += kTileW) {
+                double screenX = wx - camX;
+                if (screenX + kTileW >= -200 && screenX <= 1480) {
+                    int drawW = kTileW;
+                    if (wx + drawW > kChasmEndX) {
+                        drawW = (int)(kChasmEndX - wx);
+                    }
+                    iShowImage((int)screenX, 0, drawW, kWaterH, texRiverWater);
+                }
             }
         }
     }
 }
 
 // ============================================================================
-// LAYER 3: BRIDGE AND ENVIRONMENT SPRITES (Beams, planks & edge caps)
+// LAYER 3: BRIDGE AND ENVIRONMENT SPRITES (Broken Bridge Structure)
 // ============================================================================
 void Map::RenderBridgeAndEnvironmentSprites(double camX, double camY) {
     ResourceManager& rm = ResourceManager::GetInstance();
 
-    unsigned int texBridgeFloor = rm.GetBridgeFloorTile();
-    unsigned int texBrokenBridge = rm.GetBrokenBridgeFloorTile();
-    unsigned int texSupportBeam = rm.GetWoodenBridgeSupportBeamTile();
+    unsigned int texBridgeStructure = rm.GetBrokenBridgeEdgeTile();
 
-    const int kTileW = 80;
+    const double kBridgeStartX = 10300.0;
+    const double kBridgeEndX = 11440.0;
+    const double kBridgeSpanW = kBridgeEndX - kBridgeStartX; // 1140 px
 
-    // 1. Render Wooden Bridge Support Beams (y = 90 to 165, from river surface to platform base)
-    if (texSupportBeam != 0) {
-        double beamPositions[] = { 10350.0, 10530.0, 10720.0, 10960.0, 11150.0, 11400.0 };
-        for (double bX : beamPositions) {
-            double sX = bX - camX;
-            if (sX >= -100 && sX <= 1380) {
-                iShowImage((int)sX, 90, 48, 75, texSupportBeam);
-            }
-        }
-    }
-
-    // 2. Render Wooden Bridge Deck Planks across the 3 playable bridge sections (World X: 10300 to 11440)
-    struct BridgeSection { double startX, endX; };
-    BridgeSection sections[] = {
-        { 10300.0, 10550.0 }, // Left Bridge Platform (Section 2A)
-        { 10700.0, 10980.0 }, // Middle Bridge Island (Section 2B)
-        { 11130.0, 11440.0 }  // Right Bridge Platform (Section 2C)
-    };
-
-    for (const auto& sec : sections) {
-        double secWidth = sec.endX - sec.startX;
-        double screenStart = sec.startX - camX;
-        double screenEnd = sec.endX - camX;
-
-        if (screenEnd >= -200 && screenStart <= 1480) {
-            int count = (int)(secWidth / kTileW) + 1;
-            for (int t = 0; t < count; ++t) {
-                double tileX = sec.startX + (t * kTileW) - camX;
-                double drawW = kTileW;
-                if (sec.startX + (t * kTileW) + drawW > sec.endX) {
-                    drawW = sec.endX - (sec.startX + (t * kTileW));
-                }
-
-                if (tileX + drawW >= -200 && tileX <= 1480 && drawW > 0) {
-                    unsigned int currentTex = (t % 2 == 0) ? texBridgeFloor : texBrokenBridge;
-                    if (currentTex != 0) {
-                        // Planks rendered at y=165, height=20 (top surface aligned exactly at y=185 matching player feet)
-                        iShowImage((int)tileX, 165, (int)drawW, 20, currentTex);
-                    }
-                }
-            }
+    // Render High-Resolution Broken Bridge Structure Sprite (broken_bridge_edge.png [1774x887])
+    // Scaled to full proportion (drawW = 1140, drawH = 330) matching reference screenshot.
+    // Deck top surface is at fraction 0.7993 of texture height.
+    // Setting drawY = 225.8 - (0.7993 * 330.0) = -38.0 aligns top surface of bridge deck EXACTLY at y=225.8 matching Arin's boots baseline,
+    // so Arin stands directly on top of the wooden bridge planks while support pillars extend deep into the river water!
+    if (texBridgeStructure != 0) {
+        double screenBridgeX = kBridgeStartX - camX;
+        if (screenBridgeX + kBridgeSpanW >= -200 && screenBridgeX <= 1480) {
+            const int kDrawW = (int)kBridgeSpanW;
+            const int kDrawH = 330;
+            const int kDrawY = (int)floor(225.8 - (0.7993 * (double)kDrawH)); // -38
+            iShowImage((int)screenBridgeX, kDrawY, kDrawW, kDrawH, texBridgeStructure);
         }
     }
 }

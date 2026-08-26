@@ -475,15 +475,13 @@ void GameManager::Initialize() {
     AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 9520.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
 
     // 3. Market Storage & Rear Exit (x = 10200 to 11000)
-    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10300.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 10600.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 10850.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10240.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
 
     // --- AREA 6: RAIDER CAMP & EXIT GATE (x = 11000 to 13500) ---
     // 1. West Camp Outpost & Perimeter Barricade (x = 11000 to 11400)
-    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 11100.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 11130.0, 210.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning attached cleanly to sandbag post
-    AddWorldProp("Assets/Props/Decorations/prop_generator_01.png", 11350.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 11460.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 11490.0, 210.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning attached cleanly to sandbag post
+    AddWorldProp("Assets/Props/Decorations/prop_generator_01.png", 11520.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // 2. Watchtower & Campfire Hub (x = 11400 to 12200)
     AddWorldProp("Assets/Props/Military/bld_raider_watchtower.png", 11500.0, 185.0, 180.0, 280.0, PROP_LAYER_BACKGROUND);
@@ -765,8 +763,8 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     }
 
     // Broken Bridge Pit Detection (Gap 1: 10620 to 10760, Gap 2: 11000 to 11150)
-    bool inPitGap1 = (player.x > 10615.0 && player.x < 10765.0);
-    bool inPitGap2 = (player.x > 10995.0 && player.x < 11155.0);
+    bool inPitGap1 = (player.x > 10620.0 && player.x < 10760.0);
+    bool inPitGap2 = (player.x > 11000.0 && player.x < 11150.0);
     bool inPit = inPitGap1 || inPitGap2;
 
     if (!inPit && player.y <= 185.0) {
@@ -781,7 +779,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         } else {
             player.x = 10920.0; // Safe platform before Gap 2
         }
-        player.y = 185.0;
+        player.y = 185.0; // Respawns directly on bridge platform
         player.vy = 0.0;
         player.isGrounded = true;
         player.TakeDamage(10); // Environmental hazard damage penalty
