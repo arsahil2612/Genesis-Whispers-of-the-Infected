@@ -85,6 +85,12 @@ void Game::Update() {
     bool specialKeys[512] = { false };
 
     for (int i = 0; i < 512; ++i) {
+        // Sync spacebar with physical OS key state to prevent dropped GLUT keyUp events
+        if (i == 32 || i == ' ') {
+            if ((GetAsyncKeyState(VK_SPACE) & 0x8000) == 0) {
+                keyPressed[i] = 0;
+            }
+        }
         keys[i] = (keyPressed[i] != 0);
         specialKeys[i] = (specialKeyPressed[i] != 0);
     }

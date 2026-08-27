@@ -105,6 +105,7 @@ static unsigned int g_texItemRustyKey = 0;
 static unsigned int g_texItemNovagenKeycard = 0;
 static unsigned int g_texItemMissionNote = 0;
 static unsigned int g_texItemCoin = 0;
+static unsigned int g_texItemBattery = 0;
 
 // Instant Floating Item Pickup Notification Data
 static char g_pickupText[64] = "";
@@ -405,96 +406,91 @@ void GameManager::Initialize() {
     worldProps.clear();
 
     // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
-    // 1. Entrance / Living Room (x = 300 to 1000)
-    AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 420.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Furniture/furn_dining_table_01.png", 750.0, 185.0, 110.0, 70.0, PROP_LAYER_BACKGROUND);
+    // Target: 2–3 Jumpable Props (Active: 3)
+    AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 420.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Chair
+    AddWorldProp("Assets/Props/Furniture/furn_dining_table_01.png", 950.0, 185.0, 110.0, 70.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Low Dining Table
 
-    // 2. Kitchen / Storage Area (x = 1000 to 1700)
-    AddWorldProp("Assets/Props/Furniture/furn_wooden_cabinet_01.png", 1120.0, 185.0, 85.0, 115.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 1520.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND);
+    // 2. Kitchen / Storage Area (x = 1200 to 2000)
+    AddWorldProp("Assets/Props/Furniture/furn_wooden_cabinet_01.png", 1500.0, 185.0, 85.0, 115.0, PROP_LAYER_BACKGROUND, false); // Decorative Wardrobe/Cabinet
+    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 1950.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND, true); // Solid Shopping Cart / Tool Box Obstacle
 
-    // 3. Arin & Luna's Bedrooms (x = 1700 to 2400)
-    AddWorldProp("Assets/Props/Furniture/furn_broken_bed_01.png", 1820.0, 185.0, 130.0, 75.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Furniture/furn_broken_bench_01.png", 2150.0, 185.0, 80.0, 45.0, PROP_LAYER_BACKGROUND);
+    // 3. Arin & Luna's Bedrooms (x = 2000 to 3000)
+    AddWorldProp("Assets/Props/Furniture/furn_broken_bed_01.png", 2400.0, 185.0, 130.0, 75.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle: Standable Bed
+    AddWorldProp("Assets/Props/Furniture/furn_broken_bench_01.png", 2850.0, 185.0, 120.0, 65.0, PROP_LAYER_BACKGROUND, true); // Larger Jumpable Bench Obstacle
 
-    // 4. Grounded Storage & Boundary (x = 2400 to 3400)
-    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 2520.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 3120.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND);
+    // 4. Grounded Storage & Boundary (x = 3000 to 3500)
+    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 3200.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Solid Crate Obstacle
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 3520.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND, true); // Solid Barricade Fence
 
     // --- AREA 3 & 4: VILLAGE STREET & SQUARE (x = 3500 to 7500) ---
-    // 1. Entrance to Village Street (x = 3500 to 4400)
-    AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 3650.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 3655.0, 250.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Story: Evacuation poster attached cleanly to telephone pole
-    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 3900.0, 185.0, 120.0, 180.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 4200.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4220.0, 215.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning sign attached cleanly to pickup truck door
+    // Target Village Street: 3–4 Jumpable Props (Active: 3)
+    AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 3650.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND); // Decorative Pole
+    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 3655.0, 250.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Paper Poster
+    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 3900.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND); // Larger Taller Tree
+    AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 4250.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND); // Decorative Backdrop Vehicle
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4270.0, 215.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Decorative Paper Warning
 
     // 2. Mid Street & Barricade Zone (x = 4400 to 5500)
-    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 4550.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4555.0, 240.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning sign attached cleanly to street lamp post
-    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 4750.0, 185.0, 48.0, 60.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Vehicles/veh_destroyed_car_01.png", 5100.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Nature/dry_bush.png", 5350.0, 185.0, 48.0, 36.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 4580.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4585.0, 240.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Decorative Paper Warning
+    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 4880.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true); // Larger Jumpable Fire Drum Obstacle
+    AddWorldProp("Assets/Props/Vehicles/veh_destroyed_car_01.png", 5280.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND); // Decorative Vehicle
+    AddWorldProp("Assets/Props/Nature/dry_bush.png", 5520.0, 185.0, 48.0, 36.0, PROP_LAYER_FOREGROUND, false); // Decorative Bush / Foliage
 
     // 3. Village Square Approach (x = 5500 to 6700)
-    AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 5600.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 5900.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 5920.0, 220.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Story: Poster attached cleanly to burned ambulance side
-    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 6200.0, 185.0, 56.0, 40.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 6450.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 5800.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND); // Decorative Pole
+    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 6150.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND); // Decorative Vehicle
+    AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 6170.0, 220.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Poster
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 6600.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Barricade Fence
 
     // 4. Village Square Edge (x = 6700 to 7400)
-    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 6850.0, 185.0, 130.0, 190.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7150.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 7155.0, 240.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning attached cleanly to lamp post
-    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 7300.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 7000.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND); // Larger Taller Tree
+    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7350.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 7355.0, 240.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Decorative Warning
+    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 7550.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #3: Oil Drum
 
     // --- AREA 4: VILLAGE SQUARE & QUARANTINE (x = 7500 to 9000) ---
-    // 1. Sandbag Perimeter & Checkpoint (x = 7500 to 7900)
-    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 7600.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7850.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
+    // Target: 2–3 Jumpable Props (Active: 2)
+    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 7750.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Sandbags
+    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 8050.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
 
     // 2. Central Plaza & Rubble (x = 7900 to 8400)
-    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 7950.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 8150.0, 185.0, 90.0, 55.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 8280.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND); // Decorative Vehicle
+    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 8500.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Plaza Oil Drum
 
     // 3. Military Checkpoint Barricade & East Exit (x = 8400 to 9000)
-    AddWorldProp("Assets/Props/Military/bld_military_checkpoint.png", 8550.0, 185.0, 130.0, 85.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 8575.0, 220.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Story: NovaGen poster attached cleanly to checkpoint wall
-    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 8750.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 8900.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Military/bld_military_checkpoint.png", 8800.0, 185.0, 130.0, 85.0, PROP_LAYER_BACKGROUND); // Decorative Checkpoint
+    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 8825.0, 220.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Poster
+    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 9080.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
 
     // --- AREA 5: ABANDONED MARKET (x = 9000 to 11000) ---
-    // 1. Market Storefront & Entrance (x = 9000 to 9400)
-    AddWorldProp("Assets/Props/Buildings/bld_grocery_store_abandoned.png", 9100.0, 185.0, 160.0, 130.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 9125.0, 225.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Story: NovaGen poster attached cleanly to store facade
-    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 9320.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND);
+    // Target: 3–5 Jumpable Props (Active: 3)
+    AddWorldProp("Assets/Props/Buildings/bld_grocery_store_abandoned.png", 9250.0, 185.0, 160.0, 130.0, PROP_LAYER_BACKGROUND); // Decorative Storefront
+    AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 9275.0, 225.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Poster
+    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 9600.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Tool Box / Cart
 
-    // 2. Inner Market Aisles (x = 9400 to 10200)
-    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 9450.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 9520.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
+    // 2. Inner Market Aisles (x = 9500 to 10500)
+    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10050.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND, false); // Image-Only Decorative Shelf
+    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 10450.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Market Crate 1
 
-    // 3. Market Storage & Rear Exit (x = 10200 to 11000)
-    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10240.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND);
+    // 3. Market Storage & Rear Exit (x = 10500 to 11000)
+    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10800.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND, false); // Image-Only Decorative Shelf
+    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 11100.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #3: Market Crate 2
 
     // --- AREA 6: RAIDER CAMP & EXIT GATE (x = 11000 to 13500) ---
-    // 1. West Camp Outpost & Perimeter Barricade (x = 11000 to 11400)
-    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 11460.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 11490.0, 210.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Story: Warning attached cleanly to sandbag post
-    AddWorldProp("Assets/Props/Decorations/prop_generator_01.png", 11520.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND);
+    // Target Raider Camp / Exit Gate: 2–3 Jumpable Props (Active: 2)
+    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 11400.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND, false); // Decorative Sandbags
+    AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 11430.0, 210.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Decorative Poster Warning
+    AddWorldProp("Assets/Props/Decorations/prop_generator_01.png", 11600.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Generator Barricade
 
     // 2. Watchtower & Campfire Hub (x = 11400 to 12200)
-    AddWorldProp("Assets/Props/Military/bld_raider_watchtower.png", 11500.0, 185.0, 180.0, 280.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 11550.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 11620.0, 185.0, 36.0, 45.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 11850.0, 185.0, 48.0, 60.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Military/bld_raider_watchtower.png", 11900.0, 185.0, 180.0, 280.0, PROP_LAYER_BACKGROUND); // Decorative Watchtower
 
     // 3. Exit Gate & Luna's Ribbon Checkpoint (x = 12200 to 13500)
-    AddWorldProp("Assets/Props/Buildings/Quarantine_CheckpointQuarantine_Checkpoint.png", 12400.0, 185.0, 160.0, 120.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/drum.png", 12700.0, 185.0, 50.0, 60.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Military/Exit_Gate.png", 13200.0, 185.0, 586.0, 440.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 12910.0, 185.0, 90.0, 45.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Nature/Assets__stone.png", 13480.0, 185.0, 70.0, 40.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Buildings/Quarantine_CheckpointQuarantine_Checkpoint.png", 12400.0, 185.0, 160.0, 120.0, PROP_LAYER_BACKGROUND); // Decorative Checkpoint
+    AddWorldProp("Assets/Props/Decorations/drum.png", 12750.0, 185.0, 50.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Outpost Oil Drum
+    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 13000.0, 185.0, 90.0, 45.0, PROP_LAYER_FOREGROUND, false); // Decorative Sandbags
+    AddWorldProp("Assets/Props/Military/Exit_Gate.png", 13350.0, 185.0, 586.0, 440.0, PROP_LAYER_BACKGROUND); // Decorative Gate Structure
 
     // Load props texture sheet (4x4 gameplay atlas)
     if (texPropsSheet == 0) {
@@ -575,6 +571,10 @@ void GameManager::Initialize() {
             g_texItemMissionNote = ResourceManager::GetInstance().GetTexture("Assets/Items/Documents/Mission_note.png");
         }
         g_texItemCoin = iLoadImage((char*)GetAssetPath("Assets/Collectibles/coin.png").c_str());
+        g_texItemBattery = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/battery.png").c_str());
+        if (g_texItemBattery == 0) {
+            g_texItemBattery = ResourceManager::GetInstance().GetTexture("Assets/Items/KeyItems/battery.png");
+        }
     }
 
     // Populate Level 1 Enemies per area specification (aligned with kLevel1GroundY)
@@ -758,6 +758,101 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                 player.y = topY;
                 player.vy = 0;
                 player.isGrounded = true;
+            }
+        }
+    }
+
+    // 2b. Solid World Props Obstacle Collision System (Physical barriers: chairs, barrels, drums, crates, debris)
+    for (size_t i = 0; i < worldProps.size(); ++i) {
+        if (!worldProps[i].visible || !worldProps[i].isObstacle) continue;
+
+        double scale = GetPropWorldScale(worldProps[i].assetPath);
+        double renderW = worldProps[i].width * scale;
+        double renderH = worldProps[i].height * scale;
+
+        // Tight collision box factors tuned specifically per visible prop geometry
+        double halfWidthFactor = 0.35; // Default inset (70% of total render width)
+        double topHeightFactor = 0.65; // Default top height (65% of total render height)
+
+        const std::string& path = worldProps[i].assetPath;
+
+        if (path.find("furn_broken_chair") != std::string::npos) {
+            halfWidthFactor = 0.26; // Chair visible frame is centered in texture
+            topHeightFactor = 0.55;
+        }
+        else if (path.find("furn_broken_bench") != std::string::npos) {
+            halfWidthFactor = 0.36;
+            topHeightFactor = 0.50;
+        }
+        else if (path.find("furn_dining_table") != std::string::npos) {
+            halfWidthFactor = 0.38;
+            topHeightFactor = 0.60;
+        }
+        else if (path.find("furn_wooden_cabinet") != std::string::npos || path.find("furn_grocery_shelf") != std::string::npos) {
+            halfWidthFactor = 0.38;
+            topHeightFactor = 0.75;
+        }
+        else if (path.find("furn_broken_bed") != std::string::npos) {
+            halfWidthFactor = 0.25; // Compact physical mattress & frame width allowing Arin to jump ON and OVER bed
+            topHeightFactor = 0.35; // Mattress top surface height
+        }
+        else if (path.find("burning_barrel") != std::string::npos) {
+            halfWidthFactor = 0.30; // Matches physical metal/wooden barrel body (below flames)
+            topHeightFactor = 0.52;
+        }
+        else if (path.find("oil_drum") != std::string::npos) {
+            halfWidthFactor = 0.32; // Matches oil drum cylinder
+            topHeightFactor = 0.68;
+        }
+        else if (path.find("drum.png") != std::string::npos) {
+            halfWidthFactor = 0.33;
+            topHeightFactor = 0.65;
+        }
+        else if (path.find("crate") != std::string::npos) {
+            halfWidthFactor = 0.36; // Matches wooden crate box
+            topHeightFactor = 0.72;
+        }
+        else if (path.find("shopping_cart") != std::string::npos) {
+            halfWidthFactor = 0.34; // Matches tool box / cart body
+            topHeightFactor = 0.58;
+        }
+        else if (path.find("Assets__stone") != std::string::npos) {
+            halfWidthFactor = 0.36; // Matches small stone / debris
+            topHeightFactor = 0.45;
+        }
+        else if (path.find("sandbags") != std::string::npos) {
+            halfWidthFactor = 0.38;
+            topHeightFactor = 0.45;
+        }
+        else if (path.find("generator") != std::string::npos) {
+            halfWidthFactor = 0.35;
+            topHeightFactor = 0.60;
+        }
+
+        double obsLeft = worldProps[i].x - (renderW * halfWidthFactor);
+        double obsRight = worldProps[i].x + (renderW * halfWidthFactor);
+        double obsTop = worldProps[i].y + (renderH * topHeightFactor);
+
+        double playerLeft = player.x + 12.0;
+        double playerRight = player.x + (double)player.width - 12.0;
+
+        // Solid World Prop Collision (Arin cannot walk through obstacles, can land/jump on top)
+        if (playerRight > obsLeft && playerLeft < obsRight) {
+            if (player.vy <= 0 && player.y >= obsTop - 20.0 && player.y <= obsTop + 24.0) {
+                player.y = obsTop;
+                player.vy = 0.0;
+                player.isGrounded = true;
+            }
+            else if (player.y < obsTop - 5.0) {
+                double playerCenterX = player.x + ((double)player.width / 2.0);
+                if (playerCenterX < worldProps[i].x) {
+                    player.x = obsLeft - ((double)player.width - 12.0);
+                    if (player.vx > 0.0) player.vx = 0.0;
+                }
+                else {
+                    player.x = obsRight - 12.0;
+                    if (player.vx < 0.0) player.vx = 0.0;
+                }
             }
         }
     }
@@ -975,7 +1070,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     // 7. Update Enemy physics, AI states, and damage interactions
     for (size_t i = 0; i < enemies.size(); ++i) {
         if (enemies[i].hp > 0) {
-            enemies[i].Update(player.x, player.y);
+            enemies[i].Update(player.x, player.y, player.state == STATE_ATTACK_MELEE);
 
             // Sync boss HP variables
             if (enemies[i].type == TYPE_ABOMINATION) {
@@ -1202,7 +1297,7 @@ void GameManager::RenderMenu() {
 // ============================================================================
 // Independent Environment Prop System Implementation
 // ============================================================================
-void GameManager::AddWorldProp(const std::string& assetPath, double x, double y, double width, double height, PropLayer layer) {
+void GameManager::AddWorldProp(const std::string& assetPath, double x, double y, double width, double height, PropLayer layer, bool isObstacle) {
     WorldProp wp;
     wp.x = x;
     wp.y = y;
@@ -1212,9 +1307,10 @@ void GameManager::AddWorldProp(const std::string& assetPath, double x, double y,
     wp.textureID = ResourceManager::GetInstance().GetTexture(assetPath);
     wp.layer = layer;
     wp.visible = true;
+    wp.isObstacle = isObstacle;
 
     worldProps.push_back(wp);
-    printf("[Prop System] Registered WorldProp: %s at (%.1f, %.1f) scale (%.1f x %.1f)\n", assetPath.c_str(), x, y, width, height);
+    printf("[Prop System] Registered WorldProp: %s at (%.1f, %.1f) scale (%.1f x %.1f) obstacle: %d\n", assetPath.c_str(), x, y, width, height, isObstacle ? 1 : 0);
 }
 
 double GameManager::GetPropWorldScale(const std::string& assetPath) const {
@@ -1267,9 +1363,13 @@ double GameManager::GetPropWorldScale(const std::string& assetPath) const {
         return 2.4;
     }
 
-    // Tall structures / nature (Trees, poles, lamps, watchtower)
-    if (assetPath.find("nature_dead_tree") != std::string::npos ||
-        assetPath.find("telephone_pole") != std::string::npos ||
+    // Dedicated calibrated scale for Dead Trees (Taller and larger relative to Arin)
+    if (assetPath.find("nature_dead_tree") != std::string::npos) {
+        return 2.5;
+    }
+
+    // Tall structures / nature (Poles, lamps, watchtower)
+    if (assetPath.find("telephone_pole") != std::string::npos ||
         assetPath.find("street_lamp") != std::string::npos ||
         assetPath.find("watchtower") != std::string::npos) {
         return kPropScaleTall; // 1.8x
@@ -1294,7 +1394,38 @@ double GameManager::GetPropWorldScale(const std::string& assetPath) const {
 }
 
 double GameManager::GetPropGroundOffset(const std::string& assetPath) const {
-    // Return 0.0 offset so prop bottom bounds align flush with Arin's boot ground baseline (y = 179.0)
+    // 1. Burning barrels and oil drums
+    if (assetPath.find("burning_barrel") != std::string::npos ||
+        assetPath.find("oil_drum") != std::string::npos ||
+        assetPath.find("drum.png") != std::string::npos) {
+        return 13.0; // Lift barrel/drum base flush onto top dirt surface
+    }
+
+    // 2. Street lamps & Telephone poles
+    if (assetPath.find("street_lamp") != std::string::npos ||
+        assetPath.find("telephone_pole") != std::string::npos) {
+        return 14.0; // Lift lamp/pole base flush onto top dirt surface
+    }
+
+    // 3. Raider Watchtower & Military Buildings
+    if (assetPath.find("watchtower") != std::string::npos ||
+        assetPath.find("bld_military_checkpoint") != std::string::npos ||
+        assetPath.find("Quarantine_Checkpoint") != std::string::npos) {
+        return 16.0; // Lift watchtower legs & building bases flush onto top dirt surface
+    }
+
+    // 4. Shopping Cart
+    if (assetPath.find("shopping_cart") != std::string::npos) {
+        return 12.0; // Lift shopping cart so wheels align flush on top of the ground line
+    }
+
+    // 5. Sandbags, Generators & Fences
+    if (assetPath.find("sandbags") != std::string::npos ||
+        assetPath.find("generator") != std::string::npos ||
+        assetPath.find("broken_fence") != std::string::npos) {
+        return 10.0;
+    }
+
     return 0.0;
 }
 
@@ -1478,10 +1609,16 @@ void GameManager::RenderPlaying() {
                     itemDrawW = 42; itemDrawH = 42;
                     break;
                 case COL_BATTERY:
-                    itemTex = 0;
+                    if (g_texItemBattery == 0) {
+                        g_texItemBattery = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/battery.png").c_str());
+                        if (g_texItemBattery == 0) {
+                            g_texItemBattery = ResourceManager::GetInstance().GetTexture("Assets/Items/KeyItems/battery.png");
+                        }
+                    }
+                    itemTex = g_texItemBattery;
                     itemLabel = "BATTERY";
                     lR = 0; lG = 255; lB = 200;
-                    itemDrawW = 36; itemDrawH = 46;
+                    itemDrawW = 38; itemDrawH = 48;
                     break;
                 case COL_NOTE:
                     if (g_texItemMissionNote == 0) {
@@ -2126,17 +2263,20 @@ void GameManager::HandleKeyPress(unsigned char key) {
             } else {
                 currentState = STATE_PLAYING;
                 menuTransitionAlpha = 1.0;
+                player.ResetInputState();
             }
         }
         else if (key == '1') {
             currentState = STATE_PLAYING;
             pauseSubMenu = 0;
             menuTransitionAlpha = 1.0;
+            player.ResetInputState();
         }
         else if (key == '2' || key == 9 || key == '\t' || key == 'i' || key == 'I') {
             currentState = STATE_PLAYING;
             showInventory = true;
             pauseSubMenu = 0;
+            player.ResetInputState();
         }
         else if (key == '3' || key == 'c' || key == 'C') {
             pauseSubMenu = 1; // Controls panel
@@ -2148,6 +2288,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
             Initialize();
             currentState = STATE_PLAYING;
             pauseSubMenu = 0;
+            player.ResetInputState();
         }
         else if (key == '6' || key == 'm' || key == 'M') { // Quit to menu
             currentState = STATE_MENU;
@@ -2164,6 +2305,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
             } else {
                 currentState = STATE_PLAYING;
                 menuTransitionAlpha = 1.0;
+                player.ResetInputState();
             }
         }
     }

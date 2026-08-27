@@ -62,6 +62,8 @@ public:
     int lastHitAttackID;
     BruteAttackType bruteAttack;
     int bruteAttackTimer;
+    int raiderBackstepTimer;
+    int raiderPauseTimer;
 
     // Static Texture Handles (Cached across all instances)
     static unsigned int texWalkerIdle, texWalkerWalk, texWalkerAttack, texWalkerHurt, texWalkerDeath;
@@ -87,7 +89,7 @@ public:
     // Member Methods
     // ========================================================================
     Enemy(double startX, double endX, double y, EnemyType type);
-    void Update(double playerX, double playerY);
+    void Update(double playerX, double playerY, bool playerIsAttacking = false);
     void Render(double camX, double camY);
     void TakeDamage(int damage);
     bool CheckPlayerCollision(double px, double py, int pw, int ph);

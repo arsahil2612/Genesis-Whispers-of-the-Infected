@@ -92,6 +92,7 @@ struct WorldProp {
     unsigned int textureID; // Cached OpenGL texture handle
     PropLayer layer;        // Layer depth
     bool visible;           // Render flag
+    bool isObstacle;        // Solid obstacle flag
 };
 
 enum Level1Area {
@@ -201,7 +202,7 @@ public:
     void Render();
 
     // Independent Environment Prop System Methods
-    void AddWorldProp(const std::string& assetPath, double x, double y, double width, double height, PropLayer layer = PROP_LAYER_BACKGROUND);
+    void AddWorldProp(const std::string& assetPath, double x, double y, double width, double height, PropLayer layer = PROP_LAYER_BACKGROUND, bool isObstacle = false);
     void RenderWorldProps(PropLayer layer, double camX, double camY);
     double GetPropWorldScale(const std::string& assetPath) const;
     double GetPropGroundOffset(const std::string& assetPath) const;

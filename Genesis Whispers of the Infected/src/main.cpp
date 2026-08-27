@@ -36,7 +36,7 @@ void iPassiveMouseMove(int mx, int my) { g_game.HandleMouseMove(mx, my); }
 
 /*
 iMouse() is called when mouse buttons are clicked.
-*/
+*/ 
 void iMouse(int button, int state, int mx, int my) {
   g_game.HandleMouseClick(button, state, mx, my);
 }

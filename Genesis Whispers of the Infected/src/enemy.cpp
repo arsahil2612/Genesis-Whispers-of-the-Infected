@@ -88,6 +88,8 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
     lastHitAttackID = 0;
     bruteAttack = BRUTE_PUNCH;
     bruteAttackTimer = 0;
+    raiderBackstepTimer = 0;
+    raiderPauseTimer = 0;
     inAttackRange = false;
     hasDealtDamage = false;
 
@@ -431,7 +433,7 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
 // ============================================================================
 // AI State Machine & Physics Update
 // ============================================================================
-void Enemy::Update(double playerX, double playerY) {
+void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
     EnemyState oldState = state;
 
     if (state == ENEMY_DEAD) {
@@ -478,7 +480,12 @@ void Enemy::Update(double playerX, double playerY) {
             animFrame = animAttack.GetCurrentFrame();
             if (animAttack.IsFinished()) {
                 state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) ? ENEMY_CHASE : ENEMY_PATROL;
-                attackCooldown = (type == TYPE_RUNNER) ? 35 : ((type == TYPE_HEAVY) ? 75 : 60);
+                if (type == TYPE_RAIDER) {
+                    attackCooldown = 40;
+                    raiderBackstepTimer = 22; // Trigger step-backward evasion after attacking
+                } else {
+                    attackCooldown = (type == TYPE_RUNNER) ? 35 : ((type == TYPE_HEAVY) ? 75 : 60);
+                }
                 animFrame = 0;
                 frameCounter = 0;
                 stateTimer = 0;
@@ -487,11 +494,83 @@ void Enemy::Update(double playerX, double playerY) {
         }
         else {
             state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) ? ENEMY_CHASE : ENEMY_PATROL;
-            attackCooldown = (type == TYPE_RUNNER) ? 35 : ((type == TYPE_HEAVY) ? 75 : 60);
+            if (type == TYPE_RAIDER) {
+                attackCooldown = 40;
+                raiderBackstepTimer = 22;
+            } else {
+                attackCooldown = (type == TYPE_RUNNER) ? 35 : ((type == TYPE_HEAVY) ? 75 : 60);
+            }
             animAttack.Reset();
         }
     }
     else {
+        // --------------------------------------------------------------------
+        // SPECIAL RAIDER COMBAT AI: Tactical Pacing, Katana Avoidance & Opening Counters
+        // --------------------------------------------------------------------
+        if (type == TYPE_RAIDER && distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) {
+            // 1. Post-attack Step Backward Evasion
+            if (raiderBackstepTimer > 0) {
+                raiderBackstepTimer--;
+                state = ENEMY_CHASE;
+                isFacingRight = (playerX > x);
+                double backstepSpeed = 2.4;
+                if (playerX > x) x -= backstepSpeed;
+                else x += backstepSpeed;
+
+                if (animWalk.IsValid()) {
+                    animWalk.Update();
+                    animFrame = animWalk.GetCurrentFrame();
+                }
+                return;
+            }
+
+            // 2. Katana Avoidance & Tactical Pacing (Outside immediate attack range 70px - 140px)
+            if (distToPlayer > ATTACK_RANGE && distToPlayer <= 140.0) {
+                isFacingRight = (playerX > x);
+                // If Arin is currently swinging his katana, Raider stops/steps back outside reach
+                if (playerIsAttacking) {
+                    state = ENEMY_CHASE;
+                    if (distToPlayer < 115.0) {
+                        double stepBack = 1.8;
+                        if (playerX > x) x -= stepBack;
+                        else x += stepBack;
+                    }
+                    if (animIdle.IsValid()) {
+                        animIdle.Update();
+                        animFrame = animIdle.GetCurrentFrame();
+                    }
+                    else if (animWalk.IsValid()) {
+                        animWalk.Update();
+                        animFrame = animWalk.GetCurrentFrame();
+                    }
+                    return;
+                }
+                // If Arin is NOT swinging and Raider is ready, surge forward to punish the opening!
+                else if (attackCooldown <= 0) {
+                    state = ENEMY_CHASE;
+                    double surgeSpeed = 3.6;
+                    if (playerX > x + 8.0) x += surgeSpeed;
+                    else if (playerX < x - 8.0) x -= surgeSpeed;
+
+                    if (distToPlayer <= ATTACK_RANGE) {
+                        state = ENEMY_ATTACK;
+                        hasDealtDamage = false;
+                        animFrame = 0;
+                        frameCounter = 0;
+                        stateTimer = 0;
+                        animAttack.Reset();
+                        return;
+                    }
+
+                    if (animWalk.IsValid()) {
+                        animWalk.Update();
+                        animFrame = animWalk.GetCurrentFrame();
+                    }
+                    return;
+                }
+            }
+        }
+
         // Detect if player is within attack range
         if (distToPlayer <= ATTACK_RANGE && dyToPlayer < 120.0) {
             inAttackRange = true;

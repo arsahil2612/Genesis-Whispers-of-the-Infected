@@ -308,7 +308,17 @@ void Player::Update(bool keys[], bool specialKeys[]) {
     const double TURN_ACCEL = 4800.0;   // Turnaround rate (px/sec^2) when reversing direction
 
     // 3. Jump System: Natural jump arc, variable jump height, apex floatiness, no double jump
-    bool jumpPressed = keys[' '];
+    bool physSpaceDown = ((GetAsyncKeyState(VK_SPACE) & 0x8000) != 0);
+    bool jumpPressed = (keys != NULL && (keys[' '] || keys[32])) || physSpaceDown;
+
+    if (!physSpaceDown) {
+        if (keys != NULL) {
+            keys[' '] = false;
+            keys[32] = false;
+        }
+        wasJumpPressed = false;
+    }
+
     if (jumpPressed && !wasJumpPressed && isGrounded && state != STATE_ATTACK_MELEE && state != STATE_DEAD && state != STATE_HURT) {
         if (staminaDouble >= 10.0) {
             vy = 520.0; // Initial smooth upward launch velocity (px/sec)
@@ -651,6 +661,11 @@ void Player::UseFood() {
         hp = (hp + 25 > maxHp) ? maxHp : hp + 25;
         displayedHp = (double)hp;
     }
+}
+
+void Player::ResetInputState() {
+    wasJumpPressed = false;
+    wasAttackPressed = false;
 }
 
 

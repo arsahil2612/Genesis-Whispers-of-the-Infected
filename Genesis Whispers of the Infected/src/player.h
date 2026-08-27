@@ -84,6 +84,7 @@ public:
     void UseHeal();
     void UseFood();
     void SetState(PlayerState newState);
+    void ResetInputState();
 };
 
 #endif // PLAYER_H
