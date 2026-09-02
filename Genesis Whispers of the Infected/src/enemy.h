@@ -39,6 +39,8 @@ public:
     double x, y;
     double startX, endX; // Patrol bounds
     double vx;
+    double vy; // Vertical velocity for jumping
+    bool isGrounded; // Grounded state
     int width, height;
 
     // Attributes & State Flags
@@ -64,7 +66,8 @@ public:
     int bruteAttackTimer;
     int raiderBackstepTimer;
     int raiderPauseTimer;
-
+    int avoidTimer;
+    int avoidDirection;
     // Static Texture Handles (Cached across all instances)
     static unsigned int texWalkerIdle, texWalkerWalk, texWalkerAttack, texWalkerHurt, texWalkerDeath;
     static unsigned int texRunnerIdle, texRunnerWalk, texRunnerRun, texRunnerAttack, texRunnerHurt, texRunnerDeath;

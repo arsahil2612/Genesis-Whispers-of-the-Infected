@@ -90,8 +90,12 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
     bruteAttackTimer = 0;
     raiderBackstepTimer = 0;
     raiderPauseTimer = 0;
+    avoidTimer = 0;
+    avoidDirection = 1;
     inAttackRange = false;
     hasDealtDamage = false;
+    vy = 0.0;
+    isGrounded = true;
 
     if (type == TYPE_SPITTER) {
         hp = maxHp = 50;
@@ -434,6 +438,19 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
 // AI State Machine & Physics Update
 // ============================================================================
 void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
+
+
+    // Gravity for jumping over obstacles
+    if (!isGrounded) {
+        vy -= 900.0 * 0.016667;
+        y += vy * 0.016667;
+        if (y <= 185.0) {
+            y = 185.0;
+            vy = 0.0;
+            isGrounded = true;
+        }
+    }
+
     EnemyState oldState = state;
 
     if (state == ENEMY_DEAD) {
@@ -572,7 +589,25 @@ void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
         }
 
         // Detect if player is within attack range
-        if (distToPlayer <= ATTACK_RANGE && dyToPlayer < 120.0) {
+        if (avoidTimer > 0) {
+            avoidTimer--;
+            if (avoidTimer > 30) {
+                // Stop movement briefly
+                if (animIdle.IsValid()) {
+                    animIdle.Update();
+                    animFrame = animIdle.GetCurrentFrame();
+                }
+            } else {
+                double avoidSpeed = (type == TYPE_RUNNER) ? 2.5 : 1.5;
+                x += avoidDirection * avoidSpeed;
+                isFacingRight = (avoidDirection == 1);
+                if (animWalk.IsValid()) {
+                    animWalk.Update();
+                    animFrame = animWalk.GetCurrentFrame();
+                }
+            }
+        }
+        else if (distToPlayer <= ATTACK_RANGE && dyToPlayer < 120.0) {
             inAttackRange = true;
             // Face player when close with hysteresis threshold
             if (playerX > x + 8.0) isFacingRight = true;

@@ -226,13 +226,6 @@ void Map::RenderBridgeAndEnvironmentSprites(double camX, double camY) {
     }
 }
 
-// ============================================================================
-// Tilemap Surface & Platform Rendering Loop
-// ============================================================================
-void Map::RenderTiles(double camX, double camY) {
-    RenderWater(camX, camY);
-    RenderBridgeAndEnvironmentSprites(camX, camY);
-}
 
 // ============================================================================
 // Smooth Viewport Camera Tracking
@@ -246,4 +239,3 @@ void Map::ApplyCameraTracking(double playerX, double playerY, int screenWidth, i
 
     cameraY = 0;
 }
-

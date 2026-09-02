@@ -2,7 +2,6 @@
 #define MAP_H
 
 #include <vector>
-
 // ============================================================================
 // Platform Bounding Box Struct
 // ============================================================================
@@ -20,14 +19,12 @@ private:
     double cameraY;
     int levelWidth;
     int levelHeight;
-
 public:
     Map();
     void LoadLevel(int levelNumber);
     void RenderBackground(double cameraX, bool bossDefeated = false);
     void RenderWater(double cameraX, double cameraY);
     void RenderBridgeAndEnvironmentSprites(double cameraX, double cameraY);
-    void RenderTiles(double cameraX, double cameraY);
     void ApplyCameraTracking(double playerX, double playerY, int screenWidth, int screenHeight);
     
     // Inline Getters

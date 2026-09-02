@@ -86,6 +86,7 @@
     <ClInclude Include="src\StoryManager.h" />
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="src\UI.h" />
+    <ClInclude Include="src\TileManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="Glaux.lib" />
@@ -110,6 +111,7 @@
     <ClCompile Include="src\ResourceManager.cpp" />
     <ClCompile Include="src\StoryManager.cpp" />
     <ClCompile Include="src\UI.cpp" />
+    <ClCompile Include="src\TileManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

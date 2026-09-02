@@ -810,7 +810,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         }
         else if (path.find("crate") != std::string::npos) {
             halfWidthFactor = 0.36; // Matches wooden crate box
-            topHeightFactor = 0.72;
+            topHeightFactor = 0.45; // Crate sprite has transparent space, 0.45 perfectly aligns jumping feet
         }
         else if (path.find("shopping_cart") != std::string::npos) {
             halfWidthFactor = 0.34; // Matches tool box / cart body
@@ -1072,6 +1072,120 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         if (enemies[i].hp > 0) {
             enemies[i].Update(player.x, player.y, player.state == STATE_ATTACK_MELEE);
 
+            // Assume falling unless hit prop top
+            if (enemies[i].y > 185.0) {
+                enemies[i].isGrounded = false;
+            } else {
+                enemies[i].isGrounded = true;
+                enemies[i].y = 185.0;
+                enemies[i].vy = 0.0;
+            }
+
+            // Solid World Prop Collision for Enemies
+            for (size_t pIdx = 0; pIdx < worldProps.size(); ++pIdx) {
+                if (!worldProps[pIdx].visible || !worldProps[pIdx].isObstacle) continue;
+
+                double scale = GetPropWorldScale(worldProps[pIdx].assetPath);
+                double renderW = worldProps[pIdx].width * scale;
+                double renderH = worldProps[pIdx].height * scale;
+
+                double halfWidthFactor = 0.35;
+                double topHeightFactor = 0.65;
+                const std::string& path = worldProps[pIdx].assetPath;
+
+                if (path.find("burning_barrel") != std::string::npos) {
+                    halfWidthFactor = 0.30;
+                    topHeightFactor = 0.52;
+                }
+                else if (path.find("oil_drum") != std::string::npos) {
+                    halfWidthFactor = 0.32;
+                    topHeightFactor = 0.68;
+                }
+                else if (path.find("drum.png") != std::string::npos) {
+                    halfWidthFactor = 0.33;
+                    topHeightFactor = 0.65;
+                }
+                else if (path.find("barrel") != std::string::npos || path.find("Barrel") != std::string::npos) {
+                    halfWidthFactor = 0.35;
+                    topHeightFactor = 0.70;
+                }
+                else if (path.find("furn_broken_bed") != std::string::npos) {
+                    halfWidthFactor = 0.25;
+                    topHeightFactor = 0.35;
+                }
+                else if (path.find("furn_wooden_cabinet") != std::string::npos || path.find("furn_grocery_shelf") != std::string::npos) {
+                    halfWidthFactor = 0.38;
+                    topHeightFactor = 0.75;
+                }
+                else if (path.find("shopping_cart") != std::string::npos) {
+                    halfWidthFactor = 0.34;
+                    topHeightFactor = 0.58;
+                }
+                else if (path.find("crate") != std::string::npos) {
+                    halfWidthFactor = 0.36;
+                    topHeightFactor = 0.45;
+                }
+                else if (path.find("debris") != std::string::npos || path.find("stone") != std::string::npos) {
+                    halfWidthFactor = 0.36;
+                    topHeightFactor = 0.45;
+                }
+                else if (path.find("sandbags") != std::string::npos) {
+                    halfWidthFactor = 0.38;
+                    topHeightFactor = 0.45;
+                }
+                else if (path.find("generator") != std::string::npos) {
+                    halfWidthFactor = 0.35;
+                    topHeightFactor = 0.60;
+                }
+
+                double obsLeft = worldProps[pIdx].x - (renderW * halfWidthFactor);
+                double obsRight = worldProps[pIdx].x + (renderW * halfWidthFactor);
+                double obsTop = worldProps[pIdx].y + (renderH * topHeightFactor);
+
+                double enemyLeft = enemies[i].x + 12.0;
+                double enemyRight = enemies[i].x + (double)enemies[i].width - 12.0;
+
+                if (enemyRight > obsLeft && enemyLeft < obsRight) {
+                    if (enemies[i].y >= obsTop - 20.0 && enemies[i].y <= obsTop + 24.0) {
+                        if (enemies[i].vy <= 0.0) {
+                            enemies[i].y = obsTop;
+                            enemies[i].vy = 0.0;
+                            enemies[i].isGrounded = true;
+                        }
+                    }
+                    else if (enemies[i].y < obsTop - 5.0) {
+                        double enemyCenterX = enemies[i].x + ((double)enemies[i].width / 2.0);
+                        if (enemyCenterX < worldProps[pIdx].x) {
+                            enemies[i].x = obsLeft - ((double)enemies[i].width - 12.0);
+                        }
+                        else {
+                            enemies[i].x = obsRight - 12.0;
+                        }
+
+                        if (enemies[i].state == ENEMY_CHASE || enemies[i].state == ENEMY_PATROL) {
+                            if (enemies[i].isGrounded) {
+                                double maxJumpPower = 520.0;
+                                if (enemies[i].type == TYPE_RUNNER) maxJumpPower = 620.0;
+                                else if (enemies[i].type == TYPE_RAIDER) maxJumpPower = 580.0;
+
+                                double maxJumpHeight = (maxJumpPower * maxJumpPower) / 1800.0;
+                                double heightDiff = obsTop - enemies[i].y;
+
+                                if (heightDiff > 0 && heightDiff < maxJumpHeight - 10.0) {
+                                    // Calculate exact velocity needed to clear this obstacle gracefully
+                                    // v = sqrt(2 * g * h) where g = 900.0 (gravity), so 2g = 1800.0
+                                    // Add a slight padding of 15px to make sure they cleanly clear it
+                                    enemies[i].vy = std::sqrt(1800.0 * (heightDiff + 15.0));
+                                    enemies[i].isGrounded = false;
+                                } else if (heightDiff >= maxJumpHeight - 10.0) {
+                                    enemies[i].avoidTimer = 45;
+                                    enemies[i].avoidDirection = (enemyCenterX < worldProps[pIdx].x) ? -1 : 1;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
             // Sync boss HP variables
             if (enemies[i].type == TYPE_ABOMINATION) {
                 bossHp = enemies[i].hp;
@@ -1486,6 +1600,10 @@ void GameManager::RenderPlaying() {
     // LAYER 1: BACKGROUND (Parallax backdrop slices 0-9)
     // ========================================================================
     gameMap.RenderBackground(camX, bossDefeated);
+
+    // ========================================================================
+    // TILE LAYERS: Far Environment, Ground, Platforms & Bridges (REMOVED)
+    // ========================================================================
 
     // ========================================================================
     // LAYER 2: WATER / RIVER (Low river surface y=0 to 90, rendered under bridge)
