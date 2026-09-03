@@ -181,7 +181,7 @@ void GameManager::InitInventory() {
     inventory[0] = InventoryItem("medkit", "FIRST AID MEDKIT", "Restores 40 HP [Click or H]", 2, "Assets/Items/Medicine/first_aid.png");
     inventory[1] = InventoryItem("bandage", "MEDICAL BANDAGE", "Restores 20 HP [Click to Use]", 3, "Assets/Items/Medicine/bandage.png");
     inventory[2] = InventoryItem("food_can", "FOOD CAN", "Restores 25 Stamina [Click or F]", 2, "Assets/Items/Food/food_can.png");
-    inventory[3] = InventoryItem("water_bottle", "WATER BOTTLE", "Restores 30 Stamina [Click to Use]", 2, "Assets/Items/Food/water_bottle.png");
+    inventory[3] = InventoryItem("water_bottle", "WATER BOTTLE", "Restores 25 Stamina [Click to Use]", 2, "Assets/Items/Food/water_bottle.png");
 
     // Row 2: Rations & Key Items
     inventory[4] = InventoryItem("bread", "FRESH BREAD", "Restores 35 Stamina [Click to Use]", 2, "Assets/Items/Food/Bread.png");
@@ -220,52 +220,118 @@ void GameManager::UseInventorySlot(int slotIndex) {
     std::string id = item.id;
 
     if (id == "medkit") {
-        if (player.hp < player.maxHp) {
+        if (player.hp >= player.maxHp) {
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "HEALTH FULL");
+            g_pickupR = 255; g_pickupG = 200; g_pickupB = 50;
+        } else {
             player.hp = player.maxHp;
             player.displayedHp = (double)player.hp;
             if (player.medkits > 0) player.medkits--;
             item.count--;
+
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "MEDKIT USED (FULL HP)");
+            g_pickupR = 255; g_pickupG = 100; g_pickupB = 100;
         }
     }
     else if (id == "bandage") {
-        if (player.hp < player.maxHp) {
+        if (player.hp >= player.maxHp) {
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "HEALTH FULL");
+            g_pickupR = 255; g_pickupG = 200; g_pickupB = 50;
+        } else {
             player.hp = (player.hp + 40 > player.maxHp) ? player.maxHp : player.hp + 40;
             player.displayedHp = (double)player.hp;
             item.count--;
+
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "BANDAGE USED (+40 HP)");
+            g_pickupR = 255; g_pickupG = 100; g_pickupB = 100;
         }
     }
     else if (id == "food_can") {
-        if (player.staminaDouble < player.maxStamina || player.hp < player.maxHp) {
-            player.staminaDouble = (double)player.maxStamina;
-            player.stamina = player.maxStamina;
-            player.displayedStamina = (double)player.maxStamina;
-            player.isExhausted = false;
+        if (player.staminaDouble >= (double)player.maxStamina && player.hp >= player.maxHp) {
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "HP & STAMINA FULL");
+            g_pickupR = 255; g_pickupG = 200; g_pickupB = 50;
+        } else {
+            player.staminaDouble = (player.staminaDouble + 25.0 > (double)player.maxStamina) ? (double)player.maxStamina : player.staminaDouble + 25.0;
+            player.stamina = (int)std::round(player.staminaDouble);
+            player.displayedStamina = player.staminaDouble;
+            if (player.staminaDouble >= 15.0) {
+                player.isExhausted = false;
+            }
             player.hp = (player.hp + 20 > player.maxHp) ? player.maxHp : player.hp + 20;
             player.displayedHp = (double)player.hp;
             if (player.foodCount > 0) player.foodCount--;
             item.count--;
+
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "FOOD CAN USED (+25 STAMINA, +20 HP)");
+            g_pickupR = 255; g_pickupG = 180; g_pickupB = 0;
         }
     }
     else if (id == "water_bottle") {
-        if (player.staminaDouble < player.maxStamina || player.hp < player.maxHp) {
-            player.staminaDouble = (double)player.maxStamina;
-            player.stamina = player.maxStamina;
-            player.displayedStamina = (double)player.maxStamina;
-            player.isExhausted = false;
-            player.hp = (player.hp + 20 > player.maxHp) ? player.maxHp : player.hp + 20;
-            player.displayedHp = (double)player.hp;
+        if (player.staminaDouble >= (double)player.maxStamina) {
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "STAMINA FULL");
+            g_pickupR = 255; g_pickupG = 200; g_pickupB = 50;
+        } else {
+            player.staminaDouble = (player.staminaDouble + 25.0 > (double)player.maxStamina) ? (double)player.maxStamina : player.staminaDouble + 25.0;
+            player.stamina = (int)std::round(player.staminaDouble);
+            player.displayedStamina = player.staminaDouble;
+            if (player.staminaDouble >= 15.0) {
+                player.isExhausted = false;
+            }
+            if (player.waterBottleCount > 0) player.waterBottleCount--;
             item.count--;
+
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "WATER BOTTLE USED (+25 STAMINA)");
+            g_pickupR = 0; g_pickupG = 220; g_pickupB = 255;
         }
     }
     else if (id == "bread") {
-        if (player.staminaDouble < player.maxStamina || player.hp < player.maxHp) {
-            player.staminaDouble = (double)player.maxStamina;
-            player.stamina = player.maxStamina;
-            player.displayedStamina = (double)player.maxStamina;
-            player.isExhausted = false;
+        if (player.staminaDouble >= (double)player.maxStamina && player.hp >= player.maxHp) {
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "HP & STAMINA FULL");
+            g_pickupR = 255; g_pickupG = 200; g_pickupB = 50;
+        } else {
+            player.staminaDouble = (player.staminaDouble + 35.0 > (double)player.maxStamina) ? (double)player.maxStamina : player.staminaDouble + 35.0;
+            player.stamina = (int)std::round(player.staminaDouble);
+            player.displayedStamina = player.staminaDouble;
+            if (player.staminaDouble >= 15.0) {
+                player.isExhausted = false;
+            }
             player.hp = (player.hp + 25 > player.maxHp) ? player.maxHp : player.hp + 25;
             player.displayedHp = (double)player.hp;
+            if (player.foodCount > 0) player.foodCount--;
             item.count--;
+
+            g_pickupTimer = 2.0;
+            g_pickupX = player.x;
+            g_pickupY = player.y + 120.0;
+            sprintf_s(g_pickupText, sizeof(g_pickupText), "BREAD CONSUMED (+35 STAMINA, +25 HP)");
+            g_pickupR = 255; g_pickupG = 180; g_pickupB = 0;
         }
     }
     else if (id == "apple") {
@@ -334,7 +400,7 @@ void GameManager::AddInventoryItem(const std::string& itemId, int count) {
             } else if (itemId == "food_can") {
                 inventory[i] = InventoryItem("food_can", "FOOD CAN", "Restores 25 Stamina [Click or F]", count, "Assets/Items/Food/food_can.png");
             } else if (itemId == "water_bottle") {
-                inventory[i] = InventoryItem("water_bottle", "WATER BOTTLE", "Restores 30 Stamina [Click to Use]", count, "Assets/Items/Food/water_bottle.png");
+                inventory[i] = InventoryItem("water_bottle", "WATER BOTTLE", "Restores 25 Stamina [Click to Use]", count, "Assets/Items/Food/water_bottle.png");
             } else if (itemId == "bread") {
                 inventory[i] = InventoryItem("bread", "FRESH BREAD", "Restores 35 Stamina [Click to Use]", count, "Assets/Items/Food/Bread.png");
             } else if (itemId == "apple") {
@@ -628,6 +694,7 @@ void GameManager::Initialize() {
     collectibles.clear();
     // Section 1 (Spawn Area / Destroyed House)
     collectibles.push_back({ 350, kLevel1GroundY, 32, 32, COL_SCRAP, true, 0 });      // Scrap Metal
+    collectibles.push_back({ 2400, kLevel1GroundY, 32, 32, COL_WATER, true, 0 });     // Water Bottle
     // Section 2 (Village Street: Food, Ammo, Battery)
     collectibles.push_back({ 3500, kLevel1GroundY, 32, 32, COL_FOOD, true, 0 });     // Food (Bread)
     collectibles.push_back({ 4200, kLevel1GroundY, 32, 32, COL_AMMO, true, 0 });     // Ammo
@@ -982,8 +1049,9 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                     g_pickupR = 255; g_pickupG = 180; g_pickupB = 0;
                     break;
                 case COL_WATER:
-                    player.hp = (player.hp + 10 > player.maxHp) ? player.maxHp : player.hp + 10;
-                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 WATER (+10 HP)");
+                    player.waterBottleCount++;
+                    AddInventoryItem("water_bottle", 1);
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 WATER BOTTLE");
                     g_pickupR = 0; g_pickupG = 220; g_pickupB = 255;
                     break;
                 case COL_SCRAP:
@@ -1319,6 +1387,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
             double dist = std::abs(player.x - collectibles[i].x);
             if (dist < 70.0) {
                 switch (collectibles[i].type) {
+<<<<<<< HEAD
                 case COL_NOTE: activePromptText = "[E] READ DOCUMENT"; break;
                 case COL_KEYCARD: activePromptText = "[E] COLLECT NOVAGEN KEYCARD"; break;
                 case COL_RUSTY_KEY: activePromptText = "[E] PICK UP GATE KEY"; break;
@@ -1327,6 +1396,17 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                 case COL_BATTERY: activePromptText = "[E] PICK UP BATTERY"; break;
                 case COL_FOOD: activePromptText = "[E] PICK UP RATION"; break;
                 default: activePromptText = "[E] PICK UP ITEM"; break;
+=======
+                case COL_NOTE: activePromptText = "[E] Read Note"; break;
+                case COL_KEYCARD: activePromptText = "[E] Collect NovaGen Keycard"; break;
+                case COL_RUSTY_KEY: activePromptText = "[E] Pick Up Gate Key"; break;
+                case COL_MEDKIT: activePromptText = "[E] Pick Up Medkit"; break;
+                case COL_AMMO: activePromptText = "[E] Pick Up Ammo"; break;
+                case COL_BATTERY: activePromptText = "[E] Pick Up Battery"; break;
+                case COL_FOOD: activePromptText = "[E] Pick Up Ration"; break;
+                case COL_WATER: activePromptText = "[E] Pick Up Water Bottle"; break;
+                default: activePromptText = "[E] Pick Up Item"; break;
+>>>>>>> ff161b7685cedfd4010a098c60a122d1a695cbe2
                 }
                 activePromptX = (int)(collectibles[i].x - camX);
                 activePromptY = (int)(collectibles[i].y - camY + collectibles[i].height + 30.0);
@@ -2421,6 +2501,13 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             g_pickupR = 255; g_pickupG = 180; g_pickupB = 0;
                             g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
                             break;
+                        case COL_WATER:
+                            player.waterBottleCount++;
+                            AddInventoryItem("water_bottle", 1);
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 WATER BOTTLE");
+                            g_pickupR = 0; g_pickupG = 220; g_pickupB = 255;
+                            g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
+                            break;
                         case COL_AMMO:
                             player.ammo += 15;
                             sprintf_s(g_pickupText, sizeof(g_pickupText), "+15 PISTOL AMMO");
@@ -2471,6 +2558,16 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
         else if (key == 'f' || key == 'F') {
             if (!showInventory) player.UseFood();
+        }
+        else if (key == 'b' || key == 'B') {
+            if (!showInventory) {
+                for (int s = 0; s < 12; ++s) {
+                    if (inventory[s].isOccupied && inventory[s].id == "water_bottle") {
+                        UseInventorySlot(s);
+                        break;
+                    }
+                }
+            }
         }
     }
     else if (currentState == STATE_PAUSED) {
@@ -2700,7 +2797,37 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                         }
                     }
                 } else {
-                    player.AttackMelee();
+                    // Check if player clicked HUD quick bar slots (bottom-left)
+                    int hudX = 20, hudY = 15, hudW = 370, hudH = 58;
+                    if (mx >= hudX && mx <= hudX + hudW && my >= hudY && my <= hudY + hudH) {
+                        int slotW = 84;
+                        int colX[4] = { 28, 118, 208, 298 };
+
+                        if (mx >= colX[0] && mx <= colX[0] + slotW) {
+                            player.UseHeal();
+                            return;
+                        } else if (mx >= colX[1] && mx <= colX[1] + slotW) {
+                            for (int s = 0; s < 12; ++s) {
+                                if (inventory[s].isOccupied && (inventory[s].id == "food_can" || inventory[s].id == "bread" || inventory[s].id == "apple")) {
+                                    UseInventorySlot(s);
+                                    return;
+                                }
+                            }
+                            player.UseFood();
+                            return;
+                        } else if (mx >= colX[2] && mx <= colX[2] + slotW) {
+                            for (int s = 0; s < 12; ++s) {
+                                if (inventory[s].isOccupied && inventory[s].id == "water_bottle") {
+                                    UseInventorySlot(s);
+                                    return;
+                                }
+                            }
+                            player.UseWaterBottle();
+                            return;
+                        }
+                    } else {
+                        player.AttackMelee();
+                    }
                 }
             }
         }

@@ -41,6 +41,7 @@ private:
     static unsigned int texIconMedkit;
     static unsigned int texIconFood;
     static unsigned int texIconBattery;
+    static unsigned int texIconWaterBottle;
     static unsigned int texIconScrap;
     static unsigned int texIconKatana;
 
