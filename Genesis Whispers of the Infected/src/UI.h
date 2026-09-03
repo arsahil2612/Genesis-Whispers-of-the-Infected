@@ -50,15 +50,19 @@ private:
     // Helper text & UI frame utilities
     static void DrawShadowText(int x, int y, const char* str, void* font, int r, int g, int b, int shadowOffset = 1);
     static void DrawOutlinedText(int x, int y, const char* str, void* font, int r, int g, int b);
+    static int GetTextWidth(const char* str, void* font);
     static void DrawButtonSlot(int slotIdx, int textX, int textY, const char* label, void* font, int mouseX, int mouseY, bool isMouseDown, double animTime = 0.0);
     static void DrawKatanaStyleBox(int boxX, int boxY, int boxW, int boxH);
 
 public:
+    static void DrawAlphaText(int x, int y, const char* str, void* font, int r, int g, int b, double alpha);
+    static void DrawAlphaShadowText(int x, int y, const char* str, void* font, int r, int g, int b, double alpha, int shadowOffset = 1);
+    static void DrawAlphaOutlinedText(int x, int y, const char* str, void* font, int r, int g, int b, double alpha);
     static void Initialize();
 
     // Core HUD Drawing Methods (Phase 1 Visual Upgrade)
     static void DrawHUD(const Player& player, int score, const char* objectiveText, const char* areaName, double notifyTimer, double areaBannerAlpha = 1.0);
-    static void DrawAreaBanner(const char* areaName, double alpha);
+    static void DrawAreaBanner(const char* areaName, double alpha, const char* chapterName = "THE FALLEN VILLAGE");
     static void DrawHealthBar(int hp, int maxHp, double displayedHp);
     static void DrawStaminaBar(int stamina, int maxStamina, double displayedStamina);
     static void DrawMissionPanel(const char* objectiveText, const char* areaName, double notifyTimer);

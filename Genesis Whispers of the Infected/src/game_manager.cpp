@@ -1319,14 +1319,14 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
             double dist = std::abs(player.x - collectibles[i].x);
             if (dist < 70.0) {
                 switch (collectibles[i].type) {
-                case COL_NOTE: activePromptText = "[E] Read Note"; break;
-                case COL_KEYCARD: activePromptText = "[E] Collect NovaGen Keycard"; break;
-                case COL_RUSTY_KEY: activePromptText = "[E] Pick Up Gate Key"; break;
-                case COL_MEDKIT: activePromptText = "[E] Pick Up Medkit"; break;
-                case COL_AMMO: activePromptText = "[E] Pick Up Ammo"; break;
-                case COL_BATTERY: activePromptText = "[E] Pick Up Battery"; break;
-                case COL_FOOD: activePromptText = "[E] Pick Up Ration"; break;
-                default: activePromptText = "[E] Pick Up Item"; break;
+                case COL_NOTE: activePromptText = "[E] READ DOCUMENT"; break;
+                case COL_KEYCARD: activePromptText = "[E] COLLECT NOVAGEN KEYCARD"; break;
+                case COL_RUSTY_KEY: activePromptText = "[E] PICK UP GATE KEY"; break;
+                case COL_MEDKIT: activePromptText = "[E] PICK UP MEDKIT"; break;
+                case COL_AMMO: activePromptText = "[E] PICK UP AMMO"; break;
+                case COL_BATTERY: activePromptText = "[E] PICK UP BATTERY"; break;
+                case COL_FOOD: activePromptText = "[E] PICK UP RATION"; break;
+                default: activePromptText = "[E] PICK UP ITEM"; break;
                 }
                 activePromptX = (int)(collectibles[i].x - camX);
                 activePromptY = (int)(collectibles[i].y - camY + collectibles[i].height + 30.0);
@@ -2050,84 +2050,183 @@ void GameManager::RenderPlaying() {
 void GameManager::RenderDialogue() {
     RenderPlaying(); // Render gameplay backdrop
 
-    // Transparent dialog frame centered at bottom of window
-    int panelX = 90;
-    int panelY = 30;
-    int panelW = 1100;
-    int panelH = 180;
+    static double s_dialogueTimer = 0.0;
+    static char s_lastDialogueText[512] = "";
 
-    // Dark semi-transparent dialogue background
-    iSetColor(8, 12, 22);
-    iFilledRectangle(panelX, panelY, panelW, panelH);
+    if (strcmp(g_dialogueText, s_lastDialogueText) != 0) {
+        strcpy_s(s_lastDialogueText, sizeof(s_lastDialogueText), g_dialogueText);
+        s_dialogueTimer = 0.0;
+    }
+    s_dialogueTimer += 0.016; // Approx delta time for 60FPS
 
-    // Glowing cyan outer frame
-    iSetColor(0, 190, 220);
-    iRectangle(panelX, panelY, panelW, panelH);
-    iSetColor(0, 120, 150);
-    iRectangle(panelX + 2, panelY + 2, panelW - 4, panelH - 4);
+    bool isCharacter = (strcmp(g_dialogueSpeaker, "Arin") == 0 || strcmp(g_dialogueSpeaker, "Luna") == 0 || strcmp(g_dialogueSpeaker, "Dr. Kael") == 0);
 
-    // Header Title (Speaker / Note Title)
-    iSetColor(0, 230, 255);
-    iText(panelX + 30, panelY + panelH - 32, g_dialogueSpeaker, GLUT_BITMAP_HELVETICA_18);
+    // Fade in animation
+    double fadeAlpha = s_dialogueTimer * 2.0;
+    if (fadeAlpha > 1.0) fadeAlpha = 1.0;
 
-    // Header accent divider line
-    iSetColor(0, 140, 170);
-    iLine(panelX + 25, panelY + panelH - 42, panelX + panelW - 25, panelY + panelH - 42);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Body Text Multi-line Word-Wrapping Engine
-    int textStartX = panelX + 30;
-    int textStartY = panelY + panelH - 70;
-    int maxPixelWidth = panelW - 60; // 1040px text width
-    int lineHeight = 24;
+    if (isCharacter) {
+        // --- DIALOGUE UI (Cinematic Text Box) ---
+        int panelX = 90;
+        int panelW = 1100;
+        int panelH = 150;
+        int panelY = 40;
 
-    std::string textStr(g_dialogueText);
-    std::vector<std::string> lines;
+        // Dark gradient cinematic background
+        glColor4f(0.02f, 0.02f, 0.02f, 0.85f * fadeAlpha);
+        iFilledRectangle(panelX, panelY, panelW, panelH);
 
-    // Max characters per line for GLUT_BITMAP_HELVETICA_18 (~9.5px per char)
-    int maxCharsPerLine = (int)(maxPixelWidth / 9.5); // ~109 chars
-    if (maxCharsPerLine < 20) maxCharsPerLine = 20;
+        // Subtle bottom/top cinematic lines
+        glColor4f(0.15f, 0.15f, 0.15f, fadeAlpha);
+        iLine(panelX, panelY, panelX + panelW, panelY);
+        iLine(panelX, panelY + panelH, panelX + panelW, panelY + panelH);
 
-    std::stringstream ss(textStr);
-    std::string segment;
+        // Character Name Box
+        int nameW = 200;
+        int nameH = 35;
+        glColor4f(0.08f, 0.08f, 0.08f, 0.9f * fadeAlpha);
+        iFilledRectangle(panelX + 20, panelY + panelH, nameW, nameH);
+        glColor4f(0.3f, 0.3f, 0.3f, fadeAlpha);
+        iLine(panelX + 20, panelY + panelH + nameH, panelX + 20 + nameW, panelY + panelH + nameH);
+        iLine(panelX + 20 + nameW, panelY + panelH, panelX + 20 + nameW, panelY + panelH + nameH);
 
-    while (std::getline(ss, segment, '\n')) {
-        if (segment.empty()) {
-            lines.push_back("");
-            continue;
-        }
+        UI::DrawAlphaShadowText(panelX + 35, panelY + panelH + 10, g_dialogueSpeaker, GLUT_BITMAP_HELVETICA_18, 220, 220, 220, fadeAlpha, 1);
 
-        std::stringstream wordStream(segment);
-        std::string word;
-        std::string currentLine = "";
+        // Body Text Multi-line with Typing Effect
+        int textStartX = panelX + 40;
+        int textStartY = panelY + panelH - 40;
+        int maxPixelWidth = panelW - 80;
+        int lineHeight = 28;
 
-        while (wordStream >> word) {
-            if (currentLine.empty()) {
-                currentLine = word;
-            } else if ((int)(currentLine.length() + 1 + word.length()) <= maxCharsPerLine) {
-                currentLine += " " + word;
-            } else {
+        std::string textStr(g_dialogueText);
+        
+        // Calculate typing length
+        int charactersToReveal = (int)(s_dialogueTimer * 40.0); // 40 chars per second
+        if (charactersToReveal > (int)textStr.length()) charactersToReveal = (int)textStr.length();
+        
+        std::string typedText = textStr.substr(0, charactersToReveal);
+        std::vector<std::string> lines;
+        
+        // Max characters per line for GLUT_BITMAP_HELVETICA_18 (~9.5px per char)
+        int maxCharsPerLine = (int)(maxPixelWidth / 9.5); 
+        if (maxCharsPerLine < 20) maxCharsPerLine = 20;
+
+        std::stringstream ss(typedText);
+        std::string segment;
+
+        while (std::getline(ss, segment, '\n')) {
+            if (segment.empty()) {
+                lines.push_back("");
+                continue;
+            }
+            std::stringstream wordStream(segment);
+            std::string word;
+            std::string currentLine = "";
+            while (wordStream >> word) {
+                if (currentLine.empty()) {
+                    currentLine = word;
+                } else if ((int)(currentLine.length() + 1 + word.length()) <= maxCharsPerLine) {
+                    currentLine += " " + word;
+                } else {
+                    lines.push_back(currentLine);
+                    currentLine = word;
+                }
+            }
+            if (!currentLine.empty()) {
                 lines.push_back(currentLine);
-                currentLine = word;
             }
         }
-        if (!currentLine.empty()) {
-            lines.push_back(currentLine);
-        }
-    }
 
-    // Render body text lines inside panel boundaries
-    iSetColor(240, 245, 255);
-    int currentY = textStartY;
-    for (size_t i = 0; i < lines.size(); ++i) {
-        if (currentY >= panelY + 25) { // Ensure no text extends past bottom padding
-            iText(textStartX, currentY, (char*)lines[i].c_str(), GLUT_BITMAP_HELVETICA_18);
+        int currentY = textStartY;
+        for (size_t i = 0; i < lines.size(); ++i) {
+            UI::DrawAlphaShadowText(textStartX, currentY, lines[i].c_str(), GLUT_BITMAP_HELVETICA_18, 245, 245, 245, fadeAlpha, 1);
+            currentY -= lineHeight;
         }
-        currentY -= lineHeight;
-    }
 
-    // Footer prompt aligned in bottom right inside frame
-    iSetColor(150, 165, 180);
-    iText(panelX + panelW - 220, panelY + 16, "Press [ENTER] to Continue", GLUT_BITMAP_HELVETICA_12);
+        // Footer prompt
+        double promptBlink = (sin(s_dialogueTimer * 5.0) + 1.0) / 2.0;
+        UI::DrawAlphaText(panelX + panelW - 200, panelY + 15, "Press [ENTER] to Continue", GLUT_BITMAP_HELVETICA_12, 120, 120, 120, fadeAlpha * (0.5 + promptBlink * 0.5));
+    } else {
+        // --- NOTE READING UI (Document/Item) ---
+        int panelW = 700;
+        int panelH = 500;
+        int panelX = (1280 - panelW) / 2;
+        int panelY = (720 - panelH) / 2;
+
+        // Dark worn metal frame background
+        glColor4f(0.08f, 0.08f, 0.09f, 0.92f * fadeAlpha);
+        iFilledRectangle(panelX, panelY, panelW, panelH);
+
+        // Damaged edges & inner paper feel
+        glColor4f(0.12f, 0.12f, 0.13f, 0.85f * fadeAlpha);
+        iFilledRectangle(panelX + 15, panelY + 15, panelW - 30, panelH - 30);
+        
+        // Subtle rust border
+        glColor4f(0.35f, 0.15f, 0.1f, 0.7f * fadeAlpha);
+        iRectangle(panelX, panelY, panelW, panelH);
+        iRectangle(panelX + 2, panelY + 2, panelW - 4, panelH - 4);
+        
+        glColor4f(0.4f, 0.4f, 0.4f, 0.3f * fadeAlpha);
+        iRectangle(panelX + 15, panelY + 15, panelW - 30, panelH - 30);
+
+        // Title Header
+        // Muted orange/red highlights for old emergency interface style
+        glColor4f(0.7f, 0.25f, 0.15f, fadeAlpha);
+        iFilledRectangle(panelX + 15, panelY + panelH - 70, panelW - 30, 55);
+
+        UI::DrawAlphaShadowText(panelX + 35, panelY + panelH - 52, g_dialogueSpeaker, GLUT_BITMAP_TIMES_ROMAN_24, 250, 240, 230, fadeAlpha, 2);
+
+        // Document Body
+        int textStartX = panelX + 45;
+        int textStartY = panelY + panelH - 110;
+        int maxPixelWidth = panelW - 90;
+        int lineHeight = 30;
+
+        std::string textStr(g_dialogueText);
+        std::vector<std::string> lines;
+        int maxCharsPerLine = (int)(maxPixelWidth / 9.5);
+        if (maxCharsPerLine < 20) maxCharsPerLine = 20;
+
+        std::stringstream ss(textStr);
+        std::string segment;
+
+        while (std::getline(ss, segment, '\n')) {
+            if (segment.empty()) {
+                lines.push_back("");
+                continue;
+            }
+            std::stringstream wordStream(segment);
+            std::string word;
+            std::string currentLine = "";
+            while (wordStream >> word) {
+                if (currentLine.empty()) {
+                    currentLine = word;
+                } else if ((int)(currentLine.length() + 1 + word.length()) <= maxCharsPerLine) {
+                    currentLine += " " + word;
+                } else {
+                    lines.push_back(currentLine);
+                    currentLine = word;
+                }
+            }
+            if (!currentLine.empty()) {
+                lines.push_back(currentLine);
+            }
+        }
+
+        // Render clean readable text in faded grey/off-white
+        int currentY = textStartY;
+        for (size_t i = 0; i < lines.size(); ++i) {
+            UI::DrawAlphaText(textStartX, currentY, lines[i].c_str(), GLUT_BITMAP_HELVETICA_18, 190, 190, 190, fadeAlpha);
+            currentY -= lineHeight;
+        }
+
+        // Footer prompt
+        double promptBlink = (sin(s_dialogueTimer * 5.0) + 1.0) / 2.0;
+        UI::DrawAlphaText(panelX + panelW - 220, panelY + 25, "Press [ENTER] to Close", GLUT_BITMAP_HELVETICA_12, 140, 60, 40, fadeAlpha * (0.6 + promptBlink * 0.4));
+    }
 }
 
 void GameManager::RenderGameOver() {

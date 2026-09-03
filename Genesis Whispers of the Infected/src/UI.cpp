@@ -56,6 +56,48 @@ void UI::DrawOutlinedText(int x, int y, const char* str, void* font, int r, int 
     iText(x, y, (char*)str, font);
 }
 
+void UI::DrawAlphaText(int x, int y, const char* str, void* font, int r, int g, int b, double alpha) {
+    if (alpha <= 0.005 || !str) return;
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f((float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)alpha);
+    iText(x, y, (char*)str, font);
+}
+
+void UI::DrawAlphaShadowText(int x, int y, const char* str, void* font, int r, int g, int b, double alpha, int shadowOffset) {
+    if (alpha <= 0.005 || !str) return;
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.90f * (float)alpha);
+    iText(x + shadowOffset, y - shadowOffset, (char*)str, font);
+    glColor4f((float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)alpha);
+    iText(x, y, (char*)str, font);
+}
+
+void UI::DrawAlphaOutlinedText(int x, int y, const char* str, void* font, int r, int g, int b, double alpha) {
+    if (alpha <= 0.005 || !str) return;
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.90f * (float)alpha);
+    iText(x + 1, y, (char*)str, font);
+    iText(x - 1, y, (char*)str, font);
+    iText(x, y + 1, (char*)str, font);
+    iText(x, y - 1, (char*)str, font);
+    glColor4f((float)r / 255.0f, (float)g / 255.0f, (float)b / 255.0f, (float)alpha);
+    iText(x, y, (char*)str, font);
+}
+
+int UI::GetTextWidth(const char* str, void* font) {
+    if (!str) return 0;
+    int len = (int)strlen(str);
+    if (font == GLUT_BITMAP_HELVETICA_18) return len * 10;
+    if (font == GLUT_BITMAP_HELVETICA_12) return len * 7;
+    if (font == GLUT_BITMAP_HELVETICA_10) return len * 6;
+    if (font == GLUT_BITMAP_9_BY_15) return len * 9;
+    if (font == GLUT_BITMAP_8_BY_13) return len * 8;
+    return len * 8;
+}
+
 void UI::DrawKatanaStyleBox(int boxX, int boxY, int boxW, int boxH) {
     // 1. Dark Charcoal / Black Metal Base Panel (Post-Apocalyptic Survival Equipment Theme)
     iSetColor(0, 0, 0);
@@ -487,62 +529,195 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
     // 4. Lower-Left: Icon-Based Survival Inventory Display
     DrawInventoryHUD(player, false, false);
 
-    // 5. Score Banner (Upper Right Header) - Katana Weapon Box Theme
-    int hudX = 950;
-    int hudY = 576;
-    int hudW = 310;
-    int hudH = 34;
+    // 5. Score Banner (Upper Right Header) - Redesigned SURVIVAL DATA panel
+    int hudW = 260;
+    int hudH = 110;
+    int hudX = 1260 - hudW; // Right-aligned under the mission panel
+    int hudY = 500;         // Placed nicely below the mission panel
 
-    DrawKatanaStyleBox(hudX, hudY, hudW, hudH);
+    double alpha = 0.9;
+    
+    // Main dark metal panel
+    glColor4f(0.10f, 0.15f, 0.20f, alpha);
+    iFilledRectangle(hudX, hudY, hudW, hudH);
+    
+    // Top highlight
+    glColor4f(0.15f, 0.22f, 0.30f, 0.35f * alpha);
+    iFilledRectangle(hudX + 2, hudY + (hudH / 2), hudW - 4, (hudH / 2) - 2);
 
-    // Adjustable HUD text variables (Tactical 9x15 font)
-    int hudTextX = 974;
-    int hudTextY = 586;
+    // Weathered border
+    glColor4f(0.35f, 0.42f, 0.50f, 0.90f * alpha);
+    iRectangle(hudX, hudY, hudW, hudH);
 
-    // 1) Render "SCORE:" label in steel ivory / warm gold
-    DrawShadowText(hudTextX, hudTextY, "SCORE:", GLUT_BITMAP_9_BY_15, 235, 230, 220);
+    // Inner cyan tactical wireframe stroke
+    glColor4f(0.0f, 0.85f, 1.0f, 0.65f * alpha);
+    iRectangle(hudX + 2, hudY + 2, hudW - 4, hudH - 4);
+    
+    // Corner Rust Brackets
+    glColor4f(0.58f, 0.28f, 0.14f, 0.88f * alpha);
+    iFilledRectangle(hudX, hudY + hudH - 6, 8, 6);
+    iFilledRectangle(hudX + hudW - 8, hudY + hudH - 6, 8, 6);
+    iFilledRectangle(hudX, hudY, 8, 6);
+    iFilledRectangle(hudX + hudW - 8, hudY, 8, 6);
 
-    // 2) Render dynamic C++ score value (%07d) in white
+    // Title: SURVIVAL DATA (Small cyan text)
+    DrawAlphaText(hudX + 15, hudY + hudH - 22, "SURVIVAL DATA", GLUT_BITMAP_HELVETICA_10, 0, 216, 255, alpha);
+    
+    // Divider
+    glColor4f(0.0f, 0.85f, 1.0f, 0.45f * alpha);
+    iLine(hudX + 10, hudY + hudH - 28, hudX + hudW - 10, hudY + hudH - 28);
+    
+    // Layout Metrics
+    int labelX = hudX + 15;
+    int valueX = hudX + 140; // Align all values neatly
+    
+    // SCORE (Row 1)
+    DrawAlphaText(labelX, hudY + hudH - 50, "SCORE", GLUT_BITMAP_HELVETICA_10, 200, 205, 210, alpha);
     char scoreNumStr[16];
     sprintf_s(scoreNumStr, sizeof(scoreNumStr), "%07d", score);
-    DrawShadowText(hudTextX + 63, hudTextY, scoreNumStr, GLUT_BITMAP_9_BY_15, 255, 255, 255);
-
-    // 3) Render "   |   " separator in rust brown accent
-    DrawShadowText(hudTextX + 126, hudTextY, "   |   ", GLUT_BITMAP_9_BY_15, 140, 70, 35);
-
-    // 4) Render "[H] HEAL" prompt in survival amber/orange accent
-    DrawShadowText(hudTextX + 189, hudTextY, "[H] HEAL", GLUT_BITMAP_9_BY_15, 215, 120, 45);
+    DrawAlphaShadowText(valueX, hudY + hudH - 53, scoreNumStr, GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
+    
+    // ENEMIES DEFEATED (Row 2)
+    DrawAlphaText(labelX, hudY + hudH - 75, "ENEMIES", GLUT_BITMAP_HELVETICA_10, 200, 205, 210, alpha);
+    DrawAlphaShadowText(valueX, hudY + hudH - 78, "00", GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
+    
+    // RESOURCES (Row 3)
+    DrawAlphaText(labelX, hudY + hudH - 100, "RESOURCES", GLUT_BITMAP_HELVETICA_10, 200, 205, 210, alpha);
+    int resources = player.scrapCount + player.foodCount + player.batteryCount;
+    
+    // Muted orange warning if no resources
+    int resR = 240, resG = 245, resB = 250;
+    if (resources == 0) { resR = 210; resG = 80; resB = 40; }
+    
+    char resNumStr[16];
+    sprintf_s(resNumStr, sizeof(resNumStr), "%02d", resources);
+    DrawAlphaShadowText(valueX, hudY + hudH - 103, resNumStr, GLUT_BITMAP_HELVETICA_18, resR, resG, resB, alpha, 1);
 
     // 6. Sleek Cinematic Area & Village Title Banner
     DrawAreaBanner(areaName, areaBannerAlpha);
 }
 
-void UI::DrawAreaBanner(const char* areaName, double alpha) {
-    if (alpha <= 0.01 || !areaName) return;
+void UI::DrawAreaBanner(const char* areaName, double alpha, const char* chapterName) {
+    if (alpha <= 0.005 || !areaName) return;
 
-    int textLen = (int)strlen(areaName);
-    int bannerW = 340;
-    int bannerH = 46;
-    int bannerX = 470;
-    int bannerY = 615;
+    const char* chapName = (chapterName && strlen(chapterName) > 0) ? chapterName : "THE FALLEN VILLAGE";
 
-    // Dark glass background panel
-    iSetColor(10, 14, 22);
+    int mainW = GetTextWidth(areaName, GLUT_BITMAP_HELVETICA_18);
+    int chapW = GetTextWidth(chapName, GLUT_BITMAP_HELVETICA_10);
+    int maxTextW = (mainW > chapW) ? mainW : chapW;
+
+    // Dynamic width calculation so short and long location names fit perfectly centered
+    int bannerW = (maxTextW + 170 < 440) ? 440 : (maxTextW + 170);
+    int bannerH = 62;
+
+    int centerX = 640;
+    int targetY = 628;
+
+    // Smooth entrance/exit vertical slide
+    double slideOffset = (1.0 - alpha) * 18.0;
+    int bannerY = (int)(targetY - slideOffset);
+
+    // Subtle horizontal digital glitch offset during transition
+    int glitchX = 0;
+    if (alpha < 0.85) {
+        glitchX = (int)(sin(alpha * 50.0) * 3.5 * (1.0 - alpha));
+    }
+
+    int bannerX = centerX - (bannerW / 2) + glitchX;
+
+    float a = (float)alpha;
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // 1. Translucent Dark Glass Background Panel (Post-Apocalyptic Survival Slate)
+    glColor4f(0.04f, 0.07f, 0.11f, 0.88f * a);
     iFilledRectangle(bannerX, bannerY, bannerW, bannerH);
 
-    // Dual cyan and gold accent border stroke
-    iSetColor(0, 220, 255);
+    // Subtle upper glass specular highlight
+    glColor4f(0.15f, 0.22f, 0.30f, 0.35f * a);
+    iFilledRectangle(bannerX + 2, bannerY + (bannerH / 2), bannerW - 4, (bannerH / 2) - 2);
+
+    // Bottom dark accent shadow band
+    glColor4f(0.02f, 0.03f, 0.05f, 0.45f * a);
+    iFilledRectangle(bannerX + 2, bannerY + 2, bannerW - 4, 16);
+
+    // 2. Weathered Metallic & Rust Trim Frame
+    // Outer worn dark steel border
+    glColor4f(0.35f, 0.42f, 0.50f, 0.90f * a);
     iRectangle(bannerX, bannerY, bannerW, bannerH);
-    iSetColor(255, 215, 0);
+
+    // Inner cyan tactical wireframe stroke
+    glColor4f(0.0f, 0.85f, 1.0f, 0.65f * a);
     iRectangle(bannerX + 2, bannerY + 2, bannerW - 4, bannerH - 4);
 
-    // Level 1 Chapter Title (Upper Header)
-    int headerX = bannerX + (bannerW / 2) - 55;
-    DrawOutlinedText(headerX, bannerY + 28, "THE FALLEN VILLAGE", GLUT_BITMAP_HELVETICA_10, 0, 240, 255);
+    // Corner Rust / Copper Metallic Brackets (Post-Apocalyptic hardware style)
+    glColor4f(0.58f, 0.28f, 0.14f, 0.88f * a);
+    iFilledRectangle(bannerX, bannerY + bannerH - 8, 12, 8);
+    iFilledRectangle(bannerX + bannerW - 12, bannerY + bannerH - 8, 12, 8);
+    iFilledRectangle(bannerX, bannerY, 12, 8);
+    iFilledRectangle(bannerX + bannerW - 12, bannerY, 12, 8);
 
-    // Current Area Name (Main Title)
-    int titleX = bannerX + (bannerW / 2) - (textLen * 4);
-    DrawShadowText(titleX, bannerY + 8, areaName, GLUT_BITMAP_HELVETICA_12, 255, 220, 0);
+    // Corner Fastener Rivets
+    glColor4f(0.85f, 0.90f, 0.95f, 0.95f * a);
+    iFilledRectangle(bannerX + 4, bannerY + bannerH - 6, 3, 3);
+    iFilledRectangle(bannerX + bannerW - 7, bannerY + bannerH - 6, 3, 3);
+    iFilledRectangle(bannerX + 4, bannerY + 3, 3, 3);
+    iFilledRectangle(bannerX + bannerW - 7, bannerY + 3, 3, 3);
+
+    // 3. Decorative Telemetry & Tactical Marker Details
+    // Left side Tactical Reticle Icon [⌖]
+    int lIconCenterX = bannerX + 22;
+    int iconCenterY = bannerY + (bannerH / 2);
+
+    glColor4f(0.0f, 0.85f, 1.0f, 0.85f * a);
+    iRectangle(lIconCenterX - 6, iconCenterY - 6, 12, 12);
+    iLine(lIconCenterX - 9, iconCenterY, lIconCenterX + 9, iconCenterY);
+    iLine(lIconCenterX, iconCenterY - 9, lIconCenterX, iconCenterY + 9);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.95f * a);
+    iFilledRectangle(lIconCenterX - 1, iconCenterY - 1, 3, 3);
+
+    // Right side Tactical Reticle Icon
+    int rIconCenterX = bannerX + bannerW - 22;
+    glColor4f(0.0f, 0.85f, 1.0f, 0.85f * a);
+    iRectangle(rIconCenterX - 6, iconCenterY - 6, 12, 12);
+    iLine(rIconCenterX - 9, iconCenterY, rIconCenterX + 9, iconCenterY);
+    iLine(rIconCenterX, iconCenterY - 9, rIconCenterX, iconCenterY + 9);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.95f * a);
+    iFilledRectangle(rIconCenterX - 1, iconCenterY - 1, 3, 3);
+
+    // Tactical Telemetry Text
+    DrawAlphaText(bannerX + 38, bannerY + bannerH - 15, "[ SEC // 01 ]", GLUT_BITMAP_HELVETICA_10, 0, 200, 240, a);
+    DrawAlphaText(bannerX + bannerW - 138, bannerY + bannerH - 15, "// INFECTED ZONE //", GLUT_BITMAP_HELVETICA_10, 160, 180, 200, a);
+
+    // Horizontal Divider Line under chapter title
+    glColor4f(0.0f, 0.80f, 1.0f, 0.45f * a);
+    iLine(bannerX + 45, bannerY + 29, bannerX + bannerW - 45, bannerY + 29);
+    iFilledRectangle(centerX - 2, bannerY + 28, 5, 3);
+
+    // 4. Typography Hierarchy
+    // Small Top Text: Chapter/Region (e.g. THE FALLEN VILLAGE)
+    int chapX = centerX - (chapW / 2);
+    int chapY = bannerY + 35;
+    DrawAlphaOutlinedText(chapX, chapY, chapName, GLUT_BITMAP_HELVETICA_10, 0, 230, 255, a);
+
+    // Large Main Text: Location Name Reveal (Focus of the UI)
+    int mainX = centerX - (mainW / 2);
+    int mainY = bannerY + 9;
+    // Glow outline pass (cyan tint)
+    DrawAlphaText(mainX + 1, mainY, areaName, GLUT_BITMAP_HELVETICA_18, 0, 210, 240, 0.45 * a);
+    DrawAlphaText(mainX - 1, mainY, areaName, GLUT_BITMAP_HELVETICA_18, 0, 210, 240, 0.45 * a);
+    // Main white focus text with deep shadow
+    DrawAlphaShadowText(mainX, mainY, areaName, GLUT_BITMAP_HELVETICA_18, 255, 255, 255, a, 2);
+
+    // 5. Subtle Glitch Scanline Effect during entrance/exit
+    if (alpha < 0.85) {
+        int scanY1 = bannerY + 14;
+        int scanY2 = bannerY + bannerH - 18;
+        glColor4f(0.0f, 0.90f, 1.0f, 0.35f * a);
+        iLine(bannerX + 10, scanY1, bannerX + bannerW - 10, scanY1);
+        iLine(bannerX + 15, scanY2, bannerX + bannerW - 15, scanY2);
+    }
 }
 
 // ----------------------------------------------------------------------------
@@ -701,40 +876,70 @@ void UI::DrawMissionPanel(const char* objectiveText, const char* areaName, doubl
     int missW = 320;
     int missH = 80;
 
-    if (texMissionBox != 0) {
-        iShowImage(missX, missY, missW, missH, texMissionBox);
-    } else {
-        iSetColor(10, 14, 22);
-        iFilledRectangle(missX, missY, missW, missH);
-        iSetColor(0, 180, 220);
-        iRectangle(missX, missY, missW, missH);
-        iSetColor(0, 140, 180);
-        iRectangle(missX + 2, missY + 2, missW - 4, missH - 4);
-    }
-
-    // Small Mission Reticle Icon [!] on top left
-    iSetColor(0, 240, 255);
-    iRectangle(missX + 12, missY + missH - 22, 12, 12);
-    iSetColor(255, 215, 0);
-    iFilledCircle(missX + 18, missY + missH - 16, 3);
-
-    // Animated glow pulse on objective update
+    // Calculate animation alpha/pulse
+    double alpha = 1.0;
     if (notifyTimer > 0.0) {
-        double objPulse = 0.7 + 0.3 * sin(notifyTimer * 10.0);
-        int gCol = (int)(255 * objPulse);
-        int bCol = (int)(255 * objPulse);
-
-        iSetColor(0, gCol, bCol);
-        iRectangle(missX - 2, missY - 2, missW + 4, missH + 4);
-        DrawOutlinedText(missX + 32, missY + missH - 22, "MISSION DIRECTIVE (UPDATED)", GLUT_BITMAP_HELVETICA_10, 0, 255, 220);
-        DrawShadowText(missX + 14, missY + 20, objectiveText, GLUT_BITMAP_HELVETICA_12, 255, 220, 0);
-    } else {
-        DrawOutlinedText(missX + 32, missY + missH - 22, "MISSION DIRECTIVE", GLUT_BITMAP_HELVETICA_10, 0, 220, 255);
-        
-        char objFormattedStr[128];
-        sprintf_s(objFormattedStr, sizeof(objFormattedStr), "Objective: %s", objectiveText ? objectiveText : "Escape the Fallen Village");
-        DrawShadowText(missX + 14, missY + 20, objFormattedStr, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+        alpha = 0.6 + 0.4 * sin(notifyTimer * 10.0);
     }
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Main dark metal panel
+    glColor4f(0.10f, 0.15f, 0.20f, alpha);
+    iFilledRectangle(missX, missY, missW, missH);
+    
+    // Top lighter highlight
+    glColor4f(0.15f, 0.22f, 0.30f, 0.35f * alpha);
+    iFilledRectangle(missX + 2, missY + (missH / 2), missW - 4, (missH / 2) - 2);
+
+    // Weathered border
+    glColor4f(0.35f, 0.42f, 0.50f, 0.90f * alpha);
+    iRectangle(missX, missY, missW, missH);
+
+    // Inner cyan tactical wireframe stroke
+    glColor4f(0.0f, 0.85f, 1.0f, 0.65f * alpha);
+    iRectangle(missX + 2, missY + 2, missW - 4, missH - 4);
+
+    // Corner Rust Brackets
+    glColor4f(0.58f, 0.28f, 0.14f, 0.88f * alpha);
+    iFilledRectangle(missX, missY + missH - 8, 12, 8);
+    iFilledRectangle(missX + missW - 12, missY + missH - 8, 12, 8);
+    iFilledRectangle(missX, missY, 12, 8);
+    iFilledRectangle(missX + missW - 12, missY, 12, 8);
+
+    // Rivets
+    glColor4f(0.85f, 0.90f, 0.95f, 0.95f * alpha);
+    iFilledRectangle(missX + 4, missY + missH - 6, 3, 3);
+    iFilledRectangle(missX + missW - 7, missY + missH - 6, 3, 3);
+    iFilledRectangle(missX + 4, missY + 3, 3, 3);
+    iFilledRectangle(missX + missW - 7, missY + 3, 3, 3);
+
+    // Small mission indicator icon (Reticle style)
+    int iconX = missX + 22;
+    int iconY = missY + missH - 15;
+    glColor4f(0.0f, 0.85f, 1.0f, 0.85f * alpha);
+    iRectangle(iconX - 5, iconY - 5, 10, 10);
+    iLine(iconX - 8, iconY, iconX + 8, iconY);
+    iLine(iconX, iconY - 8, iconX, iconY + 8);
+    glColor4f(1.0f, 1.0f, 1.0f, 0.95f * alpha);
+    iFilledRectangle(iconX - 1, iconY - 1, 3, 3);
+
+    // Scanline effect during activation
+    if (alpha < 0.95) {
+        glColor4f(0.0f, 0.90f, 1.0f, 0.25f * alpha);
+        iLine(missX + 5, missY + 20, missX + missW - 5, missY + 20);
+        iLine(missX + 5, missY + 60, missX + missW - 5, missY + 60);
+    }
+
+    // Texts
+    const char* defaultObj = "ESCAPE THE FALLEN VILLAGE";
+    const char* objStr = objectiveText ? objectiveText : defaultObj;
+
+    DrawAlphaText(missX + 38, missY + missH - 20, "MISSION // 001", GLUT_BITMAP_HELVETICA_10, 0, 210, 240, alpha);
+    
+    // Large white/grey text for objective
+    DrawAlphaShadowText(missX + 18, missY + 25, objStr, GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
 }
 
 void UI::DrawMissionBox(const char* objectiveText, const char* areaName, double notifyTimer) {
@@ -1014,20 +1219,48 @@ void UI::DrawAmmoCounter(int ammo, int reserveAmmo) {
 void UI::DrawInteractionPrompt(const char* promptText, int screenX, int screenY) {
     if (!promptText || strlen(promptText) == 0) return;
 
-    int textLen = (int)strlen(promptText);
-    int boxW = textLen * 9 + 24;
-    int boxH = 32;
+    // Subtle floating animation using tick count
+    double animOffset = sin(GetTickCount() * 0.005) * 3.0;
+
+    // Remove the "[E]" part for drawing specifically if we're making a key icon
+    std::string actionStr = promptText;
+    bool hasEKey = false;
+    if (actionStr.find("[E] ") == 0) {
+        actionStr = actionStr.substr(4);
+        hasEKey = true;
+    }
+
+    int textLen = (int)actionStr.length();
+    int textW = textLen * 7; // Approx width for Helvetica 12
+    int boxW = textW + (hasEKey ? 45 : 20);
+    int boxH = 28;
     int boxX = screenX - (boxW / 2);
-    int boxY = screenY;
+    int boxY = screenY + (int)animOffset;
 
-    iSetColor(8, 12, 20);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Dark worn background
+    glColor4f(0.05f, 0.06f, 0.08f, 0.85f);
     iFilledRectangle(boxX, boxY, boxW, boxH);
-    iSetColor(0, 240, 255);
-    iRectangle(boxX, boxY, boxW, boxH);
-    iSetColor(255, 215, 0);
-    iRectangle(boxX + 2, boxY + 2, boxW - 4, boxH - 4);
 
-    DrawShadowText(boxX + 12, boxY + 10, promptText, GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    // Faded grey/metal border
+    glColor4f(0.4f, 0.42f, 0.45f, 0.9f);
+    iRectangle(boxX, boxY, boxW, boxH);
+
+    int textDrawX = boxX + 10;
+
+    if (hasEKey) {
+        // Draw key icon box
+        glColor4f(0.8f, 0.82f, 0.85f, 0.9f);
+        iFilledRectangle(boxX + 6, boxY + 4, 20, 20);
+        glColor4f(0.1f, 0.1f, 0.12f, 1.0f);
+        iText(boxX + 12, boxY + 8, (char*)"E", GLUT_BITMAP_HELVETICA_12);
+        textDrawX += 24;
+    }
+
+    // Readable action text (off white)
+    DrawAlphaShadowText(textDrawX, boxY + 8, actionStr.c_str(), GLUT_BITMAP_HELVETICA_12, 230, 235, 240, 1.0, 1);
 }
 
 // ============================================================================
@@ -1146,21 +1379,52 @@ void UI::DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp, doub
     iFilledRectangle(skullX + 21, skullY + 20, 2, 2);  // Glowing Pupil R
 
     // 6. Centered Header Display (FINAL BOSS & MUTATED BRUTE centered at X = 640)
-    int tagW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_10, "FINAL BOSS");
+    
+    // --- "FINAL BOSS" Text ---
+    // Style: Muted red/orange warning color, subtle glow, glitch effect, Times Roman 24 for sharp edges
+    void* tagFont = GLUT_BITMAP_TIMES_ROMAN_24;
+    int tagW = GetGlutStringWidth(tagFont, "FINAL BOSS");
     int tagX = 640 - (tagW / 2);
-    DrawShadowText(tagX, 672, "FINAL BOSS", GLUT_BITMAP_HELVETICA_10, 255, 70, 70);
+    int tagY = 678;
+    
+    // Subtle glow (multiple offset shadows)
+    DrawShadowText(tagX - 1, tagY - 1, "FINAL BOSS", tagFont, 180, 20, 20);
+    DrawShadowText(tagX + 1, tagY + 1, "FINAL BOSS", tagFont, 180, 20, 20);
+    // Chromatic aberration / glitch effect (cyan/red split)
+    DrawShadowText(tagX - 2, tagY, "FINAL BOSS", tagFont, 255, 0, 50);  // Glitch Red
+    DrawShadowText(tagX + 2, tagY, "FINAL BOSS", tagFont, 0, 200, 255); // Glitch Cyan
+    // Core text
+    DrawOutlinedText(tagX, tagY, "FINAL BOSS", tagFont, 220, 80, 60);
 
-    int nameW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_12, bossName);
+    // --- "MUTATED BRUTE" (bossName) Text ---
+    // Style: Pale white/grey metallic text, dark shadow, slight infected texture, Helvetica 18
+    void* nameFont = GLUT_BITMAP_HELVETICA_18;
+    int nameW = GetGlutStringWidth(nameFont, bossName);
     int nameX = 640 - (nameW / 2);
-    DrawOutlinedText(nameX, 652, bossName, GLUT_BITMAP_HELVETICA_12, 255, 220, 100);
+    int nameY = 654;
+    
+    // Dark deep shadow
+    DrawShadowText(nameX + 2, nameY - 2, bossName, nameFont, 10, 10, 15);
+    // Infected texture/glow (sickly green/yellow offset)
+    DrawShadowText(nameX - 1, nameY + 1, bossName, nameFont, 120, 140, 60);
+    DrawShadowText(nameX + 1, nameY - 1, bossName, nameFont, 80, 100, 40);
+    // Core metallic text
+    DrawOutlinedText(nameX, nameY, bossName, nameFont, 210, 215, 220);
 
     // 7. Centered Numerical Health & Percentage Text
+    // Style: Clean readable font (monospace 8x13), smaller size, military HUD feeling
     char hpStr[64];
     int pct = (int)(bossHpPercent * 100.0);
     sprintf_s(hpStr, sizeof(hpStr), "%d / %d (%d%%)", bossHp, bossMaxHp, pct);
-    int hpW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_10, hpStr);
+    
+    void* hpFont = GLUT_BITMAP_8_BY_13;
+    int hpW = GetGlutStringWidth(hpFont, hpStr);
     int hpX = 640 - (hpW / 2);
-    DrawShadowText(hpX, 631, hpStr, GLUT_BITMAP_HELVETICA_10, 240, 240, 250);
+    int hpY = 632;
+    
+    // HUD shadow & clean cyan/white color
+    DrawShadowText(hpX + 1, hpY - 1, hpStr, hpFont, 20, 30, 30);
+    DrawOutlinedText(hpX, hpY, hpStr, hpFont, 180, 220, 220);
 }
 
 // ============================================================================
