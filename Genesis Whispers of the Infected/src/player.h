@@ -37,6 +37,7 @@ public:
     int foodCount;
     int batteryCount;
     int scrapCount;
+    int waterBottleCount;
     int stamina;
     int maxStamina;
     double staminaDouble;
@@ -83,6 +84,7 @@ public:
     void AttackRanged();
     void UseHeal();
     void UseFood();
+    void UseWaterBottle();
     void SetState(PlayerState newState);
     void ResetInputState();
 };

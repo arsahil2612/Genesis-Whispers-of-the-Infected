@@ -31,6 +31,7 @@ unsigned int UI::texScoreHeal = 0;
 unsigned int UI::texIconMedkit = 0;
 unsigned int UI::texIconFood = 0;
 unsigned int UI::texIconBattery = 0;
+unsigned int UI::texIconWaterBottle = 0;
 unsigned int UI::texIconScrap = 0;
 unsigned int UI::texIconKatana = 0;
 
@@ -462,6 +463,9 @@ void UI::Initialize() {
     if (texIconBattery == 0) {
         texIconBattery = iLoadImage((char*)GetAssetPath("Assets/Items/Food/water_bottle.png").c_str());
     }
+    if (texIconWaterBottle == 0) {
+        texIconWaterBottle = iLoadImage((char*)GetAssetPath("Assets/Items/Food/water_bottle.png").c_str());
+    }
     if (texIconScrap == 0) {
         texIconScrap = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/Scrap_Metal.png").c_str());
     }
@@ -855,7 +859,7 @@ void UI::DrawInventoryHUD(const Player& player, bool hasKeycard, bool ribbonColl
     int iconSize = 22;
     int iconOffsetY = wellY + 6;
 
-    // 1. Medkit Slot & Count
+    // 1. Medkit Slot & Count [H]
     int iconX0 = colX[0] + 6;
     if (texIconMedkit != 0) {
         iShowImage(iconX0, iconOffsetY, iconSize, iconSize, texIconMedkit);
@@ -870,9 +874,10 @@ void UI::DrawInventoryHUD(const Player& player, bool hasKeycard, bool ribbonColl
     }
     char medStr[16];
     sprintf_s(medStr, sizeof(medStr), "x%d", player.medkits);
-    DrawShadowText(colX[0] + 35, iconOffsetY + 5, medStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
+    DrawShadowText(colX[0] + 32, iconOffsetY + 5, medStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
+    DrawShadowText(colX[0] + wellW - 20, iconOffsetY + 5, "[H]", GLUT_BITMAP_HELVETICA_10, 215, 115, 35);
 
-    // 2. Food Slot & Count
+    // 2. Food Slot & Count [F]
     int iconX1 = colX[1] + 6;
     if (texIconFood != 0) {
         iShowImage(iconX1, iconOffsetY, iconSize, iconSize, texIconFood);
@@ -888,25 +893,27 @@ void UI::DrawInventoryHUD(const Player& player, bool hasKeycard, bool ribbonColl
     }
     char foodStr[16];
     sprintf_s(foodStr, sizeof(foodStr), "x%d", player.foodCount);
-    DrawShadowText(colX[1] + 35, iconOffsetY + 5, foodStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
+    DrawShadowText(colX[1] + 32, iconOffsetY + 5, foodStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
+    DrawShadowText(colX[1] + wellW - 18, iconOffsetY + 5, "[F]", GLUT_BITMAP_HELVETICA_10, 215, 115, 35);
 
-    // 3. Battery / Power Slot & Count
+    // 3. Water Bottle Slot & Count [B]
     int iconX2 = colX[2] + 6;
-    if (texIconBattery != 0) {
+    if (texIconWaterBottle != 0) {
+        iShowImage(iconX2, iconOffsetY, iconSize, iconSize, texIconWaterBottle);
+    } else if (texIconBattery != 0) {
         iShowImage(iconX2, iconOffsetY, iconSize, iconSize, texIconBattery);
     } else {
-        iSetColor(25, 32, 40); // Tactical power cell casing
-        iFilledRectangle(iconX2, iconOffsetY, iconSize, iconSize);
-        iSetColor(70, 80, 95);
-        iRectangle(iconX2, iconOffsetY, iconSize, iconSize);
-        iSetColor(190, 115, 28); // Amber power core
-        iFilledRectangle(iconX2 + 6, iconOffsetY + 5, 10, 12);
-        iSetColor(220, 160, 45); // Terminal top
-        iFilledRectangle(iconX2 + 8, iconOffsetY + 17, 6, 2);
+        iSetColor(0, 150, 220); // Plastic bottle body
+        iFilledRectangle(iconX2 + 5, iconOffsetY + 2, 12, 16);
+        iSetColor(0, 200, 255); // Water level fill
+        iFilledRectangle(iconX2 + 6, iconOffsetY + 3, 10, 11);
+        iSetColor(220, 220, 240); // Cap
+        iFilledRectangle(iconX2 + 7, iconOffsetY + 18, 8, 4);
     }
     char batStr[16];
-    sprintf_s(batStr, sizeof(batStr), "x%d", player.batteryCount);
-    DrawShadowText(colX[2] + 35, iconOffsetY + 5, batStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
+    sprintf_s(batStr, sizeof(batStr), "x%d", player.waterBottleCount);
+    DrawShadowText(colX[2] + 32, iconOffsetY + 5, batStr, GLUT_BITMAP_HELVETICA_12, 235, 230, 218);
+    DrawShadowText(colX[2] + wellW - 19, iconOffsetY + 5, "[B]", GLUT_BITMAP_HELVETICA_10, 215, 115, 35);
 
     // 4. Scrap / Resources Slot & Count
     int iconX3 = colX[3] + 6;

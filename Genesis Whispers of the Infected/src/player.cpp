@@ -30,6 +30,7 @@ Player::Player() {
     foodCount = 1;
     batteryCount = 1;
     scrapCount = 0;
+    waterBottleCount = 2;
     staminaDouble = 100.0;
     stamina = maxStamina = 100;
     displayedStamina = 100.0;
@@ -63,6 +64,7 @@ void Player::Initialize(double startX, double startY) {
     foodCount = 1;
     batteryCount = 1;
     scrapCount = 0;
+    waterBottleCount = 2;
     staminaDouble = 100.0;
     stamina = maxStamina = 100;
     displayedStamina = (double)stamina;
@@ -660,6 +662,19 @@ void Player::UseFood() {
         isExhausted = false;
         hp = (hp + 25 > maxHp) ? maxHp : hp + 25;
         displayedHp = (double)hp;
+    }
+}
+
+void Player::UseWaterBottle() {
+    if (state == STATE_DEAD || state == STATE_HURT) return;
+    if (waterBottleCount > 0 && staminaDouble < (double)maxStamina) {
+        waterBottleCount--;
+        staminaDouble = (staminaDouble + 25.0 > (double)maxStamina) ? (double)maxStamina : staminaDouble + 25.0;
+        stamina = (int)std::round(staminaDouble);
+        displayedStamina = staminaDouble;
+        if (staminaDouble >= 15.0) {
+            isExhausted = false;
+        }
     }
 }
 
