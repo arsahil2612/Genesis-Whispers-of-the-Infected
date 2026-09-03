@@ -19,6 +19,7 @@ private:
     double cameraY;
     int levelWidth;
     int levelHeight;
+    int currentLevelNumber;
 public:
     Map();
     void LoadLevel(int levelNumber);
@@ -32,6 +33,7 @@ public:
     double GetCameraX() const { return cameraX; }
     double GetCameraY() const { return cameraY; }
     int GetLevelWidth() const { return levelWidth; }
+    int GetCurrentLevelNumber() const { return currentLevelNumber; }
 };
 
 #endif // MAP_H

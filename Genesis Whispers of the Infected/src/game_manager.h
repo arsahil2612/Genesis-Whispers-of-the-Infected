@@ -110,6 +110,21 @@ enum Level1Area {
     AREA_LEVEL_COMPLETE
 };
 
+enum Level2Area {
+    L2_AREA_FOREST_ENTRANCE,
+    L2_AREA_ABANDONED_ROAD,
+    L2_AREA_EVACUATION_CAMP,
+    L2_AREA_DEEP_FOREST,
+    L2_AREA_RIVER_CROSSING,
+    L2_AREA_SURVIVOR_HIDEOUT,
+    L2_AREA_INFECTED_FOREST,
+    L2_AREA_NOVAGEN_OUTPOST,
+    L2_AREA_RESEARCH_FACILITY,
+    L2_AREA_BOSS_ARENA,
+    L2_AREA_FACILITY_B_ROAD,
+    L2_AREA_LEVEL_COMPLETE
+};
+
 // Authoritative Level 1 Ground Baseline Coordinate
 const double kLevel1GroundY = 185.0;
 
@@ -136,9 +151,9 @@ private:
     std::vector<WorldProp> worldProps;
     unsigned int texPropsSheet;
 
-    // Level 1 Area Tracking
-    Level1Area currentArea;
-    Level1Area previousArea;
+    // Level Area Tracking
+    int currentAreaIndex;
+    int previousAreaIndex;
     double areaBannerTimer;
     double areaBannerAlpha;
 
@@ -198,6 +213,8 @@ public:
     GameManager();
     
     void Initialize();
+    void LoadLevel1();
+    void LoadLevel2();
     void Update(bool keys[], bool specialKeys[]);
     void Render();
 
@@ -219,9 +236,10 @@ public:
     GameState GetCurrentState() const { return currentState; }
     void SetCurrentState(GameState state) { currentState = state; }
 
-    Level1Area GetCurrentArea() const { return currentArea; }
-    Level1Area GetAreaFromPosition(double px) const;
-    const char* GetAreaName(Level1Area area) const;
+    int GetCurrentLevel() const { return currentLevel; }
+    int GetAreaFromPosition(double px) const;
+    const char* GetAreaName(int areaIdx) const;
+    const char* GetCurrentChapterName() const;
 };
 
 #endif // GAME_MANAGER_H

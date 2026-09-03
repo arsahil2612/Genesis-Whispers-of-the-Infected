@@ -17,6 +17,12 @@ int GetLevel1BackgroundFileIndex(int sliceIndex, bool bossDefeated);
 // Loads (or returns cached) texture handle for a Level 1 background slice.
 unsigned int LoadLevel1BackgroundTexture(int sliceIndex, bool bossDefeated);
 
+// Loads (or returns cached) texture handle for a Level 2 background slice.
+unsigned int LoadLevel2BackgroundTexture(int sliceIndex);
+
+// Clears static background texture caches
+void ClearBackgroundCache();
+
 // Helper for resolving asset paths across build directories
 std::string GetAssetPath(const std::string &relativePath);
 

@@ -117,8 +117,25 @@ static int g_pickupR = 255, g_pickupG = 255, g_pickupB = 255;
 // ============================================================================
 // Constructor & Level Initialization
 // ============================================================================
-const char* GameManager::GetAreaName(Level1Area area) const {
-    switch (area) {
+const char* GameManager::GetAreaName(int areaIdx) const {
+    if (currentLevel == 2) {
+        switch (areaIdx) {
+        case L2_AREA_FOREST_ENTRANCE:  return "Forest Entrance";
+        case L2_AREA_ABANDONED_ROAD:   return "Abandoned Road";
+        case L2_AREA_EVACUATION_CAMP:  return "Evacuation Camp";
+        case L2_AREA_DEEP_FOREST:      return "Deep Forest";
+        case L2_AREA_RIVER_CROSSING:   return "River Crossing";
+        case L2_AREA_SURVIVOR_HIDEOUT: return "Survivor Hideout";
+        case L2_AREA_INFECTED_FOREST:  return "Infected Forest";
+        case L2_AREA_NOVAGEN_OUTPOST:  return "NovaGen Outpost";
+        case L2_AREA_RESEARCH_FACILITY:return "Research Facility";
+        case L2_AREA_BOSS_ARENA:       return "Boss Arena";
+        case L2_AREA_FACILITY_B_ROAD:  return "Facility B Road";
+        case L2_AREA_LEVEL_COMPLETE:   return "Level Complete";
+        default:                        return "Blackwood Forest";
+        }
+    }
+    switch (areaIdx) {
     case AREA_SPAWN_AREA:
     case AREA_DESTROYED_HOUSE:   return "Spawn Area / Destroyed House";
     case AREA_VILLAGE_STREET:    return "Village Street";
@@ -131,8 +148,12 @@ const char* GameManager::GetAreaName(Level1Area area) const {
     case AREA_MINI_BOSS_ARENA:   return "Mini Boss Arena";
     case AREA_EXIT_GATE:         return "Exit Gate";
     case AREA_LEVEL_COMPLETE:    return "Level Complete";
-    default:                     return "Unknown Area";
+    default:                     return "The Fallen Village";
     }
+}
+
+const char* GameManager::GetCurrentChapterName() const {
+    return (currentLevel == 2) ? "BLACKWOOD FOREST" : "THE FALLEN VILLAGE";
 }
 
 GameManager::GameManager() {
@@ -141,8 +162,8 @@ GameManager::GameManager() {
     currentLevel = 1;
     texPropsSheet = 0;
 
-    currentArea = AREA_SPAWN_AREA;
-    previousArea = AREA_SPAWN_AREA;
+    currentAreaIndex = AREA_SPAWN_AREA;
+    previousAreaIndex = AREA_SPAWN_AREA;
     areaBannerTimer = 4.0;
     areaBannerAlpha = 1.0;
 
@@ -164,6 +185,7 @@ GameManager::GameManager() {
     missionNotifyTimer = 0.0;
     lastObjectiveID = 0;
     uiAnimTime = 0.0;
+    deathTimer = 0.0;
     pauseSubMenu = 0;
     activePromptText = "";
     activePromptX = 0;
@@ -431,13 +453,18 @@ void GameManager::AddInventoryItem(const std::string& itemId, int count) {
 void GameManager::Initialize() {
     UI::Initialize();
     score = 0;
+    leaderboard.LoadScores();
+    InitInventory();
+    LoadLevel1();
+}
+
+void GameManager::LoadLevel1() {
     currentLevel = 1;
     player.Initialize(200, 185); // Arin starting location inside destroyed house (x=200, groundY=185)
     gameMap.LoadLevel(currentLevel);
-    leaderboard.LoadScores();
 
-    currentArea = AREA_SPAWN_AREA;
-    previousArea = AREA_SPAWN_AREA;
+    currentAreaIndex = AREA_SPAWN_AREA;
+    previousAreaIndex = AREA_SPAWN_AREA;
     areaBannerTimer = 4.0;
     areaBannerAlpha = 1.0;
 
@@ -465,14 +492,10 @@ void GameManager::Initialize() {
     activePromptX = 0;
     activePromptY = 0;
 
-    InitInventory();
-
-    // Initialize Independent Environment Prop System & Destroyed House Area Props (Arin's Family Home)
     // Initialize Independent Environment Prop System & World Props
     worldProps.clear();
 
     // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
-    // Target: 2–3 Jumpable Props (Active: 3)
     AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 420.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Chair
     AddWorldProp("Assets/Props/Furniture/furn_dining_table_01.png", 950.0, 185.0, 110.0, 70.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Low Dining Table
 
@@ -489,7 +512,6 @@ void GameManager::Initialize() {
     AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 3520.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND, true); // Solid Barricade Fence
 
     // --- AREA 3 & 4: VILLAGE STREET & SQUARE (x = 3500 to 7500) ---
-    // Target Village Street: 3–4 Jumpable Props (Active: 3)
     AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 3650.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND); // Decorative Pole
     AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 3655.0, 250.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Paper Poster
     AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 3900.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND); // Larger Taller Tree
@@ -516,7 +538,6 @@ void GameManager::Initialize() {
     AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 7550.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #3: Oil Drum
 
     // --- AREA 4: VILLAGE SQUARE & QUARANTINE (x = 7500 to 9000) ---
-    // Target: 2–3 Jumpable Props (Active: 2)
     AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 7750.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Sandbags
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 8050.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
 
@@ -530,7 +551,6 @@ void GameManager::Initialize() {
     AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 9080.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
 
     // --- AREA 5: ABANDONED MARKET (x = 9000 to 11000) ---
-    // Target: 3–5 Jumpable Props (Active: 3)
     AddWorldProp("Assets/Props/Buildings/bld_grocery_store_abandoned.png", 9250.0, 185.0, 160.0, 130.0, PROP_LAYER_BACKGROUND); // Decorative Storefront
     AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 9275.0, 225.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Poster
     AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 9600.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Tool Box / Cart
@@ -544,7 +564,6 @@ void GameManager::Initialize() {
     AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 11100.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #3: Market Crate 2
 
     // --- AREA 6: RAIDER CAMP & EXIT GATE (x = 11000 to 13500) ---
-    // Target Raider Camp / Exit Gate: 2–3 Jumpable Props (Active: 2)
     AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 11400.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND, false); // Decorative Sandbags
     AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 11430.0, 210.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Decorative Poster Warning
     AddWorldProp("Assets/Props/Decorations/prop_generator_01.png", 11600.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Generator Barricade
@@ -558,12 +577,12 @@ void GameManager::Initialize() {
     AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 13000.0, 185.0, 90.0, 45.0, PROP_LAYER_FOREGROUND, false); // Decorative Sandbags
     AddWorldProp("Assets/Props/Military/Exit_Gate.png", 13350.0, 185.0, 586.0, 440.0, PROP_LAYER_BACKGROUND); // Decorative Gate Structure
 
-    // Load props texture sheet (4x4 gameplay atlas)
+    // Load props texture sheet
     if (texPropsSheet == 0) {
         texPropsSheet = iLoadImage((char*)GetAssetPath("Assets/Props/props_sheet.png").c_str());
     }
 
-    // Preload UI HUD assets from existing Assets/UI folder structure
+    // Preload UI HUD assets
     if (g_texHealthFrame == 0) {
         g_texHealthFrame = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/Health_Bar_Frame.png").c_str());
         if (g_texHealthFrame == 0) g_texHealthFrame = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/ui_health_frame.png").c_str());
@@ -643,66 +662,55 @@ void GameManager::Initialize() {
         }
     }
 
-    // Populate Level 1 Enemies per area specification (aligned with kLevel1GroundY)
+    // Populate Level 1 Enemies per area specification
     enemies.clear();
 
-    // Section 1: Spawn Area / Destroyed House (Background 1: 0 - 1448px) - 0 enemies
-
-    // Section 2: Village Street (Background 2: 1448 - 2896px: 3 Walkers)
+    // Section 2: Village Street (3 Walkers)
     enemies.push_back(Enemy(1800, 1950, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(2200, 2350, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(2600, 2750, kLevel1GroundY, TYPE_SPITTER));
 
-    // Section 3: Village Square (Background 3: 2896 - 4344px: 4 Walkers, 1 Runner)
+    // Section 3: Village Square (4 Walkers, 1 Runner)
     enemies.push_back(Enemy(3100, 3220, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(3350, 3470, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(3600, 3720, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(3850, 3970, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(4150, 4280, kLevel1GroundY, TYPE_RUNNER));
 
-    // Section 4: Abandoned Market (Background 4: 4344 - 5792px: 2 Walkers, 1 Raider)
+    // Section 4: Abandoned Market (2 Walkers, 1 Raider)
     enemies.push_back(Enemy(4600, 4750, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(5000, 5150, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(5400, 5550, kLevel1GroundY, TYPE_RAIDER));
 
-    // Section 5: Raider Camp (Background 5: 5792 - 7240px: 3 Raiders)
+    // Section 5: Raider Camp (3 Raiders)
     enemies.push_back(Enemy(6050, 6200, kLevel1GroundY, TYPE_RAIDER));
     enemies.push_back(Enemy(6450, 6600, kLevel1GroundY, TYPE_RAIDER));
     enemies.push_back(Enemy(6850, 7000, kLevel1GroundY, TYPE_RAIDER));
 
-    // Section 6: Abandoned Church (Background 6: 7240 - 8688px: 2 Walkers, 1 Runner)
+    // Section 6: Abandoned Church (2 Walkers, 1 Runner)
     enemies.push_back(Enemy(7500, 7650, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(7900, 8050, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(8350, 8500, kLevel1GroundY, TYPE_RUNNER));
 
-    // Section 7: Quarantine Zone (Background 7: 8688 - 10136px: 2 Walkers, 1 Heavy Infected)
+    // Section 7: Quarantine Zone (2 Walkers, 1 Heavy Infected)
     enemies.push_back(Enemy(8950, 9100, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(9350, 9500, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(9750, 9950, kLevel1GroundY, TYPE_HEAVY));
 
-    // Section 8: Broken Bridge (Background 8: 10136 - 11584px) - 0 normal enemies
-
-    // Section 9: Mini Boss Arena (Background 9: 11584 - 13032px: 1 Mutated Brute)
+    // Section 9: Mini Boss Arena (1 Mutated Brute)
     enemies.push_back(Enemy(12200, 12450, kLevel1GroundY, TYPE_ABOMINATION));
 
-    // Section 10: Exit Gate (Background 10: 13032 - 14480px) - 0 enemies
-
-    // Populate Props (Handled via high-res WorldProps system)
     props.clear();
 
     // Populate Collectibles aligned with ground baseline
     collectibles.clear();
-    // Section 1 (Spawn Area / Destroyed House)
     collectibles.push_back({ 350, kLevel1GroundY, 32, 32, COL_SCRAP, true, 0 });      // Scrap Metal
     collectibles.push_back({ 2400, kLevel1GroundY, 32, 32, COL_WATER, true, 0 });     // Water Bottle
-    // Section 2 (Village Street: Food, Ammo, Battery)
     collectibles.push_back({ 3500, kLevel1GroundY, 32, 32, COL_FOOD, true, 0 });     // Food (Bread)
     collectibles.push_back({ 4200, kLevel1GroundY, 32, 32, COL_AMMO, true, 0 });     // Ammo
     collectibles.push_back({ 4900, kLevel1GroundY, 32, 32, COL_BATTERY, true, 0 });  // Battery
-    // Section 3 (Village Square: Mission Note, Medkit)
     collectibles.push_back({ 6925, kLevel1GroundY, 32, 32, COL_NOTE, true, 0 });      // Mission Note
     collectibles.push_back({ 7300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0 });    // Medkit (First Aid)
-    // Section 7 (Quarantine Zone: NovaGen Keycard)
     collectibles.push_back({ 9250, kLevel1GroundY, 32, 32, COL_KEYCARD, true, 0 });   // NovaGen Keycard
 
     // Initialize rain particle simulation
@@ -715,6 +723,84 @@ void GameManager::Initialize() {
     for (int i = 0; i < 24; ++i) {
         fogParticles.push_back({ (double)(rand() % 1280), (double)(80 + rand() % 420), 0.4 + (rand() % 8) / 10.0, 0.15 + (rand() % 20) / 100.0 });
     }
+}
+
+void GameManager::LoadLevel2() {
+    ResourceManager::GetInstance().ClearCache();
+    currentLevel = 2;
+    player.Initialize(200, 185); // Arin starting location in Blackwood Forest Entrance
+    gameMap.LoadLevel(2);
+
+    currentAreaIndex = L2_AREA_FOREST_ENTRANCE;
+    previousAreaIndex = L2_AREA_FOREST_ENTRANCE;
+    areaBannerTimer = 4.0;
+    areaBannerAlpha = 1.0;
+
+    bossSpawned = false;
+    bossDefeated = false;
+    bossHp = 400;
+    bossMaxHp = 400;
+    displayedBossHp = 400.0;
+    ribbonCollected = false;
+    hasKeycard = false;
+    showInventory = false;
+    hudAlpha = 0.0;
+    mouseX = 640;
+    mouseY = 360;
+    isMouseDown = false;
+
+    menuTransitionAlpha = 1.0;
+    missionNotifyAlpha = 0.0;
+    missionNotifyTimer = 0.0;
+    lastObjectiveID = 0;
+    uiAnimTime = 0.0;
+    deathTimer = 0.0;
+    pauseSubMenu = 0;
+    activePromptText = "";
+    activePromptX = 0;
+    activePromptY = 0;
+
+    worldProps.clear();
+
+    // --- AREA 1: FOREST ENTRANCE PROPS (World X: 0 to 1448) ---
+    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 280.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 520.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Fence
+    AddWorldProp("Assets/Props/Vehicles/veh_destroyed_car_01.png", 850.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 1150.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true); // Fire Drum
+
+    // --- AREA 2: ABANDONED ROAD PROPS (World X: 1448 to 2896) ---
+    AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 1800.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 2200.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true);
+    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 2600.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
+
+    props.clear();
+    enemies.clear();
+
+    // Section 1: Forest Entrance (2 Walkers)
+    enemies.push_back(Enemy(600, 800, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(1050, 1250, kLevel1GroundY, TYPE_SPITTER));
+
+    // Section 2: Abandoned Road (1 Walker, 1 Runner)
+    enemies.push_back(Enemy(1900, 2100, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(2400, 2600, kLevel1GroundY, TYPE_RUNNER));
+
+    collectibles.clear();
+    collectibles.push_back({ 450, kLevel1GroundY, 32, 32, COL_AMMO, true, 0 });
+    collectibles.push_back({ 1300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0 });
+    collectibles.push_back({ 2400, kLevel1GroundY, 32, 32, COL_FOOD, true, 0 });
+
+    // Initialize rain particle simulation
+    rainParticles.clear();
+    for (int i = 0; i < 80; ++i) {
+        rainParticles.push_back({ (double)(rand() % 1280), (double)(rand() % 720), 6.0 + (rand() % 40) / 10.0 });
+    }
+
+    fogParticles.clear();
+    for (int i = 0; i < 24; ++i) {
+        fogParticles.push_back({ (double)(rand() % 1280), (double)(80 + rand() % 420), 0.4 + (rand() % 8) / 10.0, 0.15 + (rand() % 20) / 100.0 });
+    }
+
+    printf("[GENESIS Engine] Level 2: Blackwood Forest Loaded Successfully.\n");
 }
 
 // ============================================================================
@@ -752,14 +838,14 @@ void GameManager::Update(bool keys[], bool specialKeys[]) {
     // ------------------------------------------------------------------------
     // LEVEL 1 AREA TRACKING & TRANSITION DETECTION
     // ------------------------------------------------------------------------
-    Level1Area newArea = GetAreaFromPosition(player.x);
+    int newArea = GetAreaFromPosition(player.x);
     if (currentState == STATE_VICTORY) {
-        newArea = AREA_LEVEL_COMPLETE;
+        newArea = (currentLevel == 2) ? L2_AREA_LEVEL_COMPLETE : AREA_LEVEL_COMPLETE;
     }
 
-    if (newArea != currentArea) {
-        previousArea = currentArea;
-        currentArea = newArea;
+    if (newArea != currentAreaIndex) {
+        previousAreaIndex = currentAreaIndex;
+        currentAreaIndex = newArea;
         areaBannerTimer = 3.0; // Briefly display area title banner on transition
     }
 
@@ -799,10 +885,10 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     if (hudAlpha > 1.0) hudAlpha = 1.0;
 
     // Update current level area based on player position (decoupled from background slices)
-    Level1Area newArea = GetAreaFromPosition(player.x);
-    if (newArea != currentArea) {
-        previousArea = currentArea;
-        currentArea = newArea;
+    int newArea = GetAreaFromPosition(player.x);
+    if (newArea != currentAreaIndex) {
+        previousAreaIndex = currentAreaIndex;
+        currentAreaIndex = newArea;
         areaBannerTimer = 3.0;
         areaBannerAlpha = 1.0;
     }
@@ -1906,7 +1992,7 @@ void GameManager::RenderPlaying() {
         }
 
         // Draw Full In-Game Gameplay HUD
-        UI::DrawHUD(player, score, activeObjText, GetAreaName(currentArea), missionNotifyTimer, areaBannerAlpha);
+        UI::DrawHUD(player, score, activeObjText, GetAreaName(currentAreaIndex), missionNotifyTimer, areaBannerAlpha, GetCurrentChapterName());
 
         // Render Contextual Interaction Prompt if active
         if (!activePromptText.empty()) {
@@ -2335,17 +2421,27 @@ void GameManager::RenderVictory() {
     }
 
     // 2. Title Header in Top Carved Banner Slot
-    const char* vicTitle = "LEVEL 1 COMPLETE";
-    DrawOutlinedText(515, 525, vicTitle, GLUT_BITMAP_TIMES_ROMAN_24, 0, 255, 120);
+    const char* vicTitle = (currentLevel == 2) ? "LEVEL 2 COMPLETE" : "LEVEL 1 COMPLETE";
+    DrawOutlinedText(515, 545, vicTitle, GLUT_BITMAP_TIMES_ROMAN_24, 0, 255, 120);
 
-    // 3. Option 1: Main Menu (Slot 1)
-    RenderMenuButtonSlot(1, 525, 440, "1. MAIN MENU [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+    const char* chapterSub = (currentLevel == 2) ? "BLACKWOOD FOREST" : "THE FALLEN VILLAGE";
+    DrawShadowText(525, 505, chapterSub, GLUT_BITMAP_HELVETICA_18, 200, 200, 200);
 
-    // 4. Option 2: Restart Level (Slot 2)
-    RenderMenuButtonSlot(2, 545, 362, "2. RESTART LEVEL [R]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+    const char* updatedMission = (currentLevel == 2) ? "Mission Updated: REACH NOVAGEN FACILITY B" : "Mission Updated: REACH BLACKWOOD FOREST";
+    DrawOutlinedText(485, 475, updatedMission, GLUT_BITMAP_HELVETICA_12, 0, 230, 255);
 
-    // 5. Option 3: Exit Game (Slot 3)
-    RenderMenuButtonSlot(3, 535, 285, "3. EXIT GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+    // 3. Option 1: Next Level / Main Menu
+    if (currentLevel == 1) {
+        RenderMenuButtonSlot(1, 485, 412, "1. NEXT LEVEL [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+    } else {
+        RenderMenuButtonSlot(1, 515, 412, "1. MAIN MENU [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+    }
+
+    // 4. Option 2: Restart Level
+    RenderMenuButtonSlot(2, 530, 357, "2. RESTART LEVEL [R]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+
+    // 5. Option 3: Exit Game
+    RenderMenuButtonSlot(3, 535, 302, "3. EXIT GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
 
     // 6. Bottom Detail Slot: Instructions
     const char* vicFooter = "Press [ENTER], [R], [ESC] or Click Options to Select";
@@ -2627,12 +2723,26 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
     }
     else if (currentState == STATE_VICTORY) {
-        if (key == 13 || key == '1' || key == 'm' || key == 'M') { // Enter, 1, or M = Main Menu
+        if (key == 13 || key == '1') { // Enter or 1 = Next Level or Main Menu
+            if (currentLevel == 1) {
+                LoadLevel2();
+                currentState = STATE_PLAYING;
+                menuTransitionAlpha = 1.0;
+            } else {
+                currentState = STATE_MENU;
+                menuTransitionAlpha = 1.0;
+            }
+        }
+        else if (key == 'm' || key == 'M') {
             currentState = STATE_MENU;
             menuTransitionAlpha = 1.0;
         }
         else if (key == 'r' || key == 'R' || key == '2') { // R or 2 = Restart Level
-            Initialize();
+            if (currentLevel == 2) {
+                LoadLevel2();
+            } else {
+                LoadLevel1();
+            }
             currentState = STATE_PLAYING;
             menuTransitionAlpha = 1.0;
         }
@@ -2669,7 +2779,7 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
             isMouseDown = false;
 
             if (currentState == STATE_MENU) {
-                // Slot 1: Start Survival
+                // Slot 1: Start Survival (Level 1)
                 if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
                     Initialize();
                     currentState = STATE_PLAYING;
@@ -2709,7 +2819,11 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                     }
                     // Slot 5: Restart Level (210 - 255)
                     else if (mx >= 440 && mx <= 840 && my >= 210 && my <= 255) {
-                        Initialize();
+                        if (currentLevel == 2) {
+                            LoadLevel2();
+                        } else {
+                            LoadLevel1();
+                        }
                         currentState = STATE_PLAYING;
                         menuTransitionAlpha = 1.0;
                     }
@@ -2733,7 +2847,11 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
             else if (currentState == STATE_GAMEOVER) {
                 // Slot 1: Restart Game
                 if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
-                    Initialize();
+                    if (currentLevel == 2) {
+                        LoadLevel2();
+                    } else {
+                        LoadLevel1();
+                    }
                     currentState = STATE_PLAYING;
                     menuTransitionAlpha = 1.0;
                 }
@@ -2748,14 +2866,24 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                 }
             }
             else if (currentState == STATE_VICTORY) {
-                // Slot 1: Main Menu
-                if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
-                    currentState = STATE_MENU;
-                    menuTransitionAlpha = 1.0;
+                // Slot 1: Next Level (Level 1) or Main Menu (Level 2)
+                if (mx >= 440 && mx <= 840 && my >= 400 && my <= 450) {
+                    if (currentLevel == 1) {
+                        LoadLevel2();
+                        currentState = STATE_PLAYING;
+                        menuTransitionAlpha = 1.0;
+                    } else {
+                        currentState = STATE_MENU;
+                        menuTransitionAlpha = 1.0;
+                    }
                 }
                 // Slot 2: Restart Level
                 else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
-                    Initialize();
+                    if (currentLevel == 2) {
+                        LoadLevel2();
+                    } else {
+                        LoadLevel1();
+                    }
                     currentState = STATE_PLAYING;
                     menuTransitionAlpha = 1.0;
                 }
@@ -2827,7 +2955,20 @@ void GameManager::AddScore(int amount) {
     score += amount;
 }
 
-Level1Area GameManager::GetAreaFromPosition(double px) const {
+int GameManager::GetAreaFromPosition(double px) const {
+    if (currentLevel == 2) {
+        if (px < 1448.0)  return L2_AREA_FOREST_ENTRANCE;
+        if (px < 2896.0)  return L2_AREA_ABANDONED_ROAD;
+        if (px < 4344.0)  return L2_AREA_EVACUATION_CAMP;
+        if (px < 5792.0)  return L2_AREA_DEEP_FOREST;
+        if (px < 7240.0)  return L2_AREA_RIVER_CROSSING;
+        if (px < 8688.0)  return L2_AREA_SURVIVOR_HIDEOUT;
+        if (px < 10136.0) return L2_AREA_INFECTED_FOREST;
+        if (px < 11584.0) return L2_AREA_NOVAGEN_OUTPOST;
+        if (px < 13032.0) return L2_AREA_RESEARCH_FACILITY;
+        if (px < 14480.0) return L2_AREA_BOSS_ARENA;
+        return L2_AREA_LEVEL_COMPLETE;
+    }
     if (px < 1448.0) return AREA_SPAWN_AREA;      // 1. SPAWN AREA / DESTROYED HOUSE (0 enemies)
     if (px < 2896.0) return AREA_VILLAGE_STREET;   // 2. VILLAGE STREET (3 Walkers)
     if (px < 4344.0) return AREA_VILLAGE_SQUARE;   // 3. VILLAGE SQUARE (4 Walkers, 1 Runner)

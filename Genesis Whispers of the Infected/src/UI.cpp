@@ -516,21 +516,20 @@ void UI::Initialize() {
 // ============================================================================
 // HUD DRAWING ROUTINES (PHASE 1 VISUAL UPGRADE)
 // ============================================================================
-void UI::DrawHUD(const Player& player, int score, const char* objectiveText, const char* areaName, double notifyTimer, double areaBannerAlpha) {
+void UI::DrawHUD(const Player& player, int score, const char* objectiveText, const char* areaName, double notifyTimer, double areaBannerAlpha, const char* chapterName) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // 1. Upper-Left: Health & Stamina Bars
+    // 1. Draw Player VITAL STATUS (Health Bar)
     DrawHealthBar(player.hp, player.maxHp, player.displayedHp);
+
+    // 2. Draw Player ENERGY STATUS (Stamina Bar)
     DrawStaminaBar(player.stamina, player.maxStamina, player.displayedStamina);
 
-    // 2. Upper-Right: Mission Objective Panel
+    // 3. Draw Mission / Objective Box (Top-Right)
     DrawMissionPanel(objectiveText, areaName, notifyTimer);
 
-    // 3. Lower-Right: Weapon Display Panel
-    DrawWeaponDisplay("KATANA", player.ammo, false);
-
-    // 4. Lower-Left: Icon-Based Survival Inventory Display
+    // 4. Draw Inventory HUD (Bottom-Left)
     DrawInventoryHUD(player, false, false);
 
     // 5. Score Banner (Upper Right Header) - Redesigned SURVIVAL DATA panel

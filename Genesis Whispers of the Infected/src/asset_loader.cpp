@@ -25,6 +25,7 @@ std::string GetAssetPath(const std::string &relativePath) {
 // Static caching tables for background textures
 static unsigned int g_level1BgTextures[10] = { 0 };
 static int g_level1BgSourceIndex[10] = { 0 };
+static unsigned int g_level2BgTextures[10] = { 0 };
 
 // ============================================================================
 // Background Slice Index Resolution
@@ -89,5 +90,43 @@ unsigned int LoadLevel1BackgroundTexture(int sliceIndex, bool bossDefeated) {
     g_level1BgTextures[sliceIndex] = tex;
     g_level1BgSourceIndex[sliceIndex] = sourceIndex;
     return tex;
+}
+
+unsigned int LoadLevel2BackgroundTexture(int sliceIndex) {
+    if (sliceIndex < 0 || sliceIndex >= 10) {
+        return 0;
+    }
+
+    if (g_level2BgTextures[sliceIndex] != 0) {
+        return g_level2BgTextures[sliceIndex];
+    }
+
+    char path[160];
+    sprintf(path, "Assets/Backgrounds/Level2/bg_%02d.png", sliceIndex + 1);
+    std::string resolved = GetAssetPath(path);
+
+    unsigned int tex = iLoadImage((char*)resolved.c_str());
+    if (tex == 0) {
+        // Fallback check for genesis_bg format
+        sprintf(path, "Assets/Backgrounds/Level2/genesis_bg_%d.png", sliceIndex + 1);
+        resolved = GetAssetPath(path);
+        tex = iLoadImage((char*)resolved.c_str());
+    }
+
+    // Fallback to Level 1 background slice if missing
+    if (tex == 0) {
+        tex = LoadLevel1BackgroundTexture(sliceIndex, false);
+    }
+
+    g_level2BgTextures[sliceIndex] = tex;
+    return tex;
+}
+
+void ClearBackgroundCache() {
+    for (int i = 0; i < 10; ++i) {
+        g_level1BgTextures[i] = 0;
+        g_level1BgSourceIndex[i] = 0;
+        g_level2BgTextures[i] = 0;
+    }
 }
 

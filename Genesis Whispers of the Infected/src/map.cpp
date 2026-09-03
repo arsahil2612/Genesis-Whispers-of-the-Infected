@@ -71,18 +71,15 @@ Map::Map() {
     cameraY = 0;
     levelWidth = 14480; // 10 background sections of width 1448
     levelHeight = 768;
+    currentLevelNumber = 1;
 }
 
 // ============================================================================
 // Level Geometry & Collision Setup
 // ============================================================================
-// ============================================================================
-// ============================================================================
-// ============================================================================
-// Level Geometry & Collision Setup
-// ============================================================================
 void Map::LoadLevel(int levelNumber) {
     platforms.clear();
+    currentLevelNumber = levelNumber;
 
     if (levelNumber == 1) {
         for (int i = 0; i < 10; ++i) {
@@ -110,6 +107,23 @@ void Map::LoadLevel(int levelNumber) {
         // Section 3: Mini Boss Arena to Exit Gate Ground (World X: 11440 to 14480, Top Surface Y = 185)
         platforms.push_back({11440, 165, 3040, 20});
     }
+    else if (levelNumber == 2) {
+        for (int i = 0; i < 10; ++i) {
+            LoadLevel2BackgroundTexture(i);
+        }
+
+        // --- Level 2 Ground & Platform Geometry (Blackwood Forest) ---
+        // Section 1: Forest Entrance to Evacuation Camp Ground (World X: 0 to 14480, Top Surface Y = 185)
+        platforms.push_back({0, 165, 14480, 20});
+    }
+}
+
+// Helper to resolve texture for current active level
+static unsigned int GetCurrentLevelBgTexture(int levelNumber, int sliceIndex, bool bossDefeated) {
+    if (levelNumber == 2) {
+        return LoadLevel2BackgroundTexture(sliceIndex);
+    }
+    return LoadLevel1BackgroundTexture(sliceIndex, bossDefeated);
 }
 
 // ============================================================================
@@ -121,7 +135,7 @@ void Map::RenderBackground(double camX, bool bossDefeated) {
         double xPos = (i * kBgSliceWidth) - camX;
 
         if (xPos + kBgSliceWidth >= -200 && xPos <= 1480) {
-            unsigned int tex = LoadLevel1BackgroundTexture(i, bossDefeated);
+            unsigned int tex = GetCurrentLevelBgTexture(currentLevelNumber, i, bossDefeated);
             if (tex != 0) {
                 int drawX = (int)floor(xPos);
                 iShowImage(drawX, kBgDrawYOffset, kBgSliceWidth + 1, kBgSliceHeight, tex);
@@ -139,8 +153,8 @@ void Map::RenderBackground(double camX, bool bossDefeated) {
         double blendRight = boundaryX + kBlendHalf;
 
         if (blendRight >= -100 && blendLeft <= 1380) {
-            unsigned int prevTex = LoadLevel1BackgroundTexture(i, bossDefeated);
-            unsigned int nextTex = LoadLevel1BackgroundTexture(i + 1, bossDefeated);
+            unsigned int prevTex = GetCurrentLevelBgTexture(currentLevelNumber, i, bossDefeated);
+            unsigned int nextTex = GetCurrentLevelBgTexture(currentLevelNumber, i + 1, bossDefeated);
 
             if (prevTex != 0 && nextTex != 0) {
                 // Render previous slice (i) right edge fading from 1.0 to 0.0 alpha
@@ -169,6 +183,7 @@ void Map::RenderBackground(double camX, bool bossDefeated) {
 // LAYER 2: WATER / RIVER RENDERING (River surface y=0 to 130)
 // ============================================================================
 void Map::RenderWater(double camX, double camY) {
+    if (currentLevelNumber != 1) return;
     ResourceManager& rm = ResourceManager::GetInstance();
 
     const double kChasmStartX = 10300.0;
@@ -202,6 +217,7 @@ void Map::RenderWater(double camX, double camY) {
 // LAYER 3: BRIDGE AND ENVIRONMENT SPRITES (Broken Bridge Structure)
 // ============================================================================
 void Map::RenderBridgeAndEnvironmentSprites(double camX, double camY) {
+    if (currentLevelNumber != 1) return;
     ResourceManager& rm = ResourceManager::GetInstance();
 
     unsigned int texBridgeStructure = rm.GetBrokenBridgeEdgeTile();

@@ -1,4 +1,5 @@
 #include "ResourceManager.h"
+#include "asset_loader.h"
 #include "../iGraphics.h"
 #include <stdio.h>
 
@@ -126,4 +127,5 @@ void ResourceManager::ClearCache() {
     }
     m_textureCache.clear();
     m_animationCache.clear();
+    ClearBackgroundCache();
 }

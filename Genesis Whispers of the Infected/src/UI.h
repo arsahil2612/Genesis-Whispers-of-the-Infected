@@ -62,7 +62,7 @@ public:
     static void Initialize();
 
     // Core HUD Drawing Methods (Phase 1 Visual Upgrade)
-    static void DrawHUD(const Player& player, int score, const char* objectiveText, const char* areaName, double notifyTimer, double areaBannerAlpha = 1.0);
+    static void DrawHUD(const Player& player, int score, const char* objectiveText, const char* areaName, double notifyTimer, double areaBannerAlpha = 1.0, const char* chapterName = "THE FALLEN VILLAGE");
     static void DrawAreaBanner(const char* areaName, double alpha, const char* chapterName = "THE FALLEN VILLAGE");
     static void DrawHealthBar(int hp, int maxHp, double displayedHp);
     static void DrawStaminaBar(int stamina, int maxStamina, double displayedStamina);
