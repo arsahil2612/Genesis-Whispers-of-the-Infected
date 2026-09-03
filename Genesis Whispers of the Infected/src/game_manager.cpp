@@ -780,9 +780,10 @@ void GameManager::LoadLevel2() {
     enemies.push_back(Enemy(600, 800, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(1050, 1250, kLevel1GroundY, TYPE_SPITTER));
 
-    // Section 2: Abandoned Road (1 Walker, 1 Runner)
+    // Section 2: Abandoned Road (1 Walker, 1 Runner, 1 Hunter)
     enemies.push_back(Enemy(1900, 2100, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(2400, 2600, kLevel1GroundY, TYPE_RUNNER));
+    enemies.push_back(Enemy(2700, 2900, kLevel1GroundY, TYPE_HUNTER));
 
     collectibles.clear();
     collectibles.push_back({ 450, kLevel1GroundY, 32, 32, COL_AMMO, true, 0 });
