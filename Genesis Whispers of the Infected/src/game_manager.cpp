@@ -1387,7 +1387,6 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
             double dist = std::abs(player.x - collectibles[i].x);
             if (dist < 70.0) {
                 switch (collectibles[i].type) {
-<<<<<<< HEAD
                 case COL_NOTE: activePromptText = "[E] READ DOCUMENT"; break;
                 case COL_KEYCARD: activePromptText = "[E] COLLECT NOVAGEN KEYCARD"; break;
                 case COL_RUSTY_KEY: activePromptText = "[E] PICK UP GATE KEY"; break;
@@ -1395,18 +1394,8 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                 case COL_AMMO: activePromptText = "[E] PICK UP AMMO"; break;
                 case COL_BATTERY: activePromptText = "[E] PICK UP BATTERY"; break;
                 case COL_FOOD: activePromptText = "[E] PICK UP RATION"; break;
+                case COL_WATER: activePromptText = "[E] PICK UP WATER BOTTLE"; break;
                 default: activePromptText = "[E] PICK UP ITEM"; break;
-=======
-                case COL_NOTE: activePromptText = "[E] Read Note"; break;
-                case COL_KEYCARD: activePromptText = "[E] Collect NovaGen Keycard"; break;
-                case COL_RUSTY_KEY: activePromptText = "[E] Pick Up Gate Key"; break;
-                case COL_MEDKIT: activePromptText = "[E] Pick Up Medkit"; break;
-                case COL_AMMO: activePromptText = "[E] Pick Up Ammo"; break;
-                case COL_BATTERY: activePromptText = "[E] Pick Up Battery"; break;
-                case COL_FOOD: activePromptText = "[E] Pick Up Ration"; break;
-                case COL_WATER: activePromptText = "[E] Pick Up Water Bottle"; break;
-                default: activePromptText = "[E] Pick Up Item"; break;
->>>>>>> ff161b7685cedfd4010a098c60a122d1a695cbe2
                 }
                 activePromptX = (int)(collectibles[i].x - camX);
                 activePromptY = (int)(collectibles[i].y - camY + collectibles[i].height + 30.0);

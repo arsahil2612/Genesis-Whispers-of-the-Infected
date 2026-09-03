@@ -18,7 +18,6 @@ void iDraw() {
   iClear();
   g_game.Render();
 }
-
 /*
 fixedUpdate() is called periodically by iSetTimer to run physics/game updates.
 */
