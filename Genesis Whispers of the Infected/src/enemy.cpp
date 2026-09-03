@@ -709,6 +709,16 @@ void Enemy::Render(double camX, double camY) {
     double drawXOffset = drawX - (drawSize - width) / 2.0;
     double drawYOffset = (type == TYPE_HEAVY) ? (drawY + 2.0) : ((type == TYPE_SPITTER || type == TYPE_RUNNER || type == TYPE_RAIDER || type == TYPE_ABOMINATION) ? (drawY - 6.0) : drawY);
 
+    if (state == ENEMY_DEAD) {
+        if (type == TYPE_ABOMINATION) {
+            drawYOffset -= 40.0;
+        } else if (type == TYPE_HEAVY) {
+            drawYOffset -= 35.0;
+        } else {
+            drawYOffset -= 20.0;
+        }
+    }
+
     // Select active animation based on state
     const Animation* activeAnim = &animIdle;
     if (state == ENEMY_DEAD) {
