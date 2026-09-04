@@ -14,7 +14,7 @@ bool CompareScores(const ScoreEntry& a, const ScoreEntry& b) {
 // ============================================================================
 // Leaderboard Constructor
 // ============================================================================
-Leaderboard::Leaderboard() {
+Leaderboard::Leaderboard() : filename("scores.dat") {
     entries.clear();
 }
 

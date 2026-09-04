@@ -13,7 +13,8 @@ enum EnemyType {
     TYPE_ABOMINATION,  // Mutated Brute (Mini Boss)
     TYPE_RAIDER,       // Raider
     TYPE_HEAVY,        // Heavy Infected
-    TYPE_HUNTER        // Fast, aggressive Infected Hunter
+    TYPE_HUNTER,       // Fast, aggressive Infected Hunter
+    TYPE_ALPHA_HUNTER  // Level 2 Boss - Alpha Hunter
 };
 
 enum EnemyState {
@@ -95,6 +96,7 @@ public:
     // Member Methods
     // ========================================================================
     Enemy(double startX, double endX, double y, EnemyType type);
+    static void PreloadAllTextures();
     void Update(double playerX, double playerY, bool playerIsAttacking = false);
     void Render(double camX, double camY);
     void TakeDamage(int damage);

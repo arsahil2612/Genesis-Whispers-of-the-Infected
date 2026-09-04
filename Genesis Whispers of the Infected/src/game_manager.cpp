@@ -69,10 +69,14 @@ static void RenderMenuButtonSlot(int slotIdx, int textX, int textY, const char* 
 // Environmental Weather Simulation Particles
 struct RainParticle {
     double x, y, speed;
+    RainParticle() : x(0), y(0), speed(0) {}
+    RainParticle(double _x, double _y, double _s) : x(_x), y(_y), speed(_s) {}
 };
 
 struct FogParticle {
     double x, y, speed, alpha;
+    FogParticle() : x(0), y(0), speed(0), alpha(0) {}
+    FogParticle(double _x, double _y, double _s, double _a) : x(_x), y(_y), speed(_s), alpha(_a) {}
 };
 
 static std::vector<RainParticle> rainParticles;
@@ -289,7 +293,7 @@ void GameManager::UseInventorySlot(int slotIndex) {
             g_pickupR = 255; g_pickupG = 200; g_pickupB = 50;
         } else {
             player.staminaDouble = (player.staminaDouble + 25.0 > (double)player.maxStamina) ? (double)player.maxStamina : player.staminaDouble + 25.0;
-            player.stamina = (int)std::round(player.staminaDouble);
+            player.stamina = (int)(player.staminaDouble + 0.5);
             player.displayedStamina = player.staminaDouble;
             if (player.staminaDouble >= 15.0) {
                 player.isExhausted = false;
@@ -315,7 +319,7 @@ void GameManager::UseInventorySlot(int slotIndex) {
             g_pickupR = 255; g_pickupG = 200; g_pickupB = 50;
         } else {
             player.staminaDouble = (player.staminaDouble + 25.0 > (double)player.maxStamina) ? (double)player.maxStamina : player.staminaDouble + 25.0;
-            player.stamina = (int)std::round(player.staminaDouble);
+            player.stamina = (int)(player.staminaDouble + 0.5);
             player.displayedStamina = player.staminaDouble;
             if (player.staminaDouble >= 15.0) {
                 player.isExhausted = false;
@@ -339,7 +343,7 @@ void GameManager::UseInventorySlot(int slotIndex) {
             g_pickupR = 255; g_pickupG = 200; g_pickupB = 50;
         } else {
             player.staminaDouble = (player.staminaDouble + 35.0 > (double)player.maxStamina) ? (double)player.maxStamina : player.staminaDouble + 35.0;
-            player.stamina = (int)std::round(player.staminaDouble);
+            player.stamina = (int)(player.staminaDouble + 0.5);
             player.displayedStamina = player.staminaDouble;
             if (player.staminaDouble >= 15.0) {
                 player.isExhausted = false;
@@ -450,11 +454,22 @@ void GameManager::AddInventoryItem(const std::string& itemId, int count) {
     }
 }
 
+int GameManager::GetActiveEnemyCount() const {
+    int activeCount = 0;
+    for (size_t i = 0; i < enemies.size(); ++i) {
+        if (enemies[i].hp > 0) {
+            activeCount++;
+        }
+    }
+    return activeCount;
+}
+
 void GameManager::Initialize() {
     UI::Initialize();
     score = 0;
     leaderboard.LoadScores();
     InitInventory();
+    Enemy::PreloadAllTextures();
     LoadLevel1();
 }
 
@@ -462,6 +477,7 @@ void GameManager::LoadLevel1() {
     currentLevel = 1;
     player.Initialize(200, 185); // Arin starting location inside destroyed house (x=200, groundY=185)
     gameMap.LoadLevel(currentLevel);
+    m_encounterManager.Initialize(1);
 
     currentAreaIndex = AREA_SPAWN_AREA;
     previousAreaIndex = AREA_SPAWN_AREA;
@@ -692,10 +708,13 @@ void GameManager::LoadLevel1() {
     enemies.push_back(Enemy(7900, 8050, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(8350, 8500, kLevel1GroundY, TYPE_RUNNER));
 
-    // Section 7: Quarantine Zone (2 Walkers, 1 Heavy Infected)
+    // Section 7: Quarantine Zone (2 Walkers, 1 Heavy Infected #1)
     enemies.push_back(Enemy(8950, 9100, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(9350, 9500, kLevel1GroundY, TYPE_SPITTER));
     enemies.push_back(Enemy(9750, 9950, kLevel1GroundY, TYPE_HEAVY));
+
+    // Section 8/9: Pre-boss Gate (1 Heavy Infected #2)
+    enemies.push_back(Enemy(11650, 11850, kLevel1GroundY, TYPE_HEAVY));
 
     // Section 9: Mini Boss Arena (1 Mutated Brute)
     enemies.push_back(Enemy(12200, 12450, kLevel1GroundY, TYPE_ABOMINATION));
@@ -704,24 +723,24 @@ void GameManager::LoadLevel1() {
 
     // Populate Collectibles aligned with ground baseline
     collectibles.clear();
-    collectibles.push_back({ 350, kLevel1GroundY, 32, 32, COL_SCRAP, true, 0 });      // Scrap Metal
-    collectibles.push_back({ 2400, kLevel1GroundY, 32, 32, COL_WATER, true, 0 });     // Water Bottle
-    collectibles.push_back({ 3500, kLevel1GroundY, 32, 32, COL_FOOD, true, 0 });     // Food (Bread)
-    collectibles.push_back({ 4200, kLevel1GroundY, 32, 32, COL_AMMO, true, 0 });     // Ammo
-    collectibles.push_back({ 4900, kLevel1GroundY, 32, 32, COL_BATTERY, true, 0 });  // Battery
-    collectibles.push_back({ 6925, kLevel1GroundY, 32, 32, COL_NOTE, true, 0 });      // Mission Note
-    collectibles.push_back({ 7300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0 });    // Medkit (First Aid)
-    collectibles.push_back({ 9250, kLevel1GroundY, 32, 32, COL_KEYCARD, true, 0 });   // NovaGen Keycard
+    collectibles.push_back(Collectible(350, kLevel1GroundY, 32, 32, COL_SCRAP, true, 0));      // Scrap Metal
+    collectibles.push_back(Collectible(2400, kLevel1GroundY, 32, 32, COL_WATER, true, 0));     // Water Bottle
+    collectibles.push_back(Collectible(3500, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));      // Food (Bread)
+    collectibles.push_back(Collectible(4200, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));      // Ammo
+    collectibles.push_back(Collectible(4900, kLevel1GroundY, 32, 32, COL_BATTERY, true, 0));   // Battery
+    collectibles.push_back(Collectible(6925, kLevel1GroundY, 32, 32, COL_NOTE, true, 0));       // Mission Note
+    collectibles.push_back(Collectible(7300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));     // Medkit (First Aid)
+    collectibles.push_back(Collectible(9250, kLevel1GroundY, 32, 32, COL_KEYCARD, true, 0));    // NovaGen Keycard
 
     // Initialize rain particle simulation
     rainParticles.clear();
     for (int i = 0; i < 80; ++i) {
-        rainParticles.push_back({ (double)(rand() % 1280), (double)(rand() % 720), 6.0 + (rand() % 40) / 10.0 });
+        rainParticles.push_back(RainParticle((double)(rand() % 1280), (double)(rand() % 720), 6.0 + (rand() % 40) / 10.0));
     }
 
     fogParticles.clear();
     for (int i = 0; i < 24; ++i) {
-        fogParticles.push_back({ (double)(rand() % 1280), (double)(80 + rand() % 420), 0.4 + (rand() % 8) / 10.0, 0.15 + (rand() % 20) / 100.0 });
+        fogParticles.push_back(FogParticle((double)(rand() % 1280), (double)(80 + rand() % 420), 0.4 + (rand() % 8) / 10.0, 0.15 + (rand() % 20) / 100.0));
     }
 }
 
@@ -768,40 +787,93 @@ void GameManager::LoadLevel2() {
     AddWorldProp("Assets/Props/Vehicles/veh_destroyed_car_01.png", 850.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 1150.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true); // Fire Drum
 
-    // --- AREA 2: ABANDONED ROAD PROPS (World X: 1448 to 2896) ---
+    // --- AREA 2: EVACUATION CAMP PROPS (World X: 1448 to 4344) ---
     AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 1800.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 2200.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 2600.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 3400.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true);
+
+    // --- AREA 4: RIVER CROSSING PROPS ---
+    AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 6150.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+
+    // --- AREA 7: NOVAGEN OUTPOST PROPS ---
+    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 10200.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
 
     props.clear();
     enemies.clear();
 
-    // Section 1: Forest Entrance (2 Walkers)
-    enemies.push_back(Enemy(600, 800, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(1050, 1250, kLevel1GroundY, TYPE_SPITTER));
+    // ========================================================================
+    // PRE-PLACED LEVEL 2 ENEMIES (23 Pre-placed enemies across 10 areas)
+    // ========================================================================
+    // Area 1: Forest Entrance (2 Walkers)
+    enemies.push_back(Enemy(550, 650, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(1050, 1150, kLevel1GroundY, TYPE_SPITTER));
 
-    // Section 2: Abandoned Road (1 Walker, 1 Runner, 1 Hunter)
-    enemies.push_back(Enemy(1900, 2100, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(2400, 2600, kLevel1GroundY, TYPE_RUNNER));
-    enemies.push_back(Enemy(2700, 2900, kLevel1GroundY, TYPE_HUNTER));
+    // Area 2: Evacuation Camp (2 Walkers, 1 Runner)
+    enemies.push_back(Enemy(1950, 2050, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(3150, 3250, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(3750, 3850, kLevel1GroundY, TYPE_RUNNER));
+
+    // Area 3: Deep Forest (1 Walker, 1 Heavy Infected)
+    enemies.push_back(Enemy(4550, 4650, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(5050, 5150, kLevel1GroundY, TYPE_HEAVY));
+
+    // Area 4: River Crossing (1 Walker, 1 Runner)
+    enemies.push_back(Enemy(6050, 6150, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(6650, 6750, kLevel1GroundY, TYPE_RUNNER));
+
+    // Area 5: Survivor Hideout (1 Walker)
+    enemies.push_back(Enemy(7550, 7650, kLevel1GroundY, TYPE_SPITTER));
+
+    // Area 6: Infected Forest (2 Walkers, 1 Heavy Infected, 1 Infected Hunter)
+    enemies.push_back(Enemy(8850, 8950, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(9350, 9450, kLevel1GroundY, TYPE_HEAVY));
+    enemies.push_back(Enemy(9650, 9750, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(9850, 9950, kLevel1GroundY, TYPE_HUNTER));
+
+    // Area 7: NovaGen Outpost (2 Walkers, 1 Runner)
+    enemies.push_back(Enemy(10450, 10550, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(10750, 10850, kLevel1GroundY, TYPE_RUNNER));
+    enemies.push_back(Enemy(11050, 11150, kLevel1GroundY, TYPE_SPITTER));
+
+    // Area 8: Research Facility (2 Walkers, 1 Heavy Infected)
+    enemies.push_back(Enemy(11850, 11950, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(12250, 12350, kLevel1GroundY, TYPE_HEAVY));
+    enemies.push_back(Enemy(12550, 12650, kLevel1GroundY, TYPE_SPITTER));
+
+    // Area 9: Boss Arena (1 Alpha Hunter Boss)
+    enemies.push_back(Enemy(13550, 13650, kLevel1GroundY, TYPE_ALPHA_HUNTER));
+
+    // Area 10: Facility B Road (2 Walkers)
+    enemies.push_back(Enemy(14150, 14250, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(14300, 14400, kLevel1GroundY, TYPE_SPITTER));
+
+    m_encounterManager.Initialize(2);
 
     collectibles.clear();
-    collectibles.push_back({ 450, kLevel1GroundY, 32, 32, COL_AMMO, true, 0 });
-    collectibles.push_back({ 1300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0 });
-    collectibles.push_back({ 2400, kLevel1GroundY, 32, 32, COL_FOOD, true, 0 });
+    collectibles.push_back(Collectible(450, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
+    collectibles.push_back(Collectible(1300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
+    collectibles.push_back(Collectible(2400, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));
+    collectibles.push_back(Collectible(3600, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
+    collectibles.push_back(Collectible(4800, kLevel1GroundY, 32, 32, COL_WATER, true, 0));
+    collectibles.push_back(Collectible(6200, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
+    collectibles.push_back(Collectible(7800, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));
+    collectibles.push_back(Collectible(9100, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
+    collectibles.push_back(Collectible(10500, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
+    collectibles.push_back(Collectible(12100, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
 
     // Initialize rain particle simulation
     rainParticles.clear();
     for (int i = 0; i < 80; ++i) {
-        rainParticles.push_back({ (double)(rand() % 1280), (double)(rand() % 720), 6.0 + (rand() % 40) / 10.0 });
+        rainParticles.push_back(RainParticle((double)(rand() % 1280), (double)(rand() % 720), 6.0 + (rand() % 40) / 10.0));
     }
 
     fogParticles.clear();
     for (int i = 0; i < 24; ++i) {
-        fogParticles.push_back({ (double)(rand() % 1280), (double)(80 + rand() % 420), 0.4 + (rand() % 8) / 10.0, 0.15 + (rand() % 20) / 100.0 });
+        fogParticles.push_back(FogParticle((double)(rand() % 1280), (double)(80 + rand() % 420), 0.4 + (rand() % 8) / 10.0, 0.15 + (rand() % 20) / 100.0));
     }
 
-    printf("[GENESIS Engine] Level 2: Blackwood Forest Loaded Successfully.\n");
+    printf("[GENESIS Engine] Level 2: Blackwood Forest Loaded Successfully with %d pre-placed enemies.\n", (int)enemies.size());
 }
 
 // ============================================================================
@@ -896,6 +968,9 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
 
     // 1. Update Player Physics and animations
     player.Update(keys, specialKeys);
+
+    // 1b. Update Controlled Dynamic Encounter System
+    m_encounterManager.Update(player, gameMap, *this, 0.016f);
 
     // 2. Collision checks against floating/ground platforms
     const std::vector<Platform>& platforms = gameMap.GetPlatforms();
@@ -1046,16 +1121,24 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
 
     // 4. Horizontal camera tracking & Exit Gate collision boundary
     // Enforcement of Exit Gate solid world structure (Player cannot clip past entrance at 13120)
-    if (player.x > 13120.0) {
-        player.x = 13120.0;
+    if (currentLevel == 1) {
+        if (player.x > 13120.0 && !bossDefeated) {
+            player.x = 13120.0;
+        }
+    } else if (currentLevel == 2) {
+        if (player.x > 14400.0) {
+            player.x = 14400.0;
+        }
     }
 
-    // Check boss spawning boundary trigger (Section 9: x >= 11800)
-    if (player.x >= 11800 && !bossSpawned) {
+    // Check boss spawning boundary trigger
+    double bossTriggerX = (currentLevel == 2) ? 13100.0 : 11800.0;
+    if (player.x >= bossTriggerX && !bossSpawned) {
         bossSpawned = true;
         // Load boss stats dynamically
         for (size_t i = 0; i < enemies.size(); ++i) {
-            if (enemies[i].type == TYPE_ABOMINATION) {
+            if ((currentLevel == 2 && enemies[i].type == TYPE_ALPHA_HUNTER) ||
+                (currentLevel == 1 && enemies[i].type == TYPE_ABOMINATION)) {
                 bossMaxHp = enemies[i].maxHp;
                 bossHp = enemies[i].hp;
                 displayedBossHp = (double)enemies[i].hp;
@@ -1063,19 +1146,22 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         }
     }
 
-    // If boss fight is active, lock the player camera inside the arena bounds (11400 to 12600)
+    // If boss fight is active, lock the player camera inside the arena bounds
     if (bossSpawned && !bossDefeated) {
-        double minCam = 11400;
-        double maxCam = 12600;
+        double minCam = (currentLevel == 2) ? 12700.0 : 11400.0;
+        double maxCam = (currentLevel == 2) ? 13800.0 : 12600.0;
+        double minPx  = (currentLevel == 2) ? 12750.0 : 11450.0;
+        double maxPx  = (currentLevel == 2) ? 13850.0 : 12650.0;
 
-        double targetCam = player.x - (1280 / 2.0);
+        double targetCam = player.x - (1280.0 / 2.0);
         if (targetCam < minCam) targetCam = minCam;
         if (targetCam > maxCam) targetCam = maxCam;
 
-        // Smooth camera track locked in arena
-        gameMap.ApplyCameraTracking(player.x, player.y, 1280, 720);
-        if (player.x < 11450) player.x = 11450;
-        if (player.x > 12650) player.x = 12650;
+        double curCam = gameMap.GetCameraX();
+        double nextCam = curCam + (targetCam - curCam) * 0.1;
+        gameMap.SetCameraX(nextCam);
+        if (player.x < minPx) player.x = minPx;
+        if (player.x > maxPx) player.x = maxPx;
     }
     else {
         // Normal viewport tracking
@@ -1368,7 +1454,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                     if (hitX && hitY && !enemies[i].hasDealtDamage) {
                         int currentAtkFrame = enemies[i].animAttack.GetCurrentFrame();
                         int totalAtkFrames = enemies[i].animAttack.GetFrameCount();
-                        bool isAtkActiveFrame = (totalAtkFrames <= 1) || (currentAtkFrame >= 0 && currentAtkFrame <= 6);
+                        bool isAtkActiveFrame = (totalAtkFrames <= 1) || (currentAtkFrame >= 1 && currentAtkFrame < totalAtkFrames - 1);
 
                         if (isAtkActiveFrame) {
                             player.TakeDamage(enemies[i].damage);
@@ -1403,8 +1489,8 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
             bool isKatanaActiveFrame = (totalPlayerAtkFrames <= 1) || (currentFrame >= 0 && currentFrame <= 6);
 
             if (player.state == STATE_ATTACK_MELEE && isKatanaActiveFrame && enemies[i].lastHitAttackID != player.currentAttackID) {
-                double hitboxX = player.isFacingRight ? player.x : (player.x - 70.0);
-                double hitboxW = player.width + 70.0;
+                double hitboxX = player.isFacingRight ? (player.x + 15.0) : (player.x - 70.0);
+                double hitboxW = 115.0;
                 double hitboxY = player.y;
                 double hitboxH = player.height;
 
@@ -1423,7 +1509,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
             enemies[i].Update(player.x, player.y);
 
             // Check if boss died
-            if (enemies[i].type == TYPE_ABOMINATION) {
+            if (enemies[i].type == TYPE_ABOMINATION || enemies[i].type == TYPE_ALPHA_HUNTER) {
                 bossDefeated = true;
                 bossHp = 0;
             }
@@ -1441,15 +1527,16 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     }
 
     // 8. Exit Gate Ending Trigger
-    if (player.x >= 12900 && bossDefeated) {
-        if (!hasKeycard) {
+    double exitPosTrigger = (currentLevel == 2) ? 14350.0 : 12900.0;
+    if (player.x >= exitPosTrigger && bossDefeated) {
+        if (currentLevel == 1 && !hasKeycard) {
             if (currentState == STATE_PLAYING) {
                 currentState = STATE_DIALOGUE;
                 sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
                 sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"The steel gate is locked. I need a NovaGen keycard from the quarantine checkpoint.\"");
             }
         }
-        else if (!ribbonCollected) {
+        else if (currentLevel == 1 && !ribbonCollected) {
             if (currentState == STATE_PLAYING) {
                 currentState = STATE_DIALOGUE;
                 sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
@@ -1496,6 +1583,9 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         activePromptX = (int)(player.x - camX);
         activePromptY = (int)(player.y - camY + player.height + 30.0);
     }
+
+    // 10. Update Dynamic Encounter System (zones, ambushes, difficulty director)
+    m_encounterManager.Update(player, gameMap, *this, 0.016f);
 }
 
 // ============================================================================
@@ -1704,6 +1794,8 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
+    const std::vector<VehicleSpawnPoint>& vehicles = m_encounterManager.GetVehicles();
+
     for (size_t i = 0; i < worldProps.size(); ++i) {
         if (!worldProps[i].visible || worldProps[i].layer != layer) continue;
 
@@ -1717,8 +1809,6 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
         double renderY = worldProps[i].y - camY;
 
         // Configurable Ground Alignment Offset:
-        // If prop rests on main ground baseline (y == 185.0), apply Arin's boot alignment reference (-6.0)
-        // plus the asset's PNG transparent padding offset (groundOffset) so the visible base touches ground Y.
         if (std::abs(worldProps[i].y - kLevel1GroundY) < 1.0) {
             double groundOffset = GetPropGroundOffset(worldProps[i].assetPath);
             renderY += (-6.0 + groundOffset);
@@ -1726,23 +1816,64 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
 
         // Viewport frustum culling check (-100 to 1380)
         if (renderX + renderW >= -100 && renderX <= 1380) {
+            // Check if this vehicle prop is currently in warning/shake state
+            bool isWarning = false;
+            double shakeOffsetX = 0.0;
+
+            if (worldProps[i].assetPath.find("veh_") != std::string::npos ||
+                worldProps[i].assetPath.find("car") != std::string::npos ||
+                worldProps[i].assetPath.find("ambulance") != std::string::npos ||
+                worldProps[i].assetPath.find("pickup") != std::string::npos) {
+                
+                for (size_t vIdx = 0; vIdx < vehicles.size(); ++vIdx) {
+                    if (vehicles[vIdx].isWarningActive && std::abs(vehicles[vIdx].x - worldProps[i].x) < 100.0) {
+                        isWarning = true;
+                        // Fast jitter shake animation (±4px offset)
+                        shakeOffsetX = (double)((rand() % 9) - 4);
+                        break;
+                    }
+                }
+            }
+
+            double drawX = renderX + shakeOffsetX;
+
             // Render grounded contact shadow underneath Exit Gate base
             if (worldProps[i].assetPath.find("Exit_Gate") != std::string::npos) {
                 glDisable(GL_TEXTURE_2D);
                 glBegin(GL_QUADS);
                 // Soft dark ambient occlusion contact shadow on terrain line
                 glColor4f(0.02f, 0.04f, 0.06f, 0.55f);
-                glVertex2f((float)(renderX + 15.0), (float)(renderY + 4.0));
-                glVertex2f((float)(renderX + renderW - 15.0), (float)(renderY + 4.0));
+                glVertex2f((float)(drawX + 15.0), (float)(renderY + 4.0));
+                glVertex2f((float)(drawX + renderW - 15.0), (float)(renderY + 4.0));
                 glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
-                glVertex2f((float)(renderX + renderW - 5.0), (float)(renderY - 10.0));
-                glVertex2f((float)(renderX + 5.0), (float)(renderY - 10.0));
+                glVertex2f((float)(drawX + renderW - 5.0), (float)(renderY - 10.0));
+                glVertex2f((float)(drawX + 5.0), (float)(renderY - 10.0));
                 glEnd();
                 glEnable(GL_TEXTURE_2D);
             }
 
             if (worldProps[i].textureID != 0) {
-                iShowImage((int)renderX, (int)renderY, (int)renderW, (int)renderH, worldProps[i].textureID);
+                iShowImage((int)drawX, (int)renderY, (int)renderW, (int)renderH, worldProps[i].textureID);
+            }
+
+            // Draw warning hazard effect overlay (flashing red alert box & warning header)
+            if (isWarning) {
+                glDisable(GL_TEXTURE_2D);
+                glLineWidth(2.0f);
+                
+                double alpha = 0.5 + 0.5 * sin(uiAnimTime * 20.0);
+                glColor4f(1.0f, 0.2f, 0.1f, (float)alpha);
+                
+                glBegin(GL_LINE_LOOP);
+                glVertex2f((float)drawX, (float)renderY);
+                glVertex2f((float)(drawX + renderW), (float)renderY);
+                glVertex2f((float)(drawX + renderW), (float)(renderY + renderH));
+                glVertex2f((float)drawX, (float)(renderY + renderH));
+                glEnd();
+
+                DrawShadowText((int)(drawX + (renderW / 2.0) - 75.0), (int)(renderY + renderH + 18.0), "! VEHICLE AMBUSH !", GLUT_BITMAP_HELVETICA_12, 255, 60, 60);
+
+                glEnable(GL_TEXTURE_2D);
             }
         }
     }
@@ -1753,26 +1884,28 @@ void GameManager::RenderPlaying() {
     double camY = gameMap.GetCameraY();
 
     // ========================================================================
-    // LAYER 1: BACKGROUND (Parallax backdrop slices 0-9)
+    // LAYER 1: FAR BACKGROUND (Parallax Factor 0.15 - Sky & Distant Horizon)
     // ========================================================================
-    gameMap.RenderBackground(camX, bossDefeated);
+    gameMap.RenderFarBackground(camX, bossDefeated);
 
     // ========================================================================
-    // TILE LAYERS: Far Environment, Ground, Platforms & Bridges (REMOVED)
+    // LAYER 2: MIDGROUND (Parallax Factor 0.45 - Medium-Distance Trees & Scenery)
     // ========================================================================
+    gameMap.RenderMidground(camX, bossDefeated);
 
     // ========================================================================
-    // LAYER 2: WATER / RIVER (Low river surface y=0 to 90, rendered under bridge)
+    // LAYER 3: GAMEPLAY WORLD GROUND SURFACE (Parallax Factor 1.00 - Synchronized Ground)
+    // ========================================================================
+    gameMap.RenderGroundSurface(camX);
+
+    // ========================================================================
+    // LAYER 3 (Cont): WATER / RIVER & BRIDGE STRUCTURE (Factor 1.00)
     // ========================================================================
     gameMap.RenderWater(camX, camY);
-
-    // ========================================================================
-    // LAYER 3: BRIDGE AND ENVIRONMENT SPRITES (Support beams, bridge deck, props)
-    // ========================================================================
     gameMap.RenderBridgeAndEnvironmentSprites(camX, camY);
     RenderWorldProps(PROP_LAYER_BACKGROUND, camX, camY);
 
-    // Render level props (Environmental obstacles & burning barrels)
+    // Render level props (Environmental obstacles & burning barrels - Factor 1.00)
     for (size_t i = 0; i < props.size(); ++i) {
         double screenPx = props[i].x - camX;
         double screenPy = props[i].y - camY;
@@ -1810,7 +1943,7 @@ void GameManager::RenderPlaying() {
         }
     }
 
-    // Render Collectibles aligned statically to ground baseline
+    // Render Collectibles aligned statically to ground baseline (Factor 1.00)
     for (size_t i = 0; i < collectibles.size(); ++i) {
         if (collectibles[i].active) {
             double screenPx = collectibles[i].x - camX;
@@ -1931,7 +2064,7 @@ void GameManager::RenderPlaying() {
     }
 
     // ========================================================================
-    // LAYER 3: CHARACTERS (Enemies & Player Arin)
+    // LAYER 3: CHARACTERS (Enemies & Player Arin - Factor 1.00)
     // ========================================================================
     for (size_t i = 0; i < enemies.size(); ++i) {
         double screenEx = enemies[i].x - camX;
@@ -1954,12 +2087,17 @@ void GameManager::RenderPlaying() {
     player.Render(camX, camY);
 
     // ========================================================================
-    // LAYER 4: FOREGROUND OBJECTS (Foreground props in front of characters)
+    // LAYER 4: FOREGROUND OBJECTS (Foreground props in front of characters - Factor 1.00)
     // ========================================================================
     RenderWorldProps(PROP_LAYER_FOREGROUND, camX, camY);
 
     // ========================================================================
-    // LAYER 5: EFFECTS (Floating popups, particle effects, HUD overlays)
+    // LAYER 5: FOREGROUND ATMOSPHERIC PARALLAX (Parallax Factor 1.15 - Rain & Foliage)
+    // ========================================================================
+    gameMap.RenderForeground(camX, uiAnimTime);
+
+    // ========================================================================
+    // EFFECTS (Floating popups, particle effects, HUD overlays)
     // ========================================================================
     if (g_pickupTimer > 0.0) {
         g_pickupTimer -= 0.016;
@@ -2002,7 +2140,8 @@ void GameManager::RenderPlaying() {
 
         // Render Boss Health Bar centered at top if Boss fight active
         if (bossSpawned && !bossDefeated) {
-            UI::DrawBossHealthBar("MUTATED BRUTE", bossHp, bossMaxHp, displayedBossHp);
+            const char* bName = (currentLevel == 2) ? "ALPHA HUNTER" : "MUTATED BRUTE";
+            UI::DrawBossHealthBar(bName, bossHp, bossMaxHp, displayedBossHp);
         }
     }
 

@@ -87,6 +87,11 @@
     <ClInclude Include="stb_image.h" />
     <ClInclude Include="src\UI.h" />
     <ClInclude Include="src\TileManager.h" />
+    <ClInclude Include="src\EncounterTypes.h" />
+    <ClInclude Include="src\DifficultyDirector.h" />
+    <ClInclude Include="src\SpawnManager.h" />
+    <ClInclude Include="src\EnvironmentalEventManager.h" />
+    <ClInclude Include="src\EncounterManager.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="Glaux.lib" />
@@ -112,6 +117,10 @@
     <ClCompile Include="src\StoryManager.cpp" />
     <ClCompile Include="src\UI.cpp" />
     <ClCompile Include="src\TileManager.cpp" />
+    <ClCompile Include="src\DifficultyDirector.cpp" />
+    <ClCompile Include="src\SpawnManager.cpp" />
+    <ClCompile Include="src\EnvironmentalEventManager.cpp" />
+    <ClCompile Include="src\EncounterManager.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

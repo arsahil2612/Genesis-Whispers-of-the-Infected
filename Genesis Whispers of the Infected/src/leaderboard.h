@@ -18,7 +18,7 @@ struct ScoreEntry {
 class Leaderboard {
 private:
     std::vector<ScoreEntry> entries;
-    const std::string filename = "scores.dat";
+    std::string filename;
 
 public:
     Leaderboard();

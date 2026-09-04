@@ -52,6 +52,7 @@ public:
     // Setters
     // ========================================================================
     void SetFrameDuration(int duration) { frameDuration = duration; }
+    void SetCurrentFrame(int frame) { currentFrame = frame; }
 };
 
 #endif // ANIMATION_H

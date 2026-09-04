@@ -271,7 +271,12 @@ void Player::SetState(PlayerState newState) {
     case STATE_IDLE:          animIdle.Reset(); break;
     case STATE_WALK:          animWalk.Reset(); break;
     case STATE_RUN:           animRun.Reset(); break;
-    case STATE_JUMP:          animJump.Reset(); break;
+    case STATE_JUMP:          
+        animJump.Reset();
+        if (!isGrounded && vy <= 0.0 && animJump.GetFrameCount() > 2) {
+            animJump.SetCurrentFrame(3);
+        }
+        break;
     case STATE_ATTACK_MELEE:  animAttack.Reset(); break;
     case STATE_HURT:          animHurt.Reset(); break;
     case STATE_DEAD:          animDeath.Reset(); break;
@@ -419,7 +424,7 @@ void Player::Update(bool keys[], bool specialKeys[]) {
     }
 
     // Sync integer stamina value
-    stamina = (int)std::round(staminaDouble);
+    stamina = (int)(staminaDouble + 0.5);
     if (stamina < 0) stamina = 0;
     if (stamina > maxStamina) stamina = maxStamina;
 
@@ -670,7 +675,7 @@ void Player::UseWaterBottle() {
     if (waterBottleCount > 0 && staminaDouble < (double)maxStamina) {
         waterBottleCount--;
         staminaDouble = (staminaDouble + 25.0 > (double)maxStamina) ? (double)maxStamina : staminaDouble + 25.0;
-        stamina = (int)std::round(staminaDouble);
+        stamina = (int)(staminaDouble + 0.5);
         displayedStamina = staminaDouble;
         if (staminaDouble >= 15.0) {
             isExhausted = false;

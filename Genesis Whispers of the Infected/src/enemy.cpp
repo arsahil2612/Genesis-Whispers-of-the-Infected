@@ -147,6 +147,13 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
         width = 64;
         height = 96;
     }
+    else if (type == TYPE_ALPHA_HUNTER) {
+        hp = maxHp = 400;
+        damage = 28;
+        vx = 5.2;
+        width = 84;
+        height = 120;
+    }
 
     // Load static textures once
     if (texWalkerIdle == 0) {
@@ -259,16 +266,36 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
                 unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
                 if (handle != 0) seqRunnerHurt.push_back(handle);
             }
-            seqRunnerDeath.clear();
-            if (!seqRunnerHurt.empty()) {
-                seqRunnerDeath.push_back(seqRunnerHurt[0]);
-                if (seqRunnerHurt.size() > 1) seqRunnerDeath.push_back(seqRunnerHurt[1]);
+            // Ensure walker death collapse frames are loaded
+            if (seqWalkerDeath.empty()) {
+                for (int i = 1; i <= 8; ++i) {
+                    char path[256];
+                    sprintf_s(path, sizeof(path), "Assets/Characters/InfectedWalker/Death/infected_walker_%02d.png", i);
+                    unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                    if (handle != 0) seqWalkerDeath.push_back(handle);
+                }
             }
-            if (!seqWalkerDeath.empty()) {
-                int startIdx = (int)seqWalkerDeath.size() - 3;
-                if (startIdx < 0) startIdx = 0;
-                for (size_t i = startIdx; i < seqWalkerDeath.size(); ++i) {
-                    seqRunnerDeath.push_back(seqWalkerDeath[i]);
+
+            seqRunnerDeath.clear();
+            for (int i = 1; i <= 8; ++i) {
+                char path[256];
+                sprintf_s(path, sizeof(path), "Assets/Characters/Runner/Death/frame_%02d.png", i);
+                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
+                if (handle != 0) seqRunnerDeath.push_back(handle);
+            }
+            if (seqRunnerDeath.empty()) {
+                // Combine Runner's stagger frames with ground collapse frames for complete visible death animation
+                if (!seqRunnerHurt.empty()) {
+                    for (size_t i = 0; i < seqRunnerHurt.size(); ++i) {
+                        seqRunnerDeath.push_back(seqRunnerHurt[i]);
+                    }
+                }
+                if (!seqWalkerDeath.empty()) {
+                    int startIdx = (int)seqWalkerDeath.size() - 4;
+                    if (startIdx < 0) startIdx = 0;
+                    for (size_t i = startIdx; i < seqWalkerDeath.size(); ++i) {
+                        seqRunnerDeath.push_back(seqWalkerDeath[i]);
+                    }
                 }
             }
         }
@@ -453,7 +480,7 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
         animHurt.Init(seqAbominationHurt, 5, false);     // 5 ticks/frame
         animDeath.Init(seqAbominationDeath, 7, false);   // 7 ticks/frame
     }
-    else if (type == TYPE_HUNTER) {
+    else if (type == TYPE_HUNTER || type == TYPE_ALPHA_HUNTER) {
         if (seqHunterIdle.empty() || seqHunterIdle[0] == 0) {
             seqHunterIdle.clear();
             seqHunterWalk.clear();
@@ -495,11 +522,12 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
             if (seqHunterWalk.empty() && !seqHunterRun.empty()) seqHunterWalk = seqHunterRun;
         }
 
-        animIdle.Init(seqHunterIdle, 6, true);
-        animWalk.Init(seqHunterRun, 4, true);
-        animAttack.Init(seqHunterAttack, 4, false);
-        animHurt.Init(seqHunterHurt, 4, false);
-        animDeath.Init(seqHunterDeath, 6, false);
+        int animSpeed = (type == TYPE_ALPHA_HUNTER) ? 3 : 4;
+        animIdle.Init(seqHunterIdle, animSpeed + 2, true);
+        animWalk.Init(seqHunterRun, animSpeed, true);
+        animAttack.Init(seqHunterAttack, animSpeed, false);
+        animHurt.Init(seqHunterHurt, animSpeed, false);
+        animDeath.Init(seqHunterDeath, animSpeed + 2, false);
     }
 }
 
@@ -538,8 +566,8 @@ void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
     double distToPlayer = std::abs(playerX - x);
     double dyToPlayer = std::abs(playerY - y);
 
-    const double ATTACK_RANGE = (type == TYPE_RUNNER || type == TYPE_HUNTER) ? 75.0 : ((type == TYPE_HEAVY) ? 75.0 : 65.0);     // Attack range threshold in pixels
-    const double DETECTION_RANGE = (type == TYPE_HUNTER) ? 600.0 : ((type == TYPE_RUNNER) ? 550.0 : ((type == TYPE_HEAVY) ? 480.0 : 500.0)); // Detection & chase range threshold in pixels
+    const double ATTACK_RANGE = (type == TYPE_RUNNER || type == TYPE_HUNTER || type == TYPE_ALPHA_HUNTER) ? 80.0 : ((type == TYPE_HEAVY) ? 75.0 : 65.0);     // Attack range threshold in pixels
+    const double DETECTION_RANGE = (type == TYPE_ALPHA_HUNTER) ? 750.0 : ((type == TYPE_HUNTER) ? 600.0 : ((type == TYPE_RUNNER) ? 550.0 : ((type == TYPE_HEAVY) ? 480.0 : 500.0))); // Detection & chase range threshold in pixels
 
     if (state == ENEMY_HURT) {
         inAttackRange = false;
@@ -570,7 +598,7 @@ void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
                     attackCooldown = 40;
                     raiderBackstepTimer = 22; // Trigger step-backward evasion after attacking
                 } else {
-                    attackCooldown = (type == TYPE_RUNNER || type == TYPE_HUNTER) ? 35 : ((type == TYPE_HEAVY) ? 75 : 60);
+                    attackCooldown = (type == TYPE_RUNNER || type == TYPE_HUNTER || type == TYPE_ALPHA_HUNTER) ? 30 : ((type == TYPE_HEAVY) ? 75 : 60);
                 }
                 animFrame = 0;
                 frameCounter = 0;
@@ -778,15 +806,8 @@ void Enemy::Render(double camX, double camY) {
     double drawXOffset = drawX - (drawSize - width) / 2.0;
     double drawYOffset = (type == TYPE_HEAVY) ? (drawY + 2.0) : ((type == TYPE_SPITTER || type == TYPE_RUNNER || type == TYPE_RAIDER || type == TYPE_ABOMINATION || type == TYPE_HUNTER) ? (drawY - 6.0) : drawY);
 
-    if (state == ENEMY_DEAD) {
-        if (type == TYPE_ABOMINATION) {
-            drawYOffset -= 40.0;
-        } else if (type == TYPE_HEAVY) {
-            drawYOffset -= 35.0;
-        } else {
-            drawYOffset -= 20.0;
-        }
-    }
+    // Keep dead enemy sprites aligned with ground baseline without sinking below floor line
+    (void)state;
 
     // Select active animation based on state
     const Animation* activeAnim = &animIdle;
@@ -822,7 +843,13 @@ void Enemy::Render(double camX, double camY) {
     }
 
     if (activeAnim != nullptr && activeAnim->IsValid()) {
+        if (type == TYPE_ALPHA_HUNTER) {
+            glColor4f(1.0f, 0.35f, 0.35f, 1.0f);
+        }
         activeAnim->Render((int)drawXOffset, (int)drawYOffset, drawSize, drawSize, isFacingRight);
+        if (type == TYPE_ALPHA_HUNTER) {
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+        }
     }
     else {
         // High visibility fallback silhouette so enemies are always visible
@@ -872,4 +899,14 @@ bool Enemy::CheckPlayerCollision(double px, double py, int pw, int ph) {
 
     return collisionX && collisionY;
 }
+
+void Enemy::PreloadAllTextures() {
+    Enemy e1(0, 0, 185.0, TYPE_SPITTER);
+    Enemy e2(0, 0, 185.0, TYPE_RUNNER);
+    Enemy e3(0, 0, 185.0, TYPE_RAIDER);
+    Enemy e4(0, 0, 185.0, TYPE_HEAVY);
+    Enemy e5(0, 0, 185.0, TYPE_ABOMINATION);
+    Enemy e6(0, 0, 185.0, TYPE_HUNTER);
+}
+
 

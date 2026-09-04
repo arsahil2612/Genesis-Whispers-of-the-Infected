@@ -66,6 +66,21 @@
     <ClInclude Include="src\TileManager.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="src\EncounterTypes.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\DifficultyDirector.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\SpawnManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EnvironmentalEventManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
+    <ClInclude Include="src\EncounterManager.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <Library Include="Glaux.lib" />
@@ -112,6 +127,18 @@
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="src\TileManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\DifficultyDirector.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\SpawnManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\EnvironmentalEventManager.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
+    <ClCompile Include="src\EncounterManager.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
   </ItemGroup>

@@ -6,6 +6,7 @@
 #include "enemy.h"
 #include "leaderboard.h"
 #include "UI.h"
+#include "EncounterManager.h"
 #include <vector>
 #include <string>
 
@@ -42,6 +43,10 @@ struct Collectible {
     CollectibleType type;
     bool active;
     int subType;
+
+    Collectible() : x(0), y(0), width(32), height(32), type(COL_MEDKIT), active(false), subType(0) {}
+    Collectible(double _x, double _y, int _w, int _h, CollectibleType _t, bool _a = true, int _st = 0)
+        : x(_x), y(_y), width(_w), height(_h), type(_t), active(_a), subType(_st) {}
 };
 
 struct InventoryItem {
@@ -144,6 +149,7 @@ private:
     Map gameMap;
     Leaderboard leaderboard;
     std::vector<Enemy> enemies;
+    EncounterManager m_encounterManager;
     
     // Props and Collectibles
     std::vector<Collectible> collectibles;
@@ -233,6 +239,10 @@ public:
     // Score utility
     void AddScore(int amount);
     
+    // Enemy Accessors for Encounter System
+    void AddEnemy(const Enemy& e) { enemies.push_back(e); }
+    int GetActiveEnemyCount() const;
+
     GameState GetCurrentState() const { return currentState; }
     void SetCurrentState(GameState state) { currentState = state; }
 

@@ -11,8 +11,8 @@
 // Map rendering layout constants
 namespace {
     const int kBgSliceWidth = 1448;
-    const int kBgSliceHeight = 768;
-    const int kScreenHeight = 768;
+    const int kBgSliceHeight = 720;
+    const int kScreenHeight = 720;
     const int kBgDrawYOffset = 0; // Align background bottom to y=0 so visual ground matches feet
 
 #ifndef GL_CLAMP_TO_EDGE
@@ -72,6 +72,12 @@ Map::Map() {
     levelWidth = 14480; // 10 background sections of width 1448
     levelHeight = 768;
     currentLevelNumber = 1;
+
+    // Parallax Factor Configurations
+    parallaxFarFactor = 0.25;      // Layer 1: Sky & distant horizon (25% speed)
+    parallaxMidFactor = 0.45;      // Layer 2: Midground scenery & trees (45% speed)
+    parallaxGameplayFactor = 1.00; // Layer 3: Ground, platforms & world objects (100% speed)
+    parallaxFgFactor = 1.15;       // Layer 5: Foreground rain & foliage (115% speed)
 }
 
 // ============================================================================
@@ -88,24 +94,24 @@ void Map::LoadLevel(int levelNumber) {
 
         // --- Level 1 Platform & Broken Bridge Geometry ---
         // Section 1: Spawn Area to Quarantine Zone Ground (World X: 0 to 10300, Top Surface Y = 185)
-        platforms.push_back({0, 165, 10300, 20});
+        platforms.push_back(Platform(0, 165, 10300, 20));
 
         // Section 2: Broken Bridge Section 8 Traversal Platforms (World X: 10300 to 11440, Top Surface Y = 185)
         // Segment 2A: Left Bridge Platform (10300 to 10620, Width 320, Top Y = 185)
-        platforms.push_back({10300, 165, 320, 20});
+        platforms.push_back(Platform(10300, 165, 320, 20));
 
         // [Gap 1: Broken Gap from 10620 to 10760 (140px jump chasm)]
 
         // Segment 2B: Middle Broken Bridge Plank / Island (10760 to 11000, Width 240, Top Y = 185)
-        platforms.push_back({10760, 165, 240, 20});
+        platforms.push_back(Platform(10760, 165, 240, 20));
 
         // [Gap 2: Broken Gap from 11000 to 11150 (150px jump chasm)]
 
         // Segment 2C: Right Bridge Platform (11150 to 11440, Width 290, Top Y = 185)
-        platforms.push_back({11150, 165, 290, 20});
+        platforms.push_back(Platform(11150, 165, 290, 20));
 
         // Section 3: Mini Boss Arena to Exit Gate Ground (World X: 11440 to 14480, Top Surface Y = 185)
-        platforms.push_back({11440, 165, 3040, 20});
+        platforms.push_back(Platform(11440, 165, 3040, 20));
     }
     else if (levelNumber == 2) {
         for (int i = 0; i < 10; ++i) {
@@ -114,7 +120,7 @@ void Map::LoadLevel(int levelNumber) {
 
         // --- Level 2 Ground & Platform Geometry (Blackwood Forest) ---
         // Section 1: Forest Entrance to Evacuation Camp Ground (World X: 0 to 14480, Top Surface Y = 185)
-        platforms.push_back({0, 165, 14480, 20});
+        platforms.push_back(Platform(0, 165, 14480, 20));
     }
 }
 
@@ -127,12 +133,14 @@ static unsigned int GetCurrentLevelBgTexture(int levelNumber, int sliceIndex, bo
 }
 
 // ============================================================================
-// Background Layer Render Loop
+// LAYER 1: FAR BACKGROUND (Parallax Factor 0.25 - Sky & Distant Horizon)
 // ============================================================================
-void Map::RenderBackground(double camX, bool bossDefeated) {
-    // Pass 1: Render main background slices
+void Map::RenderFarBackground(double camX, bool bossDefeated) {
+    double farCamX = camX * parallaxFarFactor;
+
+    // Render distant backdrop slices contiguously without overlapping vertical seams
     for (int i = 0; i < 10; ++i) {
-        double xPos = (i * kBgSliceWidth) - camX;
+        double xPos = (i * kBgSliceWidth) - farCamX;
 
         if (xPos + kBgSliceWidth >= -200 && xPos <= 1480) {
             unsigned int tex = GetCurrentLevelBgTexture(currentLevelNumber, i, bossDefeated);
@@ -142,41 +150,142 @@ void Map::RenderBackground(double camX, bool bossDefeated) {
             }
         }
     }
+}
 
-    // Pass 2: Soft, natural 360px centered cross-fade over map slice boundaries
-    const float kBlendHalf = 180.0f;
-    float uSpan = (kBlendHalf * 2.0f) / (float)kBgSliceWidth;
+// ============================================================================
+// LAYER 2: MIDGROUND (Parallax Factor 0.45 - Medium-Distance Trees & Scenery)
+// ============================================================================
+void Map::RenderMidground(double camX, bool bossDefeated) {
+    double midCamX = camX * parallaxMidFactor;
 
-    for (int i = 0; i < 9; ++i) {
-        double boundaryX = ((i + 1) * kBgSliceWidth) - camX;
-        double blendLeft = boundaryX - kBlendHalf;
-        double blendRight = boundaryX + kBlendHalf;
+    ResourceManager& rm = ResourceManager::GetInstance();
+    unsigned int texTree = rm.GetTexture("Assets/Props/Nature/nature_dead_tree_01.png");
+    if (texTree == 0) {
+        std::string resPath = GetAssetPath("Assets/Props/Nature/nature_dead_tree_01.png");
+        texTree = iLoadImage((char*)resPath.c_str());
+    }
 
-        if (blendRight >= -100 && blendLeft <= 1380) {
-            unsigned int prevTex = GetCurrentLevelBgTexture(currentLevelNumber, i, bossDefeated);
-            unsigned int nextTex = GetCurrentLevelBgTexture(currentLevelNumber, i + 1, bossDefeated);
+    if (texTree != 0) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-            if (prevTex != 0 && nextTex != 0) {
-                // Render previous slice (i) right edge fading from 1.0 to 0.0 alpha
-                RenderTexturedQuadGradientAlpha(
-                    prevTex,
-                    (float)blendLeft, (float)kBgDrawYOffset,
-                    (float)blendRight, (float)(kBgDrawYOffset + kBgSliceHeight),
-                    1.0f - uSpan, 0.001f, 0.999f, 0.999f,
-                    1.0f, 0.0f
-                );
-
-                // Render next slice (i+1) left edge fading from 0.0 to 1.0 alpha
-                RenderTexturedQuadGradientAlpha(
-                    nextTex,
-                    (float)blendLeft, (float)kBgDrawYOffset,
-                    (float)blendRight, (float)(kBgDrawYOffset + kBgSliceHeight),
-                    0.001f, 0.001f, uSpan, 0.999f,
-                    0.0f, 1.0f
-                );
+        // Render mid-distance tree silhouettes scrolling at 45% speed
+        const double midTreeSpacing = 650.0;
+        for (double wx = 120.0; wx < levelWidth; wx += midTreeSpacing) {
+            double screenX = wx - midCamX;
+            if (screenX + 300 >= -100 && screenX <= 1380) {
+                iShowImage((int)screenX, 170, 260, 360, texTree);
             }
         }
     }
+}
+
+// ============================================================================
+// LAYER 3: GAMEPLAY WORLD GROUND SURFACE (Parallax Factor 1.00 - Synchronized Ground)
+// ============================================================================
+void Map::RenderGroundSurface(double camX) {
+    ResourceManager& rm = ResourceManager::GetInstance();
+
+    std::string groundTilePath = (currentLevelNumber == 2)
+        ? "Assets/Tiles/Ground/village_grass_tile.png"
+        : "Assets/Tiles/Ground/dirt_tile.png";
+
+    unsigned int texGround = rm.GetTexture(groundTilePath);
+    if (texGround == 0) {
+        std::string resolved = GetAssetPath(groundTilePath);
+        texGround = iLoadImage((char*)resolved.c_str());
+    }
+
+    if (texGround == 0) return;
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    const int tileSize = 185; // Ground Y=0 to 185 matching top collision surface Y=185
+
+    for (size_t pIdx = 0; pIdx < platforms.size(); ++pIdx) {
+        const Platform& plat = platforms[pIdx];
+
+        // Draw ground tiles only on main walkable terrain platforms
+        if (plat.y <= 170 && plat.width > 50) {
+            for (double wx = plat.x; wx < plat.x + plat.width; wx += tileSize) {
+                double screenX = wx - camX;
+                if (screenX + tileSize >= -100 && screenX <= 1380) {
+                    int drawW = tileSize;
+                    if (wx + drawW > plat.x + plat.width) {
+                        drawW = (int)(plat.x + plat.width - wx);
+                    }
+                    iShowImage((int)screenX, 0, drawW, tileSize, texGround);
+                }
+            }
+        }
+    }
+
+    // Render soft natural ground-to-background edge blend transition line
+    glDisable(GL_TEXTURE_2D);
+    glBegin(GL_QUADS);
+    glColor4f(0.06f, 0.08f, 0.10f, 0.35f);
+    glVertex2f(-100.0f, 178.0f);
+    glVertex2f(1380.0f, 178.0f);
+    glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
+    glVertex2f(1380.0f, 192.0f);
+    glVertex2f(-100.0f, 192.0f);
+    glEnd();
+    glEnable(GL_TEXTURE_2D);
+}
+
+// ============================================================================
+// LAYER 5: FOREGROUND ATMOSPHERIC PARALLAX (Parallax Factor 1.15 - Rain & Foliage)
+// ============================================================================
+void Map::RenderForeground(double camX, double animTime) {
+    double fgCamX = camX * parallaxFgFactor;
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // 1. Dynamic Atmospheric Rain Streaks
+    glDisable(GL_TEXTURE_2D);
+    glLineWidth(1.5f);
+    glBegin(GL_LINES);
+
+    const int numRainDrops = 65;
+    for (int i = 0; i < numRainDrops; ++i) {
+        double baseWorldX = (i * 220.0) + (sin(i * 13.0) * 80.0);
+        double screenX = fmod(baseWorldX - fgCamX + (animTime * 650.0), 1400.0) - 100.0;
+        double screenY = fmod(720.0 - (animTime * 950.0 + i * 45.0), 760.0);
+
+        if (screenX >= -50 && screenX <= 1330) {
+            float alpha = 0.25f + (float)(sin(i + animTime * 4.0) * 0.1f);
+            glColor4f(0.70f, 0.85f, 1.0f, alpha);
+            glVertex2f((float)screenX, (float)screenY);
+            glVertex2f((float)(screenX - 8.0), (float)(screenY - 22.0));
+        }
+    }
+    glEnd();
+
+    // 2. Passing Translucent Overhead Foliage / Leaf Particles
+    const int numLeaves = 20;
+    for (int i = 0; i < numLeaves; ++i) {
+        double baseWorldX = (i * 680.0) + (cos(i * 7.0) * 150.0);
+        double screenX = fmod(baseWorldX - fgCamX + (animTime * 180.0), 1600.0) - 150.0;
+        double screenY = 480.0 + (sin(animTime * 2.0 + i) * 60.0);
+
+        if (screenX >= -50 && screenX <= 1330) {
+            glDisable(GL_TEXTURE_2D);
+            glBegin(GL_TRIANGLES);
+            glColor4f(0.20f, 0.45f, 0.15f, 0.35f);
+            glVertex2f((float)screenX, (float)screenY);
+            glVertex2f((float)(screenX + 12.0), (float)(screenY + 6.0));
+            glVertex2f((float)(screenX + 6.0), (float)(screenY - 8.0));
+            glEnd();
+        }
+    }
+}
+
+// Backward-compatible Background Renderer
+void Map::RenderBackground(double camX, bool bossDefeated) {
+    RenderFarBackground(camX, bossDefeated);
+    RenderMidground(camX, bossDefeated);
 }
 
 // ============================================================================
@@ -227,16 +336,15 @@ void Map::RenderBridgeAndEnvironmentSprites(double camX, double camY) {
     const double kBridgeSpanW = kBridgeEndX - kBridgeStartX; // 1140 px
 
     // Render High-Resolution Broken Bridge Structure Sprite (broken_bridge_edge.png [1774x887])
-    // Scaled to full proportion (drawW = 1140, drawH = 330) matching reference screenshot.
     // Deck top surface is at fraction 0.7993 of texture height.
-    // Setting drawY = 225.8 - (0.7993 * 330.0) = -38.0 aligns top surface of bridge deck EXACTLY at y=225.8 matching Arin's boots baseline,
+    // Setting drawY = 185.0 - (0.7993 * 330.0) = -79.0 aligns top surface of bridge deck EXACTLY at y=185.0 matching platform top surface,
     // so Arin stands directly on top of the wooden bridge planks while support pillars extend deep into the river water!
     if (texBridgeStructure != 0) {
         double screenBridgeX = kBridgeStartX - camX;
         if (screenBridgeX + kBridgeSpanW >= -200 && screenBridgeX <= 1480) {
             const int kDrawW = (int)kBridgeSpanW;
             const int kDrawH = 330;
-            const int kDrawY = (int)floor(225.8 - (0.7993 * (double)kDrawH)); // -38
+            const int kDrawY = (int)floor(185.0 - (0.7993 * (double)kDrawH)); // -79
             iShowImage((int)screenBridgeX, kDrawY, kDrawW, kDrawH, texBridgeStructure);
         }
     }
