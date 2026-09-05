@@ -2,9 +2,6 @@
 #define IGRAPHICS_DECLARATIONS_H
 
 #include "../iGraphics.h"
-#include <string>
-
-// Helper for resolving asset paths across build directories
-std::string GetAssetPath(const std::string& relativePath);
+#include "asset_loader.h"
 
 #endif // IGRAPHICS_DECLARATIONS_H

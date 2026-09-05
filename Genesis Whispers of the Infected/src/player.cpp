@@ -1,10 +1,14 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "player.h"
 #include "igraphics_declarations.h"
 #include <vector>
 #include <chrono>
 #include <cmath>
 #include <windows.h>
+#include <mmsystem.h>
 #include <GL/gl.h>
+
+#pragma comment(lib, "winmm.lib")
 
 #ifndef GLUT_KEY_LEFT
 #define GLUT_KEY_LEFT 100
@@ -43,10 +47,12 @@ Player::Player() {
     invulnerabilityTimer = 0;
     attackCooldownTimer = 0.0;
     hasDealtDamageThisAttack = false;
+    hasPlayedMissSoundThisAttack = false;
     rangedAttackTriggered = false;
     currentAttackID = 0;
     state = STATE_IDLE;
     currentAnimationFrame = 0;
+    footstepTimer = 0.0;
 }
 
 // ============================================================================
@@ -78,9 +84,11 @@ void Player::Initialize(double startX, double startY) {
     invulnerabilityTimer = 0;
     attackCooldownTimer = 0.0;
     hasDealtDamageThisAttack = false;
+    hasPlayedMissSoundThisAttack = false;
     rangedAttackTriggered = false;
     currentAttackID = 0;
     currentAnimationFrame = 0;
+    footstepTimer = 0.0;
 
     // Load Arin full multi-frame animation sequences from asset directory statically once
     static std::vector<unsigned int> seqIdle, seqWalk, seqRun, seqJump, seqAttack, seqHurt, seqDeath;
@@ -337,17 +345,17 @@ void Player::Update(bool keys[], bool specialKeys[]) {
                 isExhausted = true;
             }
             staminaRegenDelayTimer = 1.0;
+
+            // Trigger Arin's Jump Sound (Plays ONCE on jump launch)
+            PlayAudioFile("Assets/Audio/Player/Arin/Jump/Arin_Jump_01.wav", "Assets/Sound/Arin/Jump/arins_jump.wav");
         }
     }
     wasJumpPressed = jumpPressed;
 
     // 3b. Katana Melee Attack System: Triggered by J key (Edge Detected Single Key Press)
     bool attackPressed = keys['j'] || keys['J'];
-    if (attackPressed && !wasAttackPressed && attackCooldownTimer <= 0.0 && state != STATE_ATTACK_MELEE && state != STATE_DEAD && state != STATE_HURT) {
-        SetState(STATE_ATTACK_MELEE);
-        attackCooldownTimer = 0.45;
-        hasDealtDamageThisAttack = false;
-        currentAttackID++;
+    if (attackPressed && !wasAttackPressed) {
+        AttackMelee();
     }
     wasAttackPressed = attackPressed;
 
@@ -504,6 +512,10 @@ void Player::Update(bool keys[], bool specialKeys[]) {
     else if (state == STATE_ATTACK_MELEE) {
         // Lock state in ATTACK until melee animation finishes
         if (animAttack.IsFinished()) {
+            if (!hasDealtDamageThisAttack && !hasPlayedMissSoundThisAttack) {
+                hasPlayedMissSoundThisAttack = true;
+                PlayAudioFile("Sounds/Katana/katana_miss.wav", "Assets/Sound/Arin/Katana Attack/Katana_Miss.wav");
+            }
             if (!isGrounded) {
                 SetState(STATE_JUMP);
             }
@@ -523,6 +535,23 @@ void Player::Update(bool keys[], bool specialKeys[]) {
     }
     else {
         SetState(STATE_IDLE);
+    }
+
+    // 6b. Footstep Sound Trigger (Walking interval: ~0.45s, Running interval: ~0.30s)
+    if (isGrounded && (state == STATE_WALK || state == STATE_RUN)) {
+        footstepTimer -= dt;
+        if (footstepTimer <= 0.0) {
+            bool isRunningState = (state == STATE_RUN);
+            double interval = isRunningState ? 0.30 : 0.45;
+
+            std::string soundFileName = isRunningState ? "Arin_Run_Footstep_01.wav" : "Arin_Walk_Footstep_01.wav";
+            std::string fallbackSound = isRunningState ? "Assets/Sound/Arin/Run/arin_running.wav" : "Assets/Sound/Arin/Walk/arin_footstep.wav";
+
+            PlayAudioFile("Assets/Audio/Player/Arin/Footsteps/" + soundFileName, fallbackSound);
+            footstepTimer = interval;
+        }
+    } else {
+        footstepTimer = 0.0;
     }
 
     // 7. Dynamic locomotion animation speed matching physical movement velocity
@@ -619,11 +648,17 @@ void Player::TakeDamage(int damage) {
     if (hp <= 0) {
         hp = 0;
         SetState(STATE_DEAD);
+
+        // Trigger Arin's Death Sound (Plays ONCE on death event)
+        PlayAudioFile("Sounds/Arin/arin_death.wav", "Assets/Sound/Arin/Death/arins_death.wav");
     }
     else {
         SetState(STATE_HURT);
         isInvulnerable = true;
         invulnerabilityTimer = 30;
+
+        // Trigger Arin's Hurt Sound (Plays ONCE per valid damage event)
+        PlayAudioFile("Sounds/Arin/arin_hurt.wav", "Assets/Sound/Arin/Hurt/arins_hurt.wav");
     }
 }
 
@@ -637,7 +672,11 @@ void Player::AttackMelee() {
     currentAttackID++;
     SetState(STATE_ATTACK_MELEE);
     hasDealtDamageThisAttack = false;
+    hasPlayedMissSoundThisAttack = false;
     attackCooldownTimer = 0.45; // 0.45s attack and recovery cooldown
+
+    // Play Katana Slash Sound (ONCE at start of katana attack)
+    PlayAudioFile("Sounds/Katana/katana_slash.wav", "Assets/Sound/Arin/Katana Attack/katana slash.wav");
 }
 
 void Player::AttackRanged() {

@@ -38,6 +38,13 @@ unsigned int Enemy::texHeavyDeath = 0;
 unsigned int Enemy::texHunterIdle = 0;
 unsigned int Enemy::texHunterWalk = 0;
 unsigned int Enemy::texHunterRun = 0;
+
+int Enemy::s_globalWalkerAttackAudioCooldown = 0;
+int Enemy::s_globalWalkerHurtAudioCooldown = 0;
+int Enemy::s_globalRunnerAttackAudioCooldown = 0;
+int Enemy::s_globalRunnerHurtAudioCooldown = 0;
+int Enemy::s_globalRaiderAttackAudioCooldown = 0;
+int Enemy::s_globalRaiderHurtAudioCooldown = 0;
 unsigned int Enemy::texHunterAttack = 0;
 unsigned int Enemy::texHunterHurt = 0;
 unsigned int Enemy::texHunterDeath = 0;
@@ -99,7 +106,11 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
     attackCooldown = 0;
     stateTimer = 0;
     rangedShotFired = false;
-    lastHitAttackID = 0;
+    lastHitAttackID = -1;
+    walkerHurtAudioCooldown = 0;
+    runnerIdleTimer = 0;
+    runnerHurtAudioCooldown = 0;
+    raiderHurtAudioCooldown = 0;
     bruteAttack = BRUTE_PUNCH;
     bruteAttackTimer = 0;
     raiderBackstepTimer = 0;
@@ -535,7 +546,24 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
 // AI State Machine & Physics Update
 // ============================================================================
 void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
+    // Decrement audio cooldown timers (affecting sound playback only, not gameplay)
+    static DWORD s_lastAudioTickMs = 0;
+    DWORD currentMs = GetTickCount();
+    if (currentMs - s_lastAudioTickMs >= 16) { // ~60 FPS frame tick (16ms)
+        s_lastAudioTickMs = currentMs;
+        if (s_globalWalkerAttackAudioCooldown > 0) s_globalWalkerAttackAudioCooldown--;
+        if (s_globalWalkerHurtAudioCooldown > 0) s_globalWalkerHurtAudioCooldown--;
+        if (s_globalRunnerAttackAudioCooldown > 0) s_globalRunnerAttackAudioCooldown--;
+        if (s_globalRunnerHurtAudioCooldown > 0) s_globalRunnerHurtAudioCooldown--;
+        if (s_globalRaiderAttackAudioCooldown > 0) s_globalRaiderAttackAudioCooldown--;
+        if (s_globalRaiderHurtAudioCooldown > 0) s_globalRaiderHurtAudioCooldown--;
+    }
+    if (walkerHurtAudioCooldown > 0) walkerHurtAudioCooldown--;
+    if (runnerHurtAudioCooldown > 0) runnerHurtAudioCooldown--;
+    if (raiderHurtAudioCooldown > 0) raiderHurtAudioCooldown--;
+    if (runnerIdleTimer > 0) runnerIdleTimer--;
 
+    double startFrameX = x;
 
     // Gravity for jumping over obstacles
     if (!isGrounded) {
@@ -781,14 +809,43 @@ void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
     }
 
     if (state != oldState) {
-        if (state == ENEMY_PATROL) {
-            if (startX != endX && animWalk.IsValid()) animWalk.Reset();
-            else animIdle.Reset();
-        }
+        if (state == ENEMY_PATROL) animWalk.Reset();
         else if (state == ENEMY_CHASE) animWalk.Reset();
-        else if (state == ENEMY_ATTACK) { animAttack.Reset(); hasDealtDamage = false; }
+        else if (state == ENEMY_ATTACK) {
+            animAttack.Reset();
+            hasDealtDamage = false;
+
+            if (type == TYPE_SPITTER) {
+                if (s_globalWalkerAttackAudioCooldown <= 0) {
+                    PlayAudioFile("Assets/Sound/Infected Walker/Attack/walkerattack2.wav");
+                    s_globalWalkerAttackAudioCooldown = 12; // ~0.20s global attack sound throttle
+                }
+            }
+            else if (type == TYPE_RUNNER) {
+                if (s_globalRunnerAttackAudioCooldown <= 0) {
+                    PlayAudioFile("Assets/Sound/Runner/Attack/runner_attack.wav");
+                    s_globalRunnerAttackAudioCooldown = 12; // ~0.20s global attack sound throttle
+                }
+            }
+            else if (type == TYPE_RAIDER) {
+                if (s_globalRaiderAttackAudioCooldown <= 0) {
+                    PlayAudioFile("Assets/Sound/Raider/Attack/raider_attack.wav");
+                    s_globalRaiderAttackAudioCooldown = 12; // ~0.20s global attack sound throttle
+                }
+            }
+        }
         else if (state == ENEMY_HURT) animHurt.Reset();
         else if (state == ENEMY_DEAD) animDeath.Reset();
+    }
+
+    bool isMoving = std::abs(x - startFrameX) > 0.1;
+    if (type == TYPE_RUNNER) {
+        if (isGrounded && !isMoving && (state == ENEMY_CHASE || state == ENEMY_PATROL)) {
+            if (runnerIdleTimer <= 0) {
+                PlayAudioFile("Assets/Sound/Runner/Idle/runner_idle.wav");
+                runnerIdleTimer = 180; // ~3.0s between idle growls
+            }
+        }
     }
 }
 
@@ -884,10 +941,48 @@ void Enemy::TakeDamage(int amount) {
         hp = 0;
         state = ENEMY_DEAD;
         animDeath.Reset();
+
+        if (type == TYPE_SPITTER) {
+            // Death Sound (Priority 1)
+            PlayAudioFile("Assets/Sound/Infected Walker/Death/walkerdeath2.wav");
+        }
+        else if (type == TYPE_RUNNER) {
+            // Death Sound
+            PlayAudioFile("Assets/Sound/Runner/Death/runner_death.wav");
+        }
+        else if (type == TYPE_RAIDER) {
+            // Death Sound
+            PlayAudioFile("Assets/Sound/Raider/Death/raider_ddeath.wav");
+        }
     }
     else {
         state = ENEMY_HURT;
         animHurt.Reset();
+
+        if (type == TYPE_SPITTER) {
+            // Hurt Sound (guarded by per-walker and global audio cooldowns to prevent noise spam)
+            if (walkerHurtAudioCooldown <= 0 && s_globalWalkerHurtAudioCooldown <= 0) {
+                PlayAudioFile("Assets/Sound/Infected Walker/Hurt/walker_hurt2_sound_.wav");
+                walkerHurtAudioCooldown = 18;        // ~0.30s per-walker hurt audio throttle
+                s_globalWalkerHurtAudioCooldown = 10; // ~0.16s global hurt audio throttle
+            }
+        }
+        else if (type == TYPE_RUNNER) {
+            // Hurt Sound (guarded by per-runner and global audio cooldowns)
+            if (runnerHurtAudioCooldown <= 0 && s_globalRunnerHurtAudioCooldown <= 0) {
+                PlayAudioFile("Assets/Sound/Runner/Hurt/runner_hurt.wav");
+                runnerHurtAudioCooldown = 18;        // ~0.30s per-runner hurt audio throttle
+                s_globalRunnerHurtAudioCooldown = 10; // ~0.16s global hurt audio throttle
+            }
+        }
+        else if (type == TYPE_RAIDER) {
+            // Hurt Sound (guarded by per-raider and global audio cooldowns)
+            if (raiderHurtAudioCooldown <= 0 && s_globalRaiderHurtAudioCooldown <= 0) {
+                PlayAudioFile("Assets/Sound/Raider/Hurt/raider_hurt.wav");
+                raiderHurtAudioCooldown = 18;        // ~0.30s per-raider hurt audio throttle
+                s_globalRaiderHurtAudioCooldown = 10; // ~0.16s global hurt audio throttle
+            }
+        }
     }
 }
 

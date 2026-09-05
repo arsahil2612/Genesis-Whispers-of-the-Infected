@@ -3,6 +3,9 @@
 #include "igraphics_declarations.h"
 #include <cstdio>
 #include <windows.h>
+#include <mmsystem.h>
+
+#pragma comment(lib, "winmm.lib")
 
 std::string GetAssetPath(const std::string &relativePath) {
     char cwd[MAX_PATH];
@@ -20,6 +23,46 @@ std::string GetAssetPath(const std::string &relativePath) {
         return path2;
     }
     return relativePath;
+}
+
+void PlayAudioFile(const std::string &primaryRelativePath, const std::string &fallbackRelativePath) {
+    std::string path = GetAssetPath(primaryRelativePath);
+    FILE* fTest = NULL;
+    if (fopen_s(&fTest, path.c_str(), "rb") != 0 || fTest == NULL) {
+        if (!fallbackRelativePath.empty()) {
+            path = GetAssetPath(fallbackRelativePath);
+        }
+    } else {
+        fclose(fTest);
+    }
+
+    char fullPath[MAX_PATH];
+    if (_fullpath(fullPath, path.c_str(), MAX_PATH) == NULL) {
+        strcpy_s(fullPath, sizeof(fullPath), path.c_str());
+    }
+
+    // Allocate round-robin MCI channels so multiple sounds can play simultaneously without interrupting each other
+    static int channelIndex = 0;
+    int ch = channelIndex;
+    channelIndex = (channelIndex + 1) % 16;
+
+    char alias[32];
+    sprintf_s(alias, sizeof(alias), "snd_ch_%d", ch);
+
+    char cmdClose[64];
+    sprintf_s(cmdClose, sizeof(cmdClose), "close %s", alias);
+    mciSendStringA(cmdClose, NULL, 0, NULL);
+
+    char cmdOpen[MAX_PATH + 128];
+    sprintf_s(cmdOpen, sizeof(cmdOpen), "open \"%s\" type mpegvideo alias %s", fullPath, alias);
+    MCIERROR err = mciSendStringA(cmdOpen, NULL, 0, NULL);
+    if (err == 0) {
+        char cmdPlay[64];
+        sprintf_s(cmdPlay, sizeof(cmdPlay), "play %s from 0", alias);
+        mciSendStringA(cmdPlay, NULL, 0, NULL);
+    } else {
+        PlaySoundA(fullPath, NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
+    }
 }
 
 // Static caching tables for background textures

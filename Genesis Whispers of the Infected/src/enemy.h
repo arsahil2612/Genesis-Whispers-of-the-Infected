@@ -70,6 +70,16 @@ public:
     int raiderPauseTimer;
     int avoidTimer;
     int avoidDirection;
+    int walkerHurtAudioCooldown;
+    int runnerIdleTimer;
+    int runnerHurtAudioCooldown;
+    int raiderHurtAudioCooldown;
+    static int s_globalWalkerAttackAudioCooldown;
+    static int s_globalWalkerHurtAudioCooldown;
+    static int s_globalRunnerAttackAudioCooldown;
+    static int s_globalRunnerHurtAudioCooldown;
+    static int s_globalRaiderAttackAudioCooldown;
+    static int s_globalRaiderHurtAudioCooldown;
     // Static Texture Handles (Cached across all instances)
     static unsigned int texWalkerIdle, texWalkerWalk, texWalkerAttack, texWalkerHurt, texWalkerDeath;
     static unsigned int texRunnerIdle, texRunnerWalk, texRunnerRun, texRunnerAttack, texRunnerHurt, texRunnerDeath;

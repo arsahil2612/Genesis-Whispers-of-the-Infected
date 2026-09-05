@@ -1501,6 +1501,13 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                     enemies[i].TakeDamage(35);
                     score += 50;
                     enemies[i].lastHitAttackID = player.currentAttackID;
+                    player.hasDealtDamageThisAttack = true;
+
+                    // Play Katana Hit Sound (Heavy Enemy / Mutated Brute vs Normal Enemy)
+                    bool isHeavyEnemy = (enemies[i].type == TYPE_HEAVY || enemies[i].type == TYPE_ABOMINATION);
+                    std::string hitSound = isHeavyEnemy ? "katana_hit_heavy.wav" : "katana_hit_enemy.wav";
+                    std::string fallbackSound = isHeavyEnemy ? "Assets/Sound/Arin/Katana Attack/Katana_Hit_Heavy.wav" : "Assets/Sound/Arin/Katana Attack/katana hit enemy.wav";
+                    PlayAudioFile("Sounds/Katana/" + hitSound, fallbackSound);
                 }
             }
         }

@@ -74,7 +74,7 @@ int main() {
 
   // 3. Initialize Game Engine Framework
   g_game.Initialize(1280, 720);
-
+  
   // 4. Start iGraphics Event & Render Loop
   iStart();
 

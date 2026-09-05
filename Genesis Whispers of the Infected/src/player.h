@@ -56,12 +56,14 @@ public:
     // Combat Tracking Flags & Timers
     double attackCooldownTimer;
     bool hasDealtDamageThisAttack;
+    bool hasPlayedMissSoundThisAttack;
     bool rangedAttackTriggered;
     int currentAttackID;
 
     // State & Animation Timing
     PlayerState state;
     int currentAnimationFrame;
+    double footstepTimer;
 
     // Reusable Animation Objects
     Animation animIdle;

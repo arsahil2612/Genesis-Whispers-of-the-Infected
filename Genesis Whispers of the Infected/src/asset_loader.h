@@ -26,4 +26,7 @@ void ClearBackgroundCache();
 // Helper for resolving asset paths across build directories
 std::string GetAssetPath(const std::string &relativePath);
 
+// Helper for playing audio files asynchronously with absolute path resolution
+void PlayAudioFile(const std::string &primaryRelativePath, const std::string &fallbackRelativePath = "");
+
 #endif // ASSET_LOADER_H
