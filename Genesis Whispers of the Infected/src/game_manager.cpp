@@ -2,6 +2,7 @@
 #include <windows.h>
 #include <GL/gl.h>
 #include "game_manager.h"
+#include "asset_loader.h"
 #include "ResourceManager.h"
 #include "igraphics_declarations.h"
 #include <cmath>
@@ -82,6 +83,16 @@ struct FogParticle {
 static std::vector<RainParticle> rainParticles;
 static std::vector<FogParticle> fogParticles;
 
+struct BossProjectile {
+    double x, y;
+    double vx;
+    bool active;
+    double width, height;
+    int damage;
+    BossProjectile() : active(false) {}
+};
+static BossProjectile g_bossProjectiles[4];
+
 // UI PNG Asset Texture Handles
 static unsigned int g_texHealthFrame = 0;
 static unsigned int g_texHealthFill = 0;
@@ -110,6 +121,7 @@ static unsigned int g_texItemNovagenKeycard = 0;
 static unsigned int g_texItemMissionNote = 0;
 static unsigned int g_texItemCoin = 0;
 static unsigned int g_texItemBattery = 0;
+static unsigned int g_texBioFlame = 0;
 
 // Instant Floating Item Pickup Notification Data
 static char g_pickupText[64] = "";
@@ -512,86 +524,87 @@ void GameManager::LoadLevel1() {
     worldProps.clear();
 
     // --- AREA 1 & 2: DESTROYED HOUSE (ARIN'S FAMILY HOME: x = 0 to 3500) ---
-    AddWorldProp("Assets/Props/Furniture/furn_broken_chair_01.png", 420.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Chair
-    AddWorldProp("Assets/Props/Furniture/furn_dining_table_01.png", 950.0, 185.0, 110.0, 70.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Low Dining Table
+    AddWorldProp("Assets/Props/Level 1/Furniture/furn_broken_chair_01.png", 420.0, 185.0, 56.0, 56.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Chair
+    AddWorldProp("Assets/Props/Level 1/Furniture/furn_dining_table_01.png", 950.0, 185.0, 110.0, 70.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Low Dining Table
 
     // 2. Kitchen / Storage Area (x = 1200 to 2000)
-    AddWorldProp("Assets/Props/Furniture/furn_wooden_cabinet_01.png", 1500.0, 185.0, 85.0, 115.0, PROP_LAYER_BACKGROUND, false); // Decorative Wardrobe/Cabinet
-    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 1950.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND, true); // Solid Shopping Cart / Tool Box Obstacle
+
+    AddWorldProp("Assets/Props/Level 1/Decorations/veh_shopping_cart_destroyed.png", 1950.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND, true); // Solid Shopping Cart / Tool Box Obstacle
 
     // 3. Arin & Luna's Bedrooms (x = 2000 to 3000)
-    AddWorldProp("Assets/Props/Furniture/furn_broken_bed_01.png", 2400.0, 185.0, 130.0, 75.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle: Standable Bed
-    AddWorldProp("Assets/Props/Furniture/furn_broken_bench_01.png", 2850.0, 185.0, 120.0, 65.0, PROP_LAYER_BACKGROUND, true); // Larger Jumpable Bench Obstacle
+    AddWorldProp("Assets/Props/Level 1/Furniture/furn_broken_bed_01.png", 2400.0, 185.0, 130.0, 75.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle: Standable Bed
+    AddWorldProp("Assets/Props/Level 1/Furniture/furn_broken_bench_01.png", 2850.0, 185.0, 120.0, 65.0, PROP_LAYER_BACKGROUND, true); // Larger Jumpable Bench Obstacle
 
     // 4. Grounded Storage & Boundary (x = 3000 to 3500)
-    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 3200.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Solid Crate Obstacle
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 3520.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND, true); // Solid Barricade Fence
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_wooden_crate_01.png", 3200.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Solid Crate Obstacle
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_broken_fence_01.png", 3520.0, 185.0, 100.0, 65.0, PROP_LAYER_BACKGROUND, true); // Solid Barricade Fence
 
     // --- AREA 3 & 4: VILLAGE STREET & SQUARE (x = 3500 to 7500) ---
-    AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 3650.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND); // Decorative Pole
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_telephone_pole_01.png", 3650.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND); // Decorative Pole
     AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 3655.0, 250.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Paper Poster
-    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 3900.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND); // Larger Taller Tree
-    AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 4250.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND); // Decorative Backdrop Vehicle
+    AddWorldProp("Assets/Props/Level 1/Nature/nature_dead_tree_01.png", 3900.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND); // Larger Taller Tree
+    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_pickup_destroyed.png", 4250.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND); // Decorative Backdrop Vehicle
     AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4270.0, 215.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Decorative Paper Warning
 
     // 2. Mid Street & Barricade Zone (x = 4400 to 5500)
-    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 4580.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_street_lamp_01.png", 4580.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
     AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 4585.0, 240.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Decorative Paper Warning
-    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 4880.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true); // Larger Jumpable Fire Drum Obstacle
-    AddWorldProp("Assets/Props/Vehicles/veh_destroyed_car_01.png", 5280.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND); // Decorative Vehicle
-    AddWorldProp("Assets/Props/Nature/dry_bush.png", 5520.0, 185.0, 48.0, 36.0, PROP_LAYER_FOREGROUND, false); // Decorative Bush / Foliage
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_burning_barrel_01.png", 4880.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true); // Larger Jumpable Fire Drum Obstacle
+    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_destroyed_car_01.png", 5280.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND); // Decorative Vehicle
+    AddWorldProp("Assets/Props/Level 1/Nature/dry_bush.png", 5520.0, 185.0, 48.0, 36.0, PROP_LAYER_FOREGROUND, false); // Decorative Bush / Foliage
 
     // 3. Village Square Approach (x = 5500 to 6700)
-    AddWorldProp("Assets/Props/Decorations/prop_telephone_pole_01.png", 5800.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND); // Decorative Pole
-    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 6150.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND); // Decorative Vehicle
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_telephone_pole_01.png", 5800.0, 185.0, 60.0, 240.0, PROP_LAYER_BACKGROUND); // Decorative Pole
+    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_ambulance_burned.png", 6150.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND); // Decorative Vehicle
     AddWorldProp("Assets/Posters/poster_emergency_evacuation.png", 6170.0, 220.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Poster
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 6600.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Barricade Fence
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_broken_fence_01.png", 6600.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Barricade Fence
 
     // 4. Village Square Edge (x = 6700 to 7400)
-    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 7000.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND); // Larger Taller Tree
-    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 7350.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
+    AddWorldProp("Assets/Props/Level 1/Nature/nature_dead_tree_01.png", 7000.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND); // Larger Taller Tree
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_street_lamp_01.png", 7350.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
     AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 7355.0, 240.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Decorative Warning
-    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 7550.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #3: Oil Drum
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_oil_drum_01.png", 7550.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #3: Oil Drum
 
     // --- AREA 4: VILLAGE SQUARE & QUARANTINE (x = 7500 to 9000) ---
-    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 7750.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Sandbags
-    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 8050.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_sandbags_01.png", 7750.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Sandbags
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_street_lamp_01.png", 8050.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
 
     // 2. Central Plaza & Rubble (x = 7900 to 8400)
-    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 8280.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND); // Decorative Vehicle
-    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 8500.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Plaza Oil Drum
+    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_ambulance_burned.png", 8280.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND); // Decorative Vehicle
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_oil_drum_01.png", 8500.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Plaza Oil Drum
 
     // 3. Military Checkpoint Barricade & East Exit (x = 8400 to 9000)
-    AddWorldProp("Assets/Props/Military/bld_military_checkpoint.png", 8800.0, 185.0, 130.0, 85.0, PROP_LAYER_BACKGROUND); // Decorative Checkpoint
+
     AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 8825.0, 220.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Poster
-    AddWorldProp("Assets/Props/Decorations/prop_street_lamp_01.png", 9080.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_street_lamp_01.png", 9080.0, 185.0, 40.0, 160.0, PROP_LAYER_BACKGROUND); // Decorative Lamp
 
     // --- AREA 5: ABANDONED MARKET (x = 9000 to 11000) ---
-    AddWorldProp("Assets/Props/Buildings/bld_grocery_store_abandoned.png", 9250.0, 185.0, 160.0, 130.0, PROP_LAYER_BACKGROUND); // Decorative Storefront
+    AddWorldProp("Assets/Props/Level 1/Buildings/bld_grocery_store_abandoned.png", 9250.0, 185.0, 260.0, 190.0, PROP_LAYER_BACKGROUND); // Decorative Storefront (Larger and lowered to touch ground)
     AddWorldProp("Assets/Posters/poster_novagen_genesis.png", 9275.0, 225.0, 38.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative Poster
-    AddWorldProp("Assets/Props/Decorations/veh_shopping_cart_destroyed.png", 9600.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Tool Box / Cart
+    AddWorldProp("Assets/Props/Level 1/Decorations/veh_shopping_cart_destroyed.png", 9600.0, 185.0, 75.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Tool Box / Cart
 
     // 2. Inner Market Aisles (x = 9500 to 10500)
-    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10050.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND, false); // Image-Only Decorative Shelf
-    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 10450.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Market Crate 1
+
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_wooden_crate_01.png", 10450.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Market Crate 1
 
     // 3. Market Storage & Rear Exit (x = 10500 to 11000)
-    AddWorldProp("Assets/Props/Furniture/furn_grocery_shelf_01.png", 10800.0, 185.0, 90.0, 120.0, PROP_LAYER_BACKGROUND, false); // Image-Only Decorative Shelf
-    AddWorldProp("Assets/Props/Decorations/prop_wooden_crate_01.png", 11100.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #3: Market Crate 2
+    AddWorldProp("Assets/Props/Level 1/Buildings/bld_church_abandoned.png", 10800.0, 185.0, 200.0, 250.0, PROP_LAYER_BACKGROUND); // Replaces the bridge
+
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_wooden_crate_01.png", 11100.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #3: Market Crate 2
 
     // --- AREA 6: RAIDER CAMP & EXIT GATE (x = 11000 to 13500) ---
-    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 11400.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND, false); // Decorative Sandbags
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_sandbags_01.png", 11400.0, 185.0, 110.0, 50.0, PROP_LAYER_BACKGROUND, false); // Decorative Sandbags
     AddWorldProp("Assets/Posters/poster_quarantine_warning.png", 11430.0, 210.0, 36.0, 48.0, PROP_LAYER_BACKGROUND); // Decorative Poster Warning
-    AddWorldProp("Assets/Props/Decorations/prop_generator_01.png", 11600.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Generator Barricade
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_generator_01.png", 11600.0, 185.0, 70.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #1: Generator Barricade
 
     // 2. Watchtower & Campfire Hub (x = 11400 to 12200)
-    AddWorldProp("Assets/Props/Military/bld_raider_watchtower.png", 11900.0, 185.0, 180.0, 280.0, PROP_LAYER_BACKGROUND); // Decorative Watchtower
+    AddWorldProp("Assets/Props/Level 1/Military/bld_raider_watchtower.png", 11900.0, 185.0, 180.0, 280.0, PROP_LAYER_BACKGROUND); // Decorative Watchtower
 
     // 3. Exit Gate & Luna's Ribbon Checkpoint (x = 12200 to 13500)
-    AddWorldProp("Assets/Props/Buildings/Quarantine_CheckpointQuarantine_Checkpoint.png", 12400.0, 185.0, 160.0, 120.0, PROP_LAYER_BACKGROUND); // Decorative Checkpoint
-    AddWorldProp("Assets/Props/Decorations/drum.png", 12750.0, 185.0, 50.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Outpost Oil Drum
-    AddWorldProp("Assets/Props/Decorations/prop_sandbags_01.png", 13000.0, 185.0, 90.0, 45.0, PROP_LAYER_FOREGROUND, false); // Decorative Sandbags
-    AddWorldProp("Assets/Props/Military/Exit_Gate.png", 13350.0, 185.0, 586.0, 440.0, PROP_LAYER_BACKGROUND); // Decorative Gate Structure
+
+    AddWorldProp("Assets/Props/Level 1/Decorations/drum.png", 12750.0, 185.0, 50.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Outpost Oil Drum
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_sandbags_01.png", 13000.0, 185.0, 90.0, 45.0, PROP_LAYER_FOREGROUND, false); // Decorative Sandbags
+    AddWorldProp("Assets/Props/Level 1/Military/Exit_Gate.png", 13350.0, 185.0, 586.0, 440.0, PROP_LAYER_BACKGROUND); // Decorative Gate Structure
 
     // Load props texture sheet
     if (texPropsSheet == 0) {
@@ -782,22 +795,53 @@ void GameManager::LoadLevel2() {
     worldProps.clear();
 
     // --- AREA 1: FOREST ENTRANCE PROPS (World X: 0 to 1448) ---
-    AddWorldProp("Assets/Props/Nature/nature_dead_tree_01.png", 280.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_broken_fence_01.png", 520.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Fence
-    AddWorldProp("Assets/Props/Vehicles/veh_destroyed_car_01.png", 850.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 1150.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true); // Fire Drum
+    AddWorldProp("Assets/Props/Level 1/Nature/nature_dead_tree_01.png", 280.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_broken_fence_01.png", 520.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Fence
+    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 650.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND); // L2 Prop
+    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_destroyed_car_01.png", 850.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 1000.0, 185.0, 60.0, 20.0, PROP_LAYER_FOREGROUND); // L2 Prop
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_burning_barrel_01.png", 1150.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true); // Fire Drum
 
     // --- AREA 2: EVACUATION CAMP PROPS (World X: 1448 to 4344) ---
-    AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 1800.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_oil_drum_01.png", 2200.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 2600.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Decorations/prop_burning_barrel_01.png", 3400.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true);
+    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 1600.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND); // L2 Prop
+    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_pickup_destroyed.png", 1800.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_oil_drum_01.png", 2200.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true);
+    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 2400.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND); // L2 Prop
+    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 2480.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND); // L2 Prop
+    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_ambulance_burned.png", 2600.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 3000.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND); // L2 Prop
+    AddWorldProp("Assets/Props/Level 1/Decorations/prop_burning_barrel_01.png", 3400.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true);
+
+    // --- AREA 3: DEEP FOREST PROPS (World X: 4344 to 5800) ---
+    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 4600.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 5200.0, 185.0, 60.0, 20.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Evacuation_Route_Sign.png", 5600.0, 185.0, 40.0, 60.0, PROP_LAYER_BACKGROUND);
 
     // --- AREA 4: RIVER CROSSING PROPS ---
-    AddWorldProp("Assets/Props/Vehicles/veh_pickup_destroyed.png", 6150.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 5950.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_pickup_destroyed.png", 6150.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 6400.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
+
+    // --- AREA 5: SURVIVOR HIDEOUT PROPS (World X: 6750 to 8850) ---
+    AddWorldProp("Assets/Props/Level 2/Weathered_Olive_Military_Folding_Table.png", 7200.0, 185.0, 85.0, 55.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 8200.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+
+    // --- AREA 6: INFECTED FOREST PROPS (World X: 8850 to 10450) ---
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 9200.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 9700.0, 185.0, 90.0, 30.0, PROP_LAYER_FOREGROUND);
 
     // --- AREA 7: NOVAGEN OUTPOST PROPS ---
-    AddWorldProp("Assets/Props/Vehicles/veh_ambulance_burned.png", 10200.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_ambulance_burned.png", 10200.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Facility_Direction_Sign_Transparent.png", 10600.0, 185.0, 60.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Vehicle.png", 11000.0, 185.0, 220.0, 130.0, PROP_LAYER_BACKGROUND);
+
+    // --- AREA 8: RESEARCH FACILITY PROPS (World X: 11850 to 12650) ---
+    AddWorldProp("Assets/Props/Level 2/NovaGen_Containment_Chamber_1024_Transparent.png", 12000.0, 185.0, 110.0, 180.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/NovaGen_Laboratory_Computer_Terminal.png", 12400.0, 185.0, 65.0, 85.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Genesis_Specimen_Container.png", 12550.0, 185.0, 40.0, 60.0, PROP_LAYER_FOREGROUND);
+
+    // --- AREA 9: BOSS ARENA PROPS (World X: 13750 to 14100) ---
+    AddWorldProp("Assets/Props/Level 2/Abandoned_Medical_Examination_Machine.png", 13800.0, 185.0, 90.0, 110.0, PROP_LAYER_BACKGROUND);
 
     props.clear();
     enemies.clear();
@@ -841,8 +885,8 @@ void GameManager::LoadLevel2() {
     enemies.push_back(Enemy(12250, 12350, kLevel1GroundY, TYPE_HEAVY));
     enemies.push_back(Enemy(12550, 12650, kLevel1GroundY, TYPE_SPITTER));
 
-    // Area 9: Boss Arena (1 Alpha Hunter Boss)
-    enemies.push_back(Enemy(13550, 13650, kLevel1GroundY, TYPE_ALPHA_HUNTER));
+    // Area 9: Boss Arena (1 Forest Abomination Boss)
+    enemies.push_back(Enemy(13750, 14100, kLevel1GroundY, TYPE_FOREST_ABOMINATION));
 
     // Area 10: Facility B Road (2 Walkers)
     enemies.push_back(Enemy(14150, 14250, kLevel1GroundY, TYPE_SPITTER));
@@ -1135,9 +1179,35 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     double bossTriggerX = (currentLevel == 2) ? 13100.0 : 11800.0;
     if (player.x >= bossTriggerX && !bossSpawned) {
         bossSpawned = true;
+        if (currentLevel == 2) {
+            printf("LEVEL 2 BOSS ARENA LOADED\n");
+            printf("FOREST ABOMINATION BOSS START\n");
+            printf("FOREST ABOMINATION ACTIVE\n");
+            fflush(stdout);
+
+            // Spawn Arin on the left side of the screen
+            player.x = 13150.0;
+
+            // Spawn Forest Abomination on the right side of the screen
+            for (size_t i = 0; i < enemies.size(); ++i) {
+                if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                    enemies[i].x = 13750.0;
+                    enemies[i].startX = 13050.0;
+                    enemies[i].endX = 14100.0;
+                    enemies[i].isFacingRight = false; // Facing left toward Arin
+                    enemies[i].state = ENEMY_ATTACK;  // Start with Ranged Fire Projectile Attack immediately!
+                    enemies[i].abominationAttack = ABOMINATION_PROJECTILE;
+                    enemies[i].animProjectile.Reset();
+                    enemies[i].projectileFired = false;
+                    enemies[i].isOpeningAttackActive = true;
+                    enemies[i].openingProjectileCount = 0;
+                    enemies[i].openingProjectileTimer = 0;
+                }
+            }
+        }
         // Load boss stats dynamically
         for (size_t i = 0; i < enemies.size(); ++i) {
-            if ((currentLevel == 2 && enemies[i].type == TYPE_ALPHA_HUNTER) ||
+            if ((currentLevel == 2 && enemies[i].type == TYPE_FOREST_ABOMINATION) ||
                 (currentLevel == 1 && enemies[i].type == TYPE_ABOMINATION)) {
                 bossMaxHp = enemies[i].maxHp;
                 bossHp = enemies[i].hp;
@@ -1146,12 +1216,12 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         }
     }
 
-    // If boss fight is active, lock the player camera inside the arena bounds
+    // If boss fight is active, lock the player camera inside the arena bounds and track positions
     if (bossSpawned && !bossDefeated) {
-        double minCam = (currentLevel == 2) ? 12700.0 : 11400.0;
-        double maxCam = (currentLevel == 2) ? 13800.0 : 12600.0;
-        double minPx  = (currentLevel == 2) ? 12750.0 : 11450.0;
-        double maxPx  = (currentLevel == 2) ? 13850.0 : 12650.0;
+        double minCam = (currentLevel == 2) ? 13000.0 : 11400.0;
+        double maxCam = (currentLevel == 2) ? 13100.0 : 12600.0;
+        double minPx  = (currentLevel == 2) ? 13050.0 : 11450.0;
+        double maxPx  = (currentLevel == 2) ? 14100.0 : 12650.0;
 
         double targetCam = player.x - (1280.0 / 2.0);
         if (targetCam < minCam) targetCam = minCam;
@@ -1160,8 +1230,20 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         double curCam = gameMap.GetCameraX();
         double nextCam = curCam + (targetCam - curCam) * 0.1;
         gameMap.SetCameraX(nextCam);
+
         if (player.x < minPx) player.x = minPx;
         if (player.x > maxPx) player.x = maxPx;
+
+        if (currentLevel == 2) {
+            printf("ARIN POSITION: %.1f\n", player.x);
+            for (size_t i = 0; i < enemies.size(); ++i) {
+                if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                    printf("FOREST ABOMINATION POSITION: %.1f\n", enemies[i].x);
+                    break;
+                }
+            }
+            fflush(stdout);
+        }
     }
     else {
         // Normal viewport tracking
@@ -1304,6 +1386,13 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
         if (bestIndex != -1) {
             enemies[bestIndex].TakeDamage(15);
             score += 30;
+            if (enemies[bestIndex].type == TYPE_FOREST_ABOMINATION) {
+                bossHp = enemies[bestIndex].hp;
+                bossMaxHp = enemies[bestIndex].maxHp;
+                displayedBossHp = (double)bossHp;
+                printf("FOREST ABOMINATION HP UPDATED\n");
+                fflush(stdout);
+            }
         }
         player.rangedAttackTriggered = false;
     }
@@ -1312,6 +1401,13 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     for (size_t i = 0; i < enemies.size(); ++i) {
         if (enemies[i].hp > 0) {
             enemies[i].Update(player.x, player.y, player.state == STATE_ATTACK_MELEE);
+
+            if (currentLevel == 2 && enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                bossHp = enemies[i].hp;
+                bossMaxHp = enemies[i].maxHp;
+            }
+
+            // Boss solid collision removed so Arin can pass to the right side of the map
 
             // Assume falling unless hit prop top
             if (enemies[i].y > 185.0) {
@@ -1444,6 +1540,26 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                         player.TakeDamage(enemies[i].damage + 10);
                     }
                 }
+                else if (enemies[i].type == TYPE_FOREST_ABOMINATION && enemies[i].abominationAttack == ABOMINATION_CLAW) {
+                    if (!enemies[i].hasDealtDamage) {
+                        int currentFrame = enemies[i].animAttack.GetCurrentFrame();
+                        // 8-frame animation: active damage frames between 3 and 6
+                        if (currentFrame >= 3 && currentFrame <= 6) {
+                            double atkExtra = 70.0; // Medium range hitbox size
+                            // Hitbox explicitly in front of the boss
+                            double atkX = enemies[i].isFacingRight ? (enemies[i].x + enemies[i].width - 20.0) : (enemies[i].x - atkExtra + 20.0);
+                            double atkW = atkExtra;
+                            
+                            bool hitX = (atkX + atkW >= player.x) && (player.x + player.width >= atkX);
+                            bool hitY = (enemies[i].y + enemies[i].height >= player.y) && (player.y + player.height >= enemies[i].y);
+
+                            if (hitX && hitY) {
+                                player.TakeDamage(enemies[i].damage);
+                                enemies[i].hasDealtDamage = true;
+                            }
+                        }
+                    }
+                }
                 else {
                     double atkExtra = (enemies[i].type == TYPE_RUNNER) ? 40.0 : ((enemies[i].type == TYPE_HEAVY) ? 45.0 : 30.0);
                     double atkX = enemies[i].isFacingRight ? enemies[i].x : (enemies[i].x - atkExtra);
@@ -1483,6 +1599,47 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                 enemies[i].rangedShotFired = false;
             }
 
+            // Forest Abomination projectile creation
+            if (enemies[i].type == TYPE_FOREST_ABOMINATION && enemies[i].projectileFired) {
+                if (g_texBioFlame == 0) {
+                    g_texBioFlame = iLoadImage((char*)GetAssetPath("Assets/Characters/Forest Abomination/Bio Flame Projectile/Forest_Abomination_BioFlame.png").c_str());
+                }
+                for (int p = 0; p < 4; ++p) {
+                    if (!g_bossProjectiles[p].active) {
+                        g_bossProjectiles[p].x = enemies[i].isFacingRight ? enemies[i].x + 70.0 : enemies[i].x - 30.0;
+                        g_bossProjectiles[p].y = 195.0; // Lower projectile height: passes around Arin's upper body (chest/waist level), easy to jump over
+                        g_bossProjectiles[p].vx = enemies[i].isFacingRight ? 7.0 : -7.0; // Moderate speed (7 pixels/frame), horizontal movement, no tracking
+                        g_bossProjectiles[p].width = 34.0;
+                        g_bossProjectiles[p].height = 34.0;
+                        g_bossProjectiles[p].damage = 25;
+                        g_bossProjectiles[p].active = true;
+                        printf("BIO FLAME PROJECTILE CREATED\n");
+                        fflush(stdout);
+                        break;
+                    }
+                }
+                enemies[i].projectileFired = false;
+            }
+
+            // Forest Abomination Flame Attack logic
+            if (enemies[i].type == TYPE_FOREST_ABOMINATION && enemies[i].state == ENEMY_ATTACK && enemies[i].abominationAttack == ABOMINATION_FLAME) {
+                int frame = enemies[i].animFrame;
+                if (frame >= 6 && frame <= 9 && !enemies[i].flameHit) {
+                    double flameX = enemies[i].isFacingRight ? enemies[i].x + enemies[i].width : enemies[i].x - 160.0;
+                    double flameW = 160.0;
+                    double flameY = enemies[i].y;
+                    double flameH = 50.0;
+                    
+                    bool hitX = (player.x + player.width >= flameX) && (player.x <= flameX + flameW);
+                    bool hitY = (player.y + player.height >= flameY) && (player.y <= flameY + flameH);
+                    
+                    if (hitX && hitY) {
+                        player.TakeDamage(enemies[i].damage + 15);
+                        enemies[i].flameHit = true;
+                    }
+                }
+            }
+
             // Damage enemy if player attacks them during active katana slash window
             int currentFrame = player.animAttack.GetCurrentFrame();
             int totalPlayerAtkFrames = player.animAttack.GetFrameCount();
@@ -1501,13 +1658,13 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                     enemies[i].TakeDamage(35);
                     score += 50;
                     enemies[i].lastHitAttackID = player.currentAttackID;
-                    player.hasDealtDamageThisAttack = true;
-
-                    // Play Katana Hit Sound (Heavy Enemy / Mutated Brute vs Normal Enemy)
-                    bool isHeavyEnemy = (enemies[i].type == TYPE_HEAVY || enemies[i].type == TYPE_ABOMINATION);
-                    std::string hitSound = isHeavyEnemy ? "katana_hit_heavy.wav" : "katana_hit_enemy.wav";
-                    std::string fallbackSound = isHeavyEnemy ? "Assets/Sound/Arin/Katana Attack/Katana_Hit_Heavy.wav" : "Assets/Sound/Arin/Katana Attack/katana hit enemy.wav";
-                    PlayAudioFile("Sounds/Katana/" + hitSound, fallbackSound);
+                    if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                        bossHp = enemies[i].hp;
+                        bossMaxHp = enemies[i].maxHp;
+                        displayedBossHp = (double)bossHp;
+                        printf("FOREST ABOMINATION HP UPDATED\n");
+                        fflush(stdout);
+                    }
                 }
             }
         }
@@ -1515,10 +1672,48 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
             // Process death frames for enemy
             enemies[i].Update(player.x, player.y);
 
-            // Check if boss died
-            if (enemies[i].type == TYPE_ABOMINATION || enemies[i].type == TYPE_ALPHA_HUNTER) {
-                bossDefeated = true;
-                bossHp = 0;
+            // Check if boss died and finished Death animation
+            if (enemies[i].type == TYPE_ABOMINATION || enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                if (enemies[i].animDeath.IsFinished() || !enemies[i].animDeath.IsValid()) {
+                    bossDefeated = true;
+                    bossHp = 0;
+                }
+            }
+        }
+    }
+
+    // Update Boss Projectiles
+    for (int p = 0; p < 4; ++p) {
+        if (g_bossProjectiles[p].active) {
+            g_bossProjectiles[p].x += g_bossProjectiles[p].vx;
+            
+            // Collision with player (Circle)
+            double cx = g_bossProjectiles[p].x + g_bossProjectiles[p].width / 2.0;
+            double cy = g_bossProjectiles[p].y + g_bossProjectiles[p].height / 2.0;
+            double r = g_bossProjectiles[p].width / 2.0;
+            
+            double testX = cx;
+            double testY = cy;
+            
+            if (cx < player.x) testX = player.x;
+            else if (cx > player.x + player.width) testX = player.x + player.width;
+            
+            if (cy < player.y) testY = player.y;
+            else if (cy > player.y + player.height) testY = player.y + player.height;
+            
+            double distX = cx - testX;
+            double distY = cy - testY;
+            double distance = sqrt((distX*distX) + (distY*distY));
+            
+            if (distance <= r) {
+                player.TakeDamage(g_bossProjectiles[p].damage);
+                g_bossProjectiles[p].active = false;
+            }
+            
+            // Despawn when off screen or out of map bounds
+            double projCamX = gameMap.GetCameraX();
+            if (g_bossProjectiles[p].x < projCamX - 100.0 || g_bossProjectiles[p].x > projCamX + 1280.0 + 100.0 || g_bossProjectiles[p].x < 0) {
+                g_bossProjectiles[p].active = false;
             }
         }
     }
@@ -1592,7 +1787,9 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     }
 
     // 10. Update Dynamic Encounter System (zones, ambushes, difficulty director)
-    m_encounterManager.Update(player, gameMap, *this, 0.016f);
+    if (!bossSpawned || bossDefeated) {
+        m_encounterManager.Update(player, gameMap, *this, 0.016f);
+    }
 }
 
 // ============================================================================
@@ -1786,6 +1983,12 @@ double GameManager::GetPropGroundOffset(const std::string& assetPath) const {
         return 12.0; // Lift shopping cart so wheels align flush on top of the ground line
     }
 
+    // 5. Large Buildings (Grocery Store, Church)
+    if (assetPath.find("bld_grocery_store_abandoned") != std::string::npos ||
+        assetPath.find("bld_church_abandoned") != std::string::npos) {
+        return -65.0; // Pull it further down because of image padding and size
+    }
+
     // 5. Sandbags, Generators & Fences
     if (assetPath.find("sandbags") != std::string::npos ||
         assetPath.find("generator") != std::string::npos ||
@@ -1818,7 +2021,8 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
         // Configurable Ground Alignment Offset:
         if (std::abs(worldProps[i].y - kLevel1GroundY) < 1.0) {
             double groundOffset = GetPropGroundOffset(worldProps[i].assetPath);
-            renderY += (-6.0 + groundOffset);
+            // Lower props significantly so their bottom anchors align flush with the terrain line
+            renderY -= (40.0 - groundOffset); 
         }
 
         // Viewport frustum culling check (-100 to 1380)
@@ -1835,7 +2039,7 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
                 for (size_t vIdx = 0; vIdx < vehicles.size(); ++vIdx) {
                     if (vehicles[vIdx].isWarningActive && std::abs(vehicles[vIdx].x - worldProps[i].x) < 100.0) {
                         isWarning = true;
-                        // Fast jitter shake animation (±4px offset)
+                        // Fast jitter shake animation (┬▒4px offset)
                         shakeOffsetX = (double)((rand() % 9) - 4);
                         break;
                     }
@@ -1855,6 +2059,19 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
                 glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
                 glVertex2f((float)(drawX + renderW - 5.0), (float)(renderY - 10.0));
                 glVertex2f((float)(drawX + 5.0), (float)(renderY - 10.0));
+                glEnd();
+                glEnable(GL_TEXTURE_2D);
+            } 
+            // Render generic contact shadow for Level 2 environment props
+            else if (worldProps[i].assetPath.find("Level 2") != std::string::npos) {
+                glDisable(GL_TEXTURE_2D);
+                glBegin(GL_QUADS);
+                glColor4f(0.02f, 0.04f, 0.06f, 0.45f);
+                glVertex2f((float)(drawX + 10.0), (float)(renderY + 2.0));
+                glVertex2f((float)(drawX + renderW - 10.0), (float)(renderY + 2.0));
+                glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
+                glVertex2f((float)(drawX + renderW - 5.0), (float)(renderY - 8.0));
+                glVertex2f((float)(drawX + 5.0), (float)(renderY - 8.0));
                 glEnd();
                 glEnable(GL_TEXTURE_2D);
             }
@@ -1890,68 +2107,82 @@ void GameManager::RenderPlaying() {
     double camX = gameMap.GetCameraX();
     double camY = gameMap.GetCameraY();
 
-    // ========================================================================
-    // LAYER 1: FAR BACKGROUND (Parallax Factor 0.15 - Sky & Distant Horizon)
-    // ========================================================================
-    gameMap.RenderFarBackground(camX, bossDefeated);
+    bool isL2BossFight = (currentLevel == 2 && bossSpawned);
 
-    // ========================================================================
-    // LAYER 2: MIDGROUND (Parallax Factor 0.45 - Medium-Distance Trees & Scenery)
-    // ========================================================================
-    gameMap.RenderMidground(camX, bossDefeated);
+    if (isL2BossFight) {
+        // Level 2 Boss Arena: Load ONLY bg_10.png without blending any other background
+        unsigned int bg10Tex = LoadLevel2BackgroundTexture(9);
+        if (bg10Tex != 0) {
+            iShowImage(0, 0, 1280, 720, bg10Tex);
+            printf("LEVEL 2 BOSS ARENA LOADED\n");
+            fflush(stdout);
+        }
+    }
+    else {
+        // ========================================================================
+        // LAYER 1: FAR BACKGROUND (Parallax Factor 0.15 - Sky & Distant Horizon)
+        // ========================================================================
+        gameMap.RenderFarBackground(camX, bossDefeated);
 
-    // ========================================================================
-    // LAYER 3: GAMEPLAY WORLD GROUND SURFACE (Parallax Factor 1.00 - Synchronized Ground)
-    // ========================================================================
-    gameMap.RenderGroundSurface(camX);
+        // ========================================================================
+        // LAYER 2: MIDGROUND (Parallax Factor 0.45 - Medium-Distance Trees & Scenery)
+        // ========================================================================
+        gameMap.RenderMidground(camX, bossDefeated);
 
-    // ========================================================================
-    // LAYER 3 (Cont): WATER / RIVER & BRIDGE STRUCTURE (Factor 1.00)
-    // ========================================================================
-    gameMap.RenderWater(camX, camY);
-    gameMap.RenderBridgeAndEnvironmentSprites(camX, camY);
-    RenderWorldProps(PROP_LAYER_BACKGROUND, camX, camY);
+        // ========================================================================
+        // LAYER 3: GAMEPLAY WORLD GROUND SURFACE (Parallax Factor 1.00 - Synchronized Ground)
+        // ========================================================================
+        gameMap.RenderGroundSurface(camX);
 
-    // Render level props (Environmental obstacles & burning barrels - Factor 1.00)
-    for (size_t i = 0; i < props.size(); ++i) {
-        double screenPx = props[i].x - camX;
-        double screenPy = props[i].y - camY;
+        // ========================================================================
+        // LAYER 3 (Cont): WATER / RIVER & BRIDGE STRUCTURE (Factor 1.00)
+        // ========================================================================
+        gameMap.RenderWater(camX, camY);
+        gameMap.RenderBridgeAndEnvironmentSprites(camX, camY);
+        RenderWorldProps(PROP_LAYER_BACKGROUND, camX, camY);
 
-        if (screenPx + props[i].width >= -100 && screenPx <= 1380) {
-            int px = (int)screenPx;
-            int py = (int)screenPy;
-            int pw = (int)props[i].width;
-            int ph = (int)props[i].height;
+        // Render level props (Environmental obstacles & burning barrels - Factor 1.00)
+        for (size_t i = 0; i < props.size(); ++i) {
+            double screenPx = props[i].x - camX;
+            double screenPy = props[i].y - camY;
 
-            switch (props[i].type) {
-            case PROP_BARREL_FIRE: {
-                // Animated flickering fire flames on top of barrel
-                double fTime = uiAnimTime * 12.0 + i;
-                int fHeight = 24 + (int)(sin(fTime) * 6.0);
-                iSetColor(255, 140, 0); // Orange outer fire
-                iFilledRectangle(px + 8, py + ph - 4, pw - 16, fHeight);
-                iSetColor(255, 220, 0); // Yellow inner core fire
-                iFilledRectangle(px + 14, py + ph - 4, pw - 28, fHeight - 8);
-                break;
-            }
-            case PROP_RIBBON: {
-                // Luna's silver-blue ribbon fluttering at exit gate
-                double flutter = sin(uiAnimTime * 8.0) * 6.0;
-                iSetColor(0, 220, 255); // Silver-blue glow
-                iFilledRectangle(px, py, pw, ph);
-                iSetColor(255, 255, 255);
-                iLine(px + 4, py + 4, px + pw - 4 + (int)flutter, py + ph - 4);
-                DrawOutlinedText(px - 20, py + ph + 8, "LUNA'S RIBBON", GLUT_BITMAP_HELVETICA_10, 0, 240, 255);
-                break;
-            }
-            default:
-                break;
+            if (screenPx + props[i].width >= -100 && screenPx <= 1380) {
+                int px = (int)screenPx;
+                int py = (int)screenPy;
+                int pw = (int)props[i].width;
+                int ph = (int)props[i].height;
+
+                switch (props[i].type) {
+                case PROP_BARREL_FIRE: {
+                    // Animated flickering fire flames on top of barrel
+                    double fTime = uiAnimTime * 12.0 + i;
+                    int fHeight = 24 + (int)(sin(fTime) * 6.0);
+                    iSetColor(255, 140, 0); // Orange outer fire
+                    iFilledRectangle(px + 8, py + ph - 4, pw - 16, fHeight);
+                    iSetColor(255, 220, 0); // Yellow inner core fire
+                    iFilledRectangle(px + 14, py + ph - 4, pw - 28, fHeight - 8);
+                    break;
+                }
+                case PROP_RIBBON: {
+                    // Luna's silver-blue ribbon fluttering at exit gate
+                    double flutter = sin(uiAnimTime * 8.0) * 6.0;
+                    iSetColor(0, 220, 255); // Silver-blue glow
+                    iFilledRectangle(px, py, pw, ph);
+                    iSetColor(255, 255, 255);
+                    iLine(px + 4, py + 4, px + pw - 4 + (int)flutter, py + ph - 4);
+                    DrawOutlinedText(px - 20, py + ph + 8, "LUNA'S RIBBON", GLUT_BITMAP_HELVETICA_10, 0, 240, 255);
+                    break;
+                }
+                default:
+                    break;
+                }
             }
         }
     }
 
     // Render Collectibles aligned statically to ground baseline (Factor 1.00)
     for (size_t i = 0; i < collectibles.size(); ++i) {
+        if (isL2BossFight) continue;
         if (collectibles[i].active) {
             double screenPx = collectibles[i].x - camX;
             double groundY = collectibles[i].y - (std::abs(collectibles[i].y - kLevel1GroundY) < 1.0 ? 6.0 : 0.0);
@@ -2074,19 +2305,55 @@ void GameManager::RenderPlaying() {
     // LAYER 3: CHARACTERS (Enemies & Player Arin - Factor 1.00)
     // ========================================================================
     for (size_t i = 0; i < enemies.size(); ++i) {
+        if (isL2BossFight && enemies[i].type != TYPE_FOREST_ABOMINATION) continue;
         double screenEx = enemies[i].x - camX;
         double screenEy = enemies[i].y - camY;
 
         if (screenEx + enemies[i].width >= -100 && screenEx <= 1380) {
+            // Draw visual warning for Flame Attack
+            if (enemies[i].type == TYPE_FOREST_ABOMINATION && enemies[i].state == ENEMY_ATTACK && enemies[i].abominationAttack == ABOMINATION_FLAME) {
+                int frame = enemies[i].animFrame;
+                if (frame >= 0 && frame <= 5) {
+                    double warningX = enemies[i].isFacingRight ? screenEx + enemies[i].width : screenEx - 160.0;
+                    double warningW = 160.0;
+                    double warningY = screenEy;
+                    
+                    glDisable(GL_TEXTURE_2D);
+                    glLineWidth(3.0f);
+                    double alpha = 0.5 + 0.5 * sin(uiAnimTime * 30.0);
+                    glColor4f(1.0f, 0.0f, 0.0f, (float)alpha);
+                    
+                    glBegin(GL_LINE_LOOP);
+                    glVertex2f((float)warningX, (float)warningY);
+                    glVertex2f((float)(warningX + warningW), (float)warningY);
+                    glVertex2f((float)(warningX + warningW), (float)(warningY + 10.0f));
+                    glVertex2f((float)warningX, (float)(warningY + 10.0f));
+                    glEnd();
+                    
+                    glColor4f(1.0f, 0.0f, 0.0f, (float)(alpha * 0.3));
+                    glBegin(GL_QUADS);
+                    glVertex2f((float)warningX, (float)warningY);
+                    glVertex2f((float)(warningX + warningW), (float)warningY);
+                    glVertex2f((float)(warningX + warningW), (float)(warningY + 10.0f));
+                    glVertex2f((float)warningX, (float)(warningY + 10.0f));
+                    glEnd();
+                    
+                    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+                    glEnable(GL_TEXTURE_2D);
+                }
+            }
+
             enemies[i].Render(camX, camY);
 
-            // Draw Health Bar if damaged and alive
+            // Draw Health Bar if damaged and alive (except Forest Abomination)
             if (enemies[i].hp > 0 && enemies[i].hp < enemies[i].maxHp) {
-                iSetColor(30, 30, 40);
-                iFilledRectangle(screenEx, screenEy + enemies[i].height + 5, enemies[i].width, 6);
-                iSetColor(220, 40, 40);
-                double hpPercent = (double)enemies[i].hp / enemies[i].maxHp;
-                iFilledRectangle(screenEx, screenEy + enemies[i].height + 5, enemies[i].width * hpPercent, 6);
+                if (enemies[i].type != TYPE_FOREST_ABOMINATION) {
+                    iSetColor(30, 30, 40);
+                    iFilledRectangle(screenEx, screenEy + enemies[i].height + 5, enemies[i].width, 6);
+                    iSetColor(220, 40, 40);
+                    double hpPercent = (double)enemies[i].hp / enemies[i].maxHp;
+                    iFilledRectangle(screenEx, screenEy + enemies[i].height + 5, enemies[i].width * hpPercent, 6);
+                }
             }
         }
     }
@@ -2096,16 +2363,47 @@ void GameManager::RenderPlaying() {
     // ========================================================================
     // LAYER 4: FOREGROUND OBJECTS (Foreground props in front of characters - Factor 1.00)
     // ========================================================================
-    RenderWorldProps(PROP_LAYER_FOREGROUND, camX, camY);
+    if (!isL2BossFight) {
+        RenderWorldProps(PROP_LAYER_FOREGROUND, camX, camY);
+    }
 
     // ========================================================================
     // LAYER 5: FOREGROUND ATMOSPHERIC PARALLAX (Parallax Factor 1.15 - Rain & Foliage)
     // ========================================================================
-    gameMap.RenderForeground(camX, uiAnimTime);
+    if (!isL2BossFight) {
+        gameMap.RenderForeground(camX, uiAnimTime);
+    }
 
     // ========================================================================
     // EFFECTS (Floating popups, particle effects, HUD overlays)
     // ========================================================================
+    for (int p = 0; p < 4; ++p) {
+        if (g_bossProjectiles[p].active) {
+            // Render glowing trail
+            glDisable(GL_TEXTURE_2D);
+            double trailLen = 80.0;
+            double trailStartX = g_bossProjectiles[p].x - camX + (g_bossProjectiles[p].width / 2.0);
+            double trailEndX = (g_bossProjectiles[p].vx > 0) ? trailStartX - trailLen : trailStartX + trailLen;
+            double projCenterY = g_bossProjectiles[p].y - camY + (g_bossProjectiles[p].height / 2.0);
+            
+            glLineWidth(8.0f);
+            glBegin(GL_LINES);
+            glColor4f(0.0f, 1.0f, 0.0f, 0.6f); // Bio-flame green inner core
+            glVertex2f((float)trailStartX, (float)projCenterY);
+            glColor4f(0.0f, 0.5f, 0.0f, 0.0f); // Fade out
+            glVertex2f((float)trailEndX, (float)projCenterY);
+            glEnd();
+            glEnable(GL_TEXTURE_2D);
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+            if (g_texBioFlame != 0) {
+                iShowImage((int)(g_bossProjectiles[p].x - camX), (int)(g_bossProjectiles[p].y - camY), (int)g_bossProjectiles[p].width, (int)g_bossProjectiles[p].height, g_texBioFlame);
+            } else {
+                iSetColor(100, 255, 100);
+                iFilledRectangle((int)(g_bossProjectiles[p].x - camX), (int)(g_bossProjectiles[p].y - camY), (int)g_bossProjectiles[p].width, (int)g_bossProjectiles[p].height);
+            }
+        }
+    }
     if (g_pickupTimer > 0.0) {
         g_pickupTimer -= 0.016;
         g_pickupY += 0.8;
@@ -2128,7 +2426,7 @@ void GameManager::RenderPlaying() {
             activeObjText = "Reach the Steel Exit Gate";
         }
         if (bossSpawned && !bossDefeated) {
-            activeObjText = "DEFEAT MUTATED BRUTE (FINAL BOSS)";
+            activeObjText = (currentLevel == 2) ? "DEFEAT FOREST ABOMINATION" : "DEFEAT MUTATED BRUTE (FINAL BOSS)";
         }
         else if (bossDefeated && !ribbonCollected) {
             activeObjText = "Reach the Steel Exit Gate";
@@ -2147,7 +2445,7 @@ void GameManager::RenderPlaying() {
 
         // Render Boss Health Bar centered at top if Boss fight active
         if (bossSpawned && !bossDefeated) {
-            const char* bName = (currentLevel == 2) ? "ALPHA HUNTER" : "MUTATED BRUTE";
+            const char* bName = (currentLevel == 2) ? "FOREST ABOMINATION" : "MUTATED BRUTE";
             UI::DrawBossHealthBar(bName, bossHp, bossMaxHp, displayedBossHp);
         }
     }
@@ -3127,4 +3425,4 @@ int GameManager::GetAreaFromPosition(double px) const {
     if (px < 13032.0) return AREA_MINI_BOSS_ARENA; // 9. MINI BOSS ARENA (1 Mutated Brute)
     if (px < 14480.0) return AREA_EXIT_GATE;       // 10. EXIT GATE (0 enemies)
     return AREA_LEVEL_COMPLETE;                    // 11. LEVEL COMPLETE
-}
+}

@@ -1,0 +1,57 @@
+﻿Microsoft (R) Build Engine version 12.0.21005.1
+[Microsoft .NET Framework, version 4.0.30319.42000]
+Copyright (C) Microsoft Corporation. All rights reserved.
+
+Building the projects in this solution one at a time. To enable parallel build, please add the "/m" switch.
+Build started 9/5/2026 6:22:57 PM.
+Project "D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Genesis Whispers of the Infected.sln" on node 1 (default targets).
+ValidateSolutionConfiguration:
+  Building solution configuration "Debug|Win32".
+Project "D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Genesis Whispers of the Infected.sln" (1) is building "D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Genesis Whispers of the Infected\Genesis Whispers of the Infected.vcxproj" (2) on node 1 (default targets).
+InitializeBuildStatus:
+  Touching "Debug\Genesis .CFB627F4.tlog\unsuccessfulbuild".
+ClCompile:
+  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Genesis Whispers of the Infected\\" /I"D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Genesis Whispers of the Infected\src" /ZI /nologo /W3 /WX- /sdl /Od /Oy- /D _MBCS /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TP /analyze- /errorReport:queue src\DifficultyDirector.cpp src\EncounterManager.cpp src\Game.cpp src\SpawnManager.cpp src\enemy.cpp src\game_manager.cpp src\main.cpp
+  main.cpp
+  game_manager.cpp
+  enemy.cpp
+  SpawnManager.cpp
+  Game.cpp
+  EncounterManager.cpp
+  DifficultyDirector.cpp
+  Generating Code...
+Link:
+  C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:QUEUE /OUT:"D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Debug\Genesis Whispers of the Infected.exe" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Debug\Genesis Whispers of the Infected.pdb" /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Debug\Genesis Whispers of the Infected.lib" /MACHINE:X86 /SAFESEH:NO Debug\animation.obj
+  Debug\asset_loader.obj
+  Debug\enemy.obj
+  Debug\Game.obj
+  Debug\game_manager.obj
+  Debug\leaderboard.obj
+  Debug\main.obj
+  Debug\map.obj
+  Debug\player.obj
+  Debug\ResourceManager.obj
+  Debug\StoryManager.obj
+  Debug\UI.obj
+  Debug\TileManager.obj
+  Debug\DifficultyDirector.obj
+  Debug\SpawnManager.obj
+  Debug\EnvironmentalEventManager.obj
+  Debug\EncounterManager.obj
+  Glaux.lib
+  GLU32.LIB
+  glui32.lib
+  glut32.lib
+  OPENGL32.LIB
+  Genesis Whispers of the Infected.vcxproj -> D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Debug\Genesis Whispers of the Infected.exe
+FinalizeBuildStatus:
+  Deleting file "Debug\Genesis .CFB627F4.tlog\unsuccessfulbuild".
+  Touching "Debug\Genesis .CFB627F4.tlog\Genesis Whispers of the Infected.lastbuildstate".
+Done Building Project "D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Genesis Whispers of the Infected\Genesis Whispers of the Infected.vcxproj" (default targets).
+Done Building Project "D:\Genesis-Whispers-of-the-Infected\Genesis-Whispers-of-the-Infected\Genesis Whispers of the Infected.sln" (default targets).
+
+Build succeeded.
+    0 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:17.97

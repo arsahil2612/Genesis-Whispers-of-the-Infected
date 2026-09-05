@@ -624,7 +624,7 @@ void Player::Render(double camX, double camY) {
 
     // Offset drawing position so Arin's boots align precisely with top of ground baseline without sinking underground
     double drawXOffset = drawX - (drawW - width) / 2.0;
-    double drawYOffset = drawY - 6.0;
+    double drawYOffset = drawY - 45.0; // Adjusted from -6.0 to lower the sprite visually
 
     // Render active state animation via reusable Animation class
     const Animation* activeAnim = &animIdle;

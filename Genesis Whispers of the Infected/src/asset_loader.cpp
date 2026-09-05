@@ -4,6 +4,7 @@
 #include <cstdio>
 #include <windows.h>
 #include <mmsystem.h>
+#include <map>
 
 #pragma comment(lib, "winmm.lib")
 
@@ -26,43 +27,56 @@ std::string GetAssetPath(const std::string &relativePath) {
 }
 
 void PlayAudioFile(const std::string &primaryRelativePath, const std::string &fallbackRelativePath) {
-    std::string path = GetAssetPath(primaryRelativePath);
-    FILE* fTest = NULL;
-    if (fopen_s(&fTest, path.c_str(), "rb") != 0 || fTest == NULL) {
-        if (!fallbackRelativePath.empty()) {
-            path = GetAssetPath(fallbackRelativePath);
+    static std::map<std::string, std::string> loadedAliases;
+    static std::map<std::string, std::string> loadedFullPaths;
+    static int nextAliasId = 0;
+
+    std::string alias;
+    std::string fullPathStr;
+
+    if (loadedAliases.find(primaryRelativePath) != loadedAliases.end()) {
+        alias = loadedAliases[primaryRelativePath];
+        if (alias == "FAILED") {
+            fullPathStr = loadedFullPaths[primaryRelativePath];
+            PlaySoundA(fullPathStr.c_str(), NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
+            return;
         }
     } else {
-        fclose(fTest);
+        std::string path = GetAssetPath(primaryRelativePath);
+        FILE* fTest = NULL;
+        if (fopen_s(&fTest, path.c_str(), "rb") != 0 || fTest == NULL) {
+            if (!fallbackRelativePath.empty()) {
+                path = GetAssetPath(fallbackRelativePath);
+            }
+        } else {
+            fclose(fTest);
+        }
+
+        char fullPath[MAX_PATH];
+        if (_fullpath(fullPath, path.c_str(), MAX_PATH) == NULL) {
+            strcpy_s(fullPath, sizeof(fullPath), path.c_str());
+        }
+        fullPathStr = fullPath;
+
+        char newAlias[32];
+        sprintf_s(newAlias, sizeof(newAlias), "snd_alias_%d", nextAliasId++);
+        alias = newAlias;
+
+        char cmdOpen[MAX_PATH + 128];
+        sprintf_s(cmdOpen, sizeof(cmdOpen), "open \"%s\" type mpegvideo alias %s", fullPath, alias.c_str());
+        MCIERROR err = mciSendStringA(cmdOpen, NULL, 0, NULL);
+        if (err != 0) {
+            loadedAliases[primaryRelativePath] = "FAILED";
+            loadedFullPaths[primaryRelativePath] = fullPathStr;
+            PlaySoundA(fullPathStr.c_str(), NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
+            return;
+        }
+        loadedAliases[primaryRelativePath] = alias;
     }
 
-    char fullPath[MAX_PATH];
-    if (_fullpath(fullPath, path.c_str(), MAX_PATH) == NULL) {
-        strcpy_s(fullPath, sizeof(fullPath), path.c_str());
-    }
-
-    // Allocate round-robin MCI channels so multiple sounds can play simultaneously without interrupting each other
-    static int channelIndex = 0;
-    int ch = channelIndex;
-    channelIndex = (channelIndex + 1) % 16;
-
-    char alias[32];
-    sprintf_s(alias, sizeof(alias), "snd_ch_%d", ch);
-
-    char cmdClose[64];
-    sprintf_s(cmdClose, sizeof(cmdClose), "close %s", alias);
-    mciSendStringA(cmdClose, NULL, 0, NULL);
-
-    char cmdOpen[MAX_PATH + 128];
-    sprintf_s(cmdOpen, sizeof(cmdOpen), "open \"%s\" type mpegvideo alias %s", fullPath, alias);
-    MCIERROR err = mciSendStringA(cmdOpen, NULL, 0, NULL);
-    if (err == 0) {
-        char cmdPlay[64];
-        sprintf_s(cmdPlay, sizeof(cmdPlay), "play %s from 0", alias);
-        mciSendStringA(cmdPlay, NULL, 0, NULL);
-    } else {
-        PlaySoundA(fullPath, NULL, SND_FILENAME | SND_ASYNC | SND_NODEFAULT);
-    }
+    char cmdPlay[64];
+    sprintf_s(cmdPlay, sizeof(cmdPlay), "play %s from 0", alias.c_str());
+    mciSendStringA(cmdPlay, NULL, 0, NULL);
 }
 
 // Static caching tables for background textures

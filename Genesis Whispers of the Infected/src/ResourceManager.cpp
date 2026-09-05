@@ -22,8 +22,11 @@ unsigned int ResourceManager::GetTexture(const std::string& filePath) {
         return it->second;
     }
 
+    // Resolve asset path properly
+    std::string resolvedPath = GetAssetPath(filePath);
+
     // Load texture using iGraphics iLoadImage
-    unsigned int textureID = iLoadImage(filePath.c_str());
+    unsigned int textureID = iLoadImage(resolvedPath.c_str());
     if (textureID != 0) {
         m_textureCache[filePath] = textureID;
         printf("[ResourceManager] Loaded and cached texture: %s (ID: %u)\n", filePath.c_str(), textureID);

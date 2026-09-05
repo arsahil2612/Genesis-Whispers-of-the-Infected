@@ -1,9 +1,10 @@
 #include "enemy.h"
 #include "igraphics_declarations.h"
-#include <vector>
-#include <cmath>
-#include <windows.h>
 #include <GL/gl.h>
+#include <cmath>
+#include <vector>
+#include <windows.h>
+
 
 // ============================================================================
 // Static Member Texture Variables
@@ -88,920 +89,1565 @@ std::vector<unsigned int> Enemy::seqHunterAttack;
 std::vector<unsigned int> Enemy::seqHunterHurt;
 std::vector<unsigned int> Enemy::seqHunterDeath;
 
+std::vector<unsigned int> Enemy::seqForestAbominationIdle;
+std::vector<unsigned int> Enemy::seqForestAbominationWalk;
+std::vector<unsigned int> Enemy::seqForestAbominationAttack;
+std::vector<unsigned int> Enemy::seqForestAbominationHurt;
+std::vector<unsigned int> Enemy::seqForestAbominationDeath;
+std::vector<unsigned int> Enemy::seqForestAbominationProjectile;
+std::vector<unsigned int> Enemy::seqForestAbominationFlame;
+
 // ============================================================================
 // Enemy Constructor & Texture Initialization
 // ============================================================================
 Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
-    startX = sX;
-    endX = eX;
-    x = sX;
-    y = startY;
-    type = t;
+  startX = sX;
+  endX = eX;
+  x = sX;
+  y = startY;
+  type = t;
+  width = 64;
+  height = 96;
+  isFacingRight = true;
+  animFrame = 0;
+  frameCounter = 0;
+  state = ENEMY_PATROL;
+  attackCooldown = 0;
+  stateTimer = 0;
+  rangedShotFired = false;
+  lastHitAttackID = -1;
+  walkerHurtAudioCooldown = 0;
+  runnerIdleTimer = 0;
+  runnerHurtAudioCooldown = 0;
+  raiderHurtAudioCooldown = 0;
+  bruteAttack = BRUTE_PUNCH;
+  bruteAttackTimer = 0;
+  raiderBackstepTimer = 0;
+  raiderPauseTimer = 0;
+  avoidTimer = 0;
+  avoidDirection = 1;
+  clawCooldown = 0;
+  projectileCooldown = 0;
+  projectileFired = false;
+  flameCooldown = 0;
+  flameHit = false;
+  openingProjectileCount = 0;
+  openingProjectileTimer = 0;
+  isOpeningAttackActive = false;
+  // Static Texture Handles (Cached across all instances)
+  avoidDirection = 1;
+  inAttackRange = false;
+  hasDealtDamage = false;
+  vy = 0.0;
+  isGrounded = true;
+
+  if (type == TYPE_SPITTER) {
+    hp = maxHp = 50;
+    damage = 10;
+    vx = 1.0;
+  } else if (type == TYPE_RUNNER) {
+    hp = maxHp = 60;
+    damage = 15;
+    vx = 3.5;
+  } else if (type == TYPE_RAIDER) {
+    hp = maxHp = 60;
+    damage = 12;
+    vx = 1.8;
+  } else if (type == TYPE_HEAVY) {
+    hp = maxHp = 120;
+    damage = 18;
+    vx = 1.2;
+    width = 80;
+    height = 100;
+  } else if (type == TYPE_ABOMINATION) {
+    hp = maxHp = 300;
+    damage = 25;
+    vx = 1.5;
+    width = 128;
+    height = 160;
+  } else if (type == TYPE_HUNTER) {
+    hp = maxHp = 80;
+    damage = 20;
+    vx = 4.5;
     width = 64;
     height = 96;
-    isFacingRight = true;
-    animFrame = 0;
-    frameCounter = 0;
-    state = ENEMY_PATROL;
-    attackCooldown = 0;
-    stateTimer = 0;
-    rangedShotFired = false;
-    lastHitAttackID = -1;
-    walkerHurtAudioCooldown = 0;
-    runnerIdleTimer = 0;
-    runnerHurtAudioCooldown = 0;
-    raiderHurtAudioCooldown = 0;
-    bruteAttack = BRUTE_PUNCH;
-    bruteAttackTimer = 0;
-    raiderBackstepTimer = 0;
-    raiderPauseTimer = 0;
-    avoidTimer = 0;
-    avoidDirection = 1;
-    inAttackRange = false;
-    hasDealtDamage = false;
-    vy = 0.0;
-    isGrounded = true;
+  } else if (type == TYPE_FOREST_ABOMINATION) {
+    hp = maxHp = 400;
+    damage = 40;
+    vx = 2.8;
+    width = 84;
+    height = 120;
+  }
 
-    if (type == TYPE_SPITTER) {
-        hp = maxHp = 50;
-        damage = 10;
-        vx = 1.0;
-    }
-    else if (type == TYPE_RUNNER) {
-        hp = maxHp = 60;
-        damage = 15;
-        vx = 3.5;
-    }
-    else if (type == TYPE_RAIDER) {
-        hp = maxHp = 60;
-        damage = 12;
-        vx = 1.8;
-    }
-    else if (type == TYPE_HEAVY) {
-        hp = maxHp = 120;
-        damage = 18;
-        vx = 1.2;
-        width = 80;
-        height = 100;
-    }
-    else if (type == TYPE_ABOMINATION) {
-        hp = maxHp = 300;
-        damage = 25;
-        vx = 1.5;
-        width = 128;
-        height = 160;
-    }
-    else if (type == TYPE_HUNTER) {
-        hp = maxHp = 80;
-        damage = 20;
-        vx = 4.5;
-        width = 64;
-        height = 96;
-    }
-    else if (type == TYPE_ALPHA_HUNTER) {
-        hp = maxHp = 400;
-        damage = 28;
-        vx = 5.2;
-        width = 84;
-        height = 120;
+  // Load static textures once
+  if (texWalkerIdle == 0) {
+    texWalkerIdle =
+        iLoadImage((char *)GetAssetPath("Assets/Characters/InfectedWalker/Idle/"
+                                        "infected_walker_sprite_01.png")
+                       .c_str());
+    texWalkerWalk =
+        iLoadImage((char *)GetAssetPath("Assets/Characters/InfectedWalker/Walk/"
+                                        "infected_walker_sprite_01.png")
+                       .c_str());
+    texWalkerAttack = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/InfectedWalker/"
+                             "AttackClawsSwipe/infected_walker_sprite_01.png")
+            .c_str());
+    texWalkerHurt = iLoadImage(
+        (char *)GetAssetPath(
+            "Assets/Characters/InfectedWalker/Hurt/infected_walker_01.png")
+            .c_str());
+    texWalkerDeath = iLoadImage(
+        (char *)GetAssetPath(
+            "Assets/Characters/InfectedWalker/Death/infected_walker_01.png")
+            .c_str());
+
+    texRunnerIdle = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/runnerIdle.png").c_str());
+    texRunnerWalk = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/runnerWalk.png").c_str());
+    texRunnerRun = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/runnerRun.png").c_str());
+    texRunnerAttack = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/runnerLeapAttack.png").c_str());
+    texRunnerHurt = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/runnerHurt.png").c_str());
+    texRunnerDeath = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/runnerDeath.png").c_str());
+
+    texRaiderIdle = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/raiderIdle.png").c_str());
+    texRaiderWalk = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/raiderWalk.png").c_str());
+    texRaiderRun = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/raiderRun.png").c_str());
+    texRaiderAttackMelee = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/raiderAttackMelee.png")
+            .c_str());
+    texRaiderAttackRanged = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/raiderAttackRanged.png")
+            .c_str());
+    texRaiderHurt = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/raiderHurt.png").c_str());
+    texRaiderDeath = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/raiderDeath.png").c_str());
+
+    texHeavyIdle = iLoadImage(
+        (char *)GetAssetPath("Assets/Characters/Heavy "
+                             "Infected/idle/enemy_heavy_infected_idle_01.png")
+            .c_str());
+    texHeavyWalk =
+        iLoadImage((char *)GetAssetPath(
+                       "Assets/Characters/Heavy "
+                       "Infected/walk/enemy_heavy_infected_walk_01_master.png")
+                       .c_str());
+    texHeavyAttack = iLoadImage(
+        (char *)GetAssetPath(
+            "Assets/Characters/Heavy "
+            "Infected/attack/enemy_heavy_infected_attack_01_master.png")
+            .c_str());
+    texHeavyHurt = iLoadImage(
+        (char *)GetAssetPath(
+            "Assets/Characters/Heavy "
+            "Infected/hurt/enemy_heavy_infected_hurt_01_master_1.png")
+            .c_str());
+    texHeavyDeath = iLoadImage(
+        (char *)GetAssetPath(
+            "Assets/Characters/Heavy "
+            "Infected/death/enemy_heavy_infected_death_01_master.png")
+            .c_str());
+  }
+
+  // Initialize reusable Animation instances for enemy states (cached statically
+  // once)
+  if (type == TYPE_SPITTER) {
+    if (seqWalkerIdle.empty() || seqWalkerIdle[0] == 0) {
+      seqWalkerIdle.clear();
+      seqWalkerWalk.clear();
+      seqWalkerAttack.clear();
+      seqWalkerHurt.clear();
+      seqWalkerDeath.clear();
+
+      for (int i = 1; i <= 6; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/InfectedWalker/Idle/"
+                  "infected_walker_sprite_%02d.png",
+                  i);
+        seqWalkerIdle.push_back(iLoadImage((char *)GetAssetPath(path).c_str()));
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/InfectedWalker/Walk/"
+                  "infected_walker_sprite_%02d.png",
+                  i);
+        seqWalkerWalk.push_back(iLoadImage((char *)GetAssetPath(path).c_str()));
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/InfectedWalker/AttackClawsSwipe/"
+                  "infected_walker_sprite_%02d.png",
+                  i);
+        seqWalkerAttack.push_back(
+            iLoadImage((char *)GetAssetPath(path).c_str()));
+      }
+      for (int i = 1; i <= 4; ++i) {
+        char path[256];
+        sprintf_s(
+            path, sizeof(path),
+            "Assets/Characters/InfectedWalker/Hurt/infected_walker_%02d.png",
+            i);
+        seqWalkerHurt.push_back(iLoadImage((char *)GetAssetPath(path).c_str()));
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(
+            path, sizeof(path),
+            "Assets/Characters/InfectedWalker/Death/infected_walker_%02d.png",
+            i);
+        seqWalkerDeath.push_back(
+            iLoadImage((char *)GetAssetPath(path).c_str()));
+      }
     }
 
-    // Load static textures once
-    if (texWalkerIdle == 0) {
-        texWalkerIdle = iLoadImage((char*)GetAssetPath("Assets/Characters/InfectedWalker/Idle/infected_walker_sprite_01.png").c_str());
-        texWalkerWalk = iLoadImage((char*)GetAssetPath("Assets/Characters/InfectedWalker/Walk/infected_walker_sprite_01.png").c_str());
-        texWalkerAttack = iLoadImage((char*)GetAssetPath("Assets/Characters/InfectedWalker/AttackClawsSwipe/infected_walker_sprite_01.png").c_str());
-        texWalkerHurt = iLoadImage((char*)GetAssetPath("Assets/Characters/InfectedWalker/Hurt/infected_walker_01.png").c_str());
-        texWalkerDeath = iLoadImage((char*)GetAssetPath("Assets/Characters/InfectedWalker/Death/infected_walker_01.png").c_str());
+    animIdle.Init(seqWalkerIdle, 10, true); // 6 FPS (10 ticks)
+    animWalk.Init(seqWalkerWalk, 6, true);  // 10 FPS (6 ticks)
+    animAttack.Init(seqWalkerAttack, 5,
+                    false); // 12 FPS (5 ticks, 8 frames = 40 ticks = 0.67s)
+    animHurt.Init(seqWalkerHurt, 6,
+                  false); // 10 FPS (6 ticks, 4 frames = 24 ticks = 0.4s)
+    animDeath.Init(seqWalkerDeath, 7,
+                   false); // 8.5 FPS (7 ticks, 8 frames = 56 ticks = 0.93s)
+  } else if (type == TYPE_RUNNER) {
+    if (seqRunnerIdle.empty() || seqRunnerIdle[0] == 0) {
+      seqRunnerIdle.clear();
+      seqRunnerWalk.clear();
+      seqRunnerRun.clear();
+      seqRunnerAttack.clear();
+      seqRunnerHurt.clear();
+      seqRunnerDeath.clear();
 
-        texRunnerIdle = iLoadImage((char*)GetAssetPath("Assets/Characters/runnerIdle.png").c_str());
-        texRunnerWalk = iLoadImage((char*)GetAssetPath("Assets/Characters/runnerWalk.png").c_str());
-        texRunnerRun = iLoadImage((char*)GetAssetPath("Assets/Characters/runnerRun.png").c_str());
-        texRunnerAttack = iLoadImage((char*)GetAssetPath("Assets/Characters/runnerLeapAttack.png").c_str());
-        texRunnerHurt = iLoadImage((char*)GetAssetPath("Assets/Characters/runnerHurt.png").c_str());
-        texRunnerDeath = iLoadImage((char*)GetAssetPath("Assets/Characters/runnerDeath.png").c_str());
-
-        texRaiderIdle = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderIdle.png").c_str());
-        texRaiderWalk = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderWalk.png").c_str());
-        texRaiderRun = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderRun.png").c_str());
-        texRaiderAttackMelee = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderAttackMelee.png").c_str());
-        texRaiderAttackRanged = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderAttackRanged.png").c_str());
-        texRaiderHurt = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderHurt.png").c_str());
-        texRaiderDeath = iLoadImage((char*)GetAssetPath("Assets/Characters/raiderDeath.png").c_str());
-
-        texHeavyIdle = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/idle/enemy_heavy_infected_idle_01.png").c_str());
-        texHeavyWalk = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/walk/enemy_heavy_infected_walk_01_master.png").c_str());
-        texHeavyAttack = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/attack/enemy_heavy_infected_attack_01_master.png").c_str());
-        texHeavyHurt = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/hurt/enemy_heavy_infected_hurt_01_master_1.png").c_str());
-        texHeavyDeath = iLoadImage((char*)GetAssetPath("Assets/Characters/Heavy Infected/death/enemy_heavy_infected_death_01_master.png").c_str());
-    }
-
-    // Initialize reusable Animation instances for enemy states (cached statically once)
-    if (type == TYPE_SPITTER) {
-        if (seqWalkerIdle.empty() || seqWalkerIdle[0] == 0) {
-            seqWalkerIdle.clear();
-            seqWalkerWalk.clear();
-            seqWalkerAttack.clear();
-            seqWalkerHurt.clear();
-            seqWalkerDeath.clear();
-
-            for (int i = 1; i <= 6; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/InfectedWalker/Idle/infected_walker_sprite_%02d.png", i);
-                seqWalkerIdle.push_back(iLoadImage((char*)GetAssetPath(path).c_str()));
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/InfectedWalker/Walk/infected_walker_sprite_%02d.png", i);
-                seqWalkerWalk.push_back(iLoadImage((char*)GetAssetPath(path).c_str()));
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/InfectedWalker/AttackClawsSwipe/infected_walker_sprite_%02d.png", i);
-                seqWalkerAttack.push_back(iLoadImage((char*)GetAssetPath(path).c_str()));
-            }
-            for (int i = 1; i <= 4; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/InfectedWalker/Hurt/infected_walker_%02d.png", i);
-                seqWalkerHurt.push_back(iLoadImage((char*)GetAssetPath(path).c_str()));
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/InfectedWalker/Death/infected_walker_%02d.png", i);
-                seqWalkerDeath.push_back(iLoadImage((char*)GetAssetPath(path).c_str()));
-            }
+      for (int i = 1; i <= 6; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Runner/Idle/frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRunnerIdle.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Runner/Walk/runnerWalk_frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRunnerWalk.push_back(handle);
+      }
+      for (int i = 1; i <= 10; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Runner/Run/frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRunnerRun.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Runner/Leap Attack/frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRunnerAttack.push_back(handle);
+      }
+      for (int i = 1; i <= 4; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Runner/Hurt/frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRunnerHurt.push_back(handle);
+      }
+      // Ensure walker death collapse frames are loaded
+      if (seqWalkerDeath.empty()) {
+        for (int i = 1; i <= 8; ++i) {
+          char path[256];
+          sprintf_s(
+              path, sizeof(path),
+              "Assets/Characters/InfectedWalker/Death/infected_walker_%02d.png",
+              i);
+          unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+          if (handle != 0)
+            seqWalkerDeath.push_back(handle);
         }
+      }
 
-        animIdle.Init(seqWalkerIdle, 10, true);     // 6 FPS (10 ticks)
-        animWalk.Init(seqWalkerWalk, 6, true);      // 10 FPS (6 ticks)
-        animAttack.Init(seqWalkerAttack, 5, false); // 12 FPS (5 ticks, 8 frames = 40 ticks = 0.67s)
-        animHurt.Init(seqWalkerHurt, 6, false);     // 10 FPS (6 ticks, 4 frames = 24 ticks = 0.4s)
-        animDeath.Init(seqWalkerDeath, 7, false);   // 8.5 FPS (7 ticks, 8 frames = 56 ticks = 0.93s)
-    }
-    else if (type == TYPE_RUNNER) {
-        if (seqRunnerIdle.empty() || seqRunnerIdle[0] == 0) {
-            seqRunnerIdle.clear();
-            seqRunnerWalk.clear();
-            seqRunnerRun.clear();
-            seqRunnerAttack.clear();
-            seqRunnerHurt.clear();
-            seqRunnerDeath.clear();
-
-            for (int i = 1; i <= 6; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Runner/Idle/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRunnerIdle.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Runner/Walk/runnerWalk_frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRunnerWalk.push_back(handle);
-            }
-            for (int i = 1; i <= 10; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Runner/Run/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRunnerRun.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Runner/Leap Attack/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRunnerAttack.push_back(handle);
-            }
-            for (int i = 1; i <= 4; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Runner/Hurt/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRunnerHurt.push_back(handle);
-            }
-            // Ensure walker death collapse frames are loaded
-            if (seqWalkerDeath.empty()) {
-                for (int i = 1; i <= 8; ++i) {
-                    char path[256];
-                    sprintf_s(path, sizeof(path), "Assets/Characters/InfectedWalker/Death/infected_walker_%02d.png", i);
-                    unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                    if (handle != 0) seqWalkerDeath.push_back(handle);
-                }
-            }
-
-            seqRunnerDeath.clear();
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Runner/Death/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRunnerDeath.push_back(handle);
-            }
-            if (seqRunnerDeath.empty()) {
-                // Combine Runner's stagger frames with ground collapse frames for complete visible death animation
-                if (!seqRunnerHurt.empty()) {
-                    for (size_t i = 0; i < seqRunnerHurt.size(); ++i) {
-                        seqRunnerDeath.push_back(seqRunnerHurt[i]);
-                    }
-                }
-                if (!seqWalkerDeath.empty()) {
-                    int startIdx = (int)seqWalkerDeath.size() - 4;
-                    if (startIdx < 0) startIdx = 0;
-                    for (size_t i = startIdx; i < seqWalkerDeath.size(); ++i) {
-                        seqRunnerDeath.push_back(seqWalkerDeath[i]);
-                    }
-                }
-            }
+      seqRunnerDeath.clear();
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Runner/Death/frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRunnerDeath.push_back(handle);
+      }
+      if (seqRunnerDeath.empty()) {
+        // Combine Runner's stagger frames with ground collapse frames for
+        // complete visible death animation
+        if (!seqRunnerHurt.empty()) {
+          for (size_t i = 0; i < seqRunnerHurt.size(); ++i) {
+            seqRunnerDeath.push_back(seqRunnerHurt[i]);
+          }
         }
-
-        animIdle.Init(seqRunnerIdle, 5, true);     // 5 ticks per frame (feral 12 FPS idle)
-        animWalk.Init(seqRunnerRun, 3, true);      // 3 ticks per frame (aggressive 20 FPS sprint, synced with vx=4.2)
-        animAttack.Init(seqRunnerAttack, 4, false); // 4 ticks per frame (fast 15 FPS leap strike)
-        animHurt.Init(seqRunnerHurt, 4, false);     // 4 ticks per frame (fast hit reaction)
-        animDeath.Init(seqRunnerDeath, 6, false);   // 6 ticks per frame (clean collapse)
-    }
-    else if (type == TYPE_RAIDER) {
-        if (seqRaiderIdle.empty() || seqRaiderIdle[0] == 0) {
-            seqRaiderIdle.clear();
-            seqRaiderWalk.clear();
-            seqRaiderAttack.clear();
-            seqRaiderHurt.clear();
-            seqRaiderDeath.clear();
-
-            for (int i = 1; i <= 6; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Raider/Idle/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRaiderIdle.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Raider/Walk/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRaiderWalk.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Raider/Machete Attack/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRaiderAttack.push_back(handle);
-            }
-            for (int i = 1; i <= 4; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Raider/Hurt/frame_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqRaiderHurt.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Raider/Death/raider_death_sprite_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle == 0) {
-                    sprintf_s(path, sizeof(path), "Assets/Characters/Raider/Death/frame_%02d.png", i);
-                    handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                }
-                if (handle != 0) seqRaiderDeath.push_back(handle);
-            }
-
-            // Fallback to single static textures if subfolder frames are missing
-            if (seqRaiderIdle.empty() && texRaiderIdle != 0) seqRaiderIdle.push_back(texRaiderIdle);
-            if (seqRaiderWalk.empty()) {
-                if (texRaiderWalk != 0) seqRaiderWalk.push_back(texRaiderWalk);
-                else if (texRaiderRun != 0) seqRaiderWalk.push_back(texRaiderRun);
-            }
-            if (seqRaiderAttack.empty() && texRaiderAttackMelee != 0) seqRaiderAttack.push_back(texRaiderAttackMelee);
-            if (seqRaiderHurt.empty() && texRaiderHurt != 0) seqRaiderHurt.push_back(texRaiderHurt);
-            if (seqRaiderDeath.empty() && texRaiderDeath != 0) seqRaiderDeath.push_back(texRaiderDeath);
+        if (!seqWalkerDeath.empty()) {
+          int startIdx = (int)seqWalkerDeath.size() - 4;
+          if (startIdx < 0)
+            startIdx = 0;
+          for (size_t i = startIdx; i < seqWalkerDeath.size(); ++i) {
+            seqRunnerDeath.push_back(seqWalkerDeath[i]);
+          }
         }
-
-        animIdle.Init(seqRaiderIdle, 8, true);      // 8 ticks/frame (7.5 FPS idle)
-        animWalk.Init(seqRaiderWalk, 5, true);      // 5 ticks/frame (12 FPS walk)
-        animAttack.Init(seqRaiderAttack, 5, false); // 5 ticks/frame (12 FPS machete slash)
-        animHurt.Init(seqRaiderHurt, 6, false);     // 6 ticks/frame (10 FPS hurt)
-        animDeath.Init(seqRaiderDeath, 7, false);   // 7 ticks/frame (8.5 FPS death)
+      }
     }
-    else if (type == TYPE_HEAVY) {
-        if (seqHeavyIdle.empty() || seqHeavyIdle[0] == 0) {
-            seqHeavyIdle.clear();
-            seqHeavyWalk.clear();
-            seqHeavyAttack.clear();
-            seqHeavyHurt.clear();
-            seqHeavyDeath.clear();
 
-            for (int i = 1; i <= 6; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/idle/enemy_heavy_infected_idle_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHeavyIdle.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/walk/enemy_heavy_infected_walk_%02d_master.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHeavyWalk.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/attack/enemy_heavy_infected_attack_%02d_master.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHeavyAttack.push_back(handle);
-            }
-            for (int i = 1; i <= 4; ++i) {
-                char path[256];
-                if (i == 1) {
-                    sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/hurt/enemy_heavy_infected_hurt_01_master_1.png");
-                } else {
-                    sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/hurt/enemy_heavy_infected_hurt_%02d_master.png", i);
-                }
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHeavyHurt.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Heavy Infected/death/enemy_heavy_infected_death_%02d_master.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHeavyDeath.push_back(handle);
-            }
+    animIdle.Init(seqRunnerIdle, 5,
+                  true); // 5 ticks per frame (feral 12 FPS idle)
+    animWalk.Init(seqRunnerRun, 3, true); // 3 ticks per frame (aggressive 20
+                                          // FPS sprint, synced with vx=4.2)
+    animAttack.Init(seqRunnerAttack, 4,
+                    false); // 4 ticks per frame (fast 15 FPS leap strike)
+    animHurt.Init(seqRunnerHurt, 4,
+                  false); // 4 ticks per frame (fast hit reaction)
+    animDeath.Init(seqRunnerDeath, 6,
+                   false); // 6 ticks per frame (clean collapse)
+  } else if (type == TYPE_RAIDER) {
+    if (seqRaiderIdle.empty() || seqRaiderIdle[0] == 0) {
+      seqRaiderIdle.clear();
+      seqRaiderWalk.clear();
+      seqRaiderAttack.clear();
+      seqRaiderHurt.clear();
+      seqRaiderDeath.clear();
 
-            // Fallback to single static textures if subfolder frames are missing
-            if (seqHeavyIdle.empty() && texHeavyIdle != 0) seqHeavyIdle.push_back(texHeavyIdle);
-            if (seqHeavyWalk.empty()) {
-                if (texHeavyWalk != 0) seqHeavyWalk.push_back(texHeavyWalk);
-                else if (!seqHeavyIdle.empty()) seqHeavyWalk = seqHeavyIdle;
-            }
-            if (seqHeavyAttack.empty() && texHeavyAttack != 0) seqHeavyAttack.push_back(texHeavyAttack);
-            if (seqHeavyHurt.empty() && texHeavyHurt != 0) seqHeavyHurt.push_back(texHeavyHurt);
-            if (seqHeavyDeath.empty()) {
-                if (texHeavyDeath != 0) seqHeavyDeath.push_back(texHeavyDeath);
-                else if (!seqHeavyHurt.empty()) seqHeavyDeath = seqHeavyHurt;
-            }
+      for (int i = 1; i <= 6; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Raider/Idle/frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRaiderIdle.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Raider/Walk/frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRaiderWalk.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Raider/Machete Attack/frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRaiderAttack.push_back(handle);
+      }
+      for (int i = 1; i <= 4; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Raider/Hurt/frame_%02d.png", i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqRaiderHurt.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Raider/Death/raider_death_sprite_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle == 0) {
+          sprintf_s(path, sizeof(path),
+                    "Assets/Characters/Raider/Death/frame_%02d.png", i);
+          handle = iLoadImage((char *)GetAssetPath(path).c_str());
         }
+        if (handle != 0)
+          seqRaiderDeath.push_back(handle);
+      }
 
-        animIdle.Init(seqHeavyIdle, 9, true);      // 9 ticks/frame (6.6 FPS heavy breathing idle)
-        animWalk.Init(seqHeavyWalk, 6, true);      // 6 ticks/frame (10 FPS heavy walk stride)
-        animAttack.Init(seqHeavyAttack, 6, false); // 6 ticks/frame (10 FPS heavy smash)
-        animHurt.Init(seqHeavyHurt, 5, false);     // 5 ticks/frame (12 FPS responsive hurt stagger)
-        animDeath.Init(seqHeavyDeath, 7, false);   // 7 ticks/frame (8.5 FPS heavy collapse)
+      // Fallback to single static textures if subfolder frames are missing
+      if (seqRaiderIdle.empty() && texRaiderIdle != 0)
+        seqRaiderIdle.push_back(texRaiderIdle);
+      if (seqRaiderWalk.empty()) {
+        if (texRaiderWalk != 0)
+          seqRaiderWalk.push_back(texRaiderWalk);
+        else if (texRaiderRun != 0)
+          seqRaiderWalk.push_back(texRaiderRun);
+      }
+      if (seqRaiderAttack.empty() && texRaiderAttackMelee != 0)
+        seqRaiderAttack.push_back(texRaiderAttackMelee);
+      if (seqRaiderHurt.empty() && texRaiderHurt != 0)
+        seqRaiderHurt.push_back(texRaiderHurt);
+      if (seqRaiderDeath.empty() && texRaiderDeath != 0)
+        seqRaiderDeath.push_back(texRaiderDeath);
     }
-    else if (type == TYPE_ABOMINATION) {
-        if (seqAbominationIdle.empty() || seqAbominationIdle[0] == 0) {
-            seqAbominationIdle.clear();
-            seqAbominationWalk.clear();
-            seqAbominationAttack.clear();
-            seqAbominationHurt.clear();
-            seqAbominationDeath.clear();
 
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/idle/muted_brute_Idle_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqAbominationIdle.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/walk/muted_brute_Walk_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqAbominationWalk.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/attack/muted_brute_Attack_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqAbominationAttack.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/slam/muted_brute_Ground_slam_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqAbominationHurt.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Mutated Brute/death/muted_brute_Death_%02d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqAbominationDeath.push_back(handle);
-            }
+    animIdle.Init(seqRaiderIdle, 8, true); // 8 ticks/frame (7.5 FPS idle)
+    animWalk.Init(seqRaiderWalk, 5, true); // 5 ticks/frame (12 FPS walk)
+    animAttack.Init(seqRaiderAttack, 5,
+                    false); // 5 ticks/frame (12 FPS machete slash)
+    animHurt.Init(seqRaiderHurt, 6, false);   // 6 ticks/frame (10 FPS hurt)
+    animDeath.Init(seqRaiderDeath, 7, false); // 7 ticks/frame (8.5 FPS death)
+  } else if (type == TYPE_HEAVY) {
+    if (seqHeavyIdle.empty() || seqHeavyIdle[0] == 0) {
+      seqHeavyIdle.clear();
+      seqHeavyWalk.clear();
+      seqHeavyAttack.clear();
+      seqHeavyHurt.clear();
+      seqHeavyDeath.clear();
 
-            if (seqAbominationWalk.empty() && !seqAbominationIdle.empty()) seqAbominationWalk = seqAbominationIdle;
-            if (seqAbominationAttack.empty() && !seqAbominationIdle.empty()) seqAbominationAttack = seqAbominationIdle;
-            if (seqAbominationHurt.empty() && !seqAbominationIdle.empty()) seqAbominationHurt = seqAbominationIdle;
-            if (seqAbominationDeath.empty() && !seqAbominationHurt.empty()) seqAbominationDeath = seqAbominationHurt;
+      for (int i = 1; i <= 6; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Heavy "
+                  "Infected/idle/enemy_heavy_infected_idle_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHeavyIdle.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Heavy "
+                  "Infected/walk/enemy_heavy_infected_walk_%02d_master.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHeavyWalk.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Heavy "
+                  "Infected/attack/enemy_heavy_infected_attack_%02d_master.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHeavyAttack.push_back(handle);
+      }
+      for (int i = 1; i <= 4; ++i) {
+        char path[256];
+        if (i == 1) {
+          sprintf_s(path, sizeof(path),
+                    "Assets/Characters/Heavy "
+                    "Infected/hurt/enemy_heavy_infected_hurt_01_master_1.png");
+        } else {
+          sprintf_s(path, sizeof(path),
+                    "Assets/Characters/Heavy "
+                    "Infected/hurt/enemy_heavy_infected_hurt_%02d_master.png",
+                    i);
         }
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHeavyHurt.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Heavy "
+                  "Infected/death/enemy_heavy_infected_death_%02d_master.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHeavyDeath.push_back(handle);
+      }
 
-        animIdle.Init(seqAbominationIdle, 8, true);      // 8 ticks/frame
-        animWalk.Init(seqAbominationWalk, 6, true);      // 6 ticks/frame
-        animAttack.Init(seqAbominationAttack, 6, false); // 6 ticks/frame
-        animHurt.Init(seqAbominationHurt, 5, false);     // 5 ticks/frame
-        animDeath.Init(seqAbominationDeath, 7, false);   // 7 ticks/frame
+      // Fallback to single static textures if subfolder frames are missing
+      if (seqHeavyIdle.empty() && texHeavyIdle != 0)
+        seqHeavyIdle.push_back(texHeavyIdle);
+      if (seqHeavyWalk.empty()) {
+        if (texHeavyWalk != 0)
+          seqHeavyWalk.push_back(texHeavyWalk);
+        else if (!seqHeavyIdle.empty())
+          seqHeavyWalk = seqHeavyIdle;
+      }
+      if (seqHeavyAttack.empty() && texHeavyAttack != 0)
+        seqHeavyAttack.push_back(texHeavyAttack);
+      if (seqHeavyHurt.empty() && texHeavyHurt != 0)
+        seqHeavyHurt.push_back(texHeavyHurt);
+      if (seqHeavyDeath.empty()) {
+        if (texHeavyDeath != 0)
+          seqHeavyDeath.push_back(texHeavyDeath);
+        else if (!seqHeavyHurt.empty())
+          seqHeavyDeath = seqHeavyHurt;
+      }
     }
-    else if (type == TYPE_HUNTER || type == TYPE_ALPHA_HUNTER) {
-        if (seqHunterIdle.empty() || seqHunterIdle[0] == 0) {
-            seqHunterIdle.clear();
-            seqHunterWalk.clear();
-            seqHunterRun.clear();
-            seqHunterAttack.clear();
-            seqHunterHurt.clear();
-            seqHunterDeath.clear();
 
-            for (int i = 1; i <= 6; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Infected Hunter/idle/infected_hunterf_idle%d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHunterIdle.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Infected Hunter/run/infected_hunter_run_%d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHunterRun.push_back(handle);
-            }
-            for (int i = 1; i <= 6; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Infected Hunter/claw_attack/infected_hunter_claw_attack_%d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHunterAttack.push_back(handle);
-            }
-            for (int i = 1; i <= 4; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Infected Hunter/hurt/infected_hunter_hurt_%d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHunterHurt.push_back(handle);
-            }
-            for (int i = 1; i <= 8; ++i) {
-                char path[256];
-                sprintf_s(path, sizeof(path), "Assets/Characters/Infected Hunter/death/infected_hunter_death_%d.png", i);
-                unsigned int handle = iLoadImage((char*)GetAssetPath(path).c_str());
-                if (handle != 0) seqHunterDeath.push_back(handle);
-            }
-            if (seqHunterWalk.empty() && !seqHunterRun.empty()) seqHunterWalk = seqHunterRun;
-        }
+    animIdle.Init(seqHeavyIdle, 9,
+                  true); // 9 ticks/frame (6.6 FPS heavy breathing idle)
+    animWalk.Init(seqHeavyWalk, 6,
+                  true); // 6 ticks/frame (10 FPS heavy walk stride)
+    animAttack.Init(seqHeavyAttack, 6,
+                    false); // 6 ticks/frame (10 FPS heavy smash)
+    animHurt.Init(seqHeavyHurt, 5,
+                  false); // 5 ticks/frame (12 FPS responsive hurt stagger)
+    animDeath.Init(seqHeavyDeath, 7,
+                   false); // 7 ticks/frame (8.5 FPS heavy collapse)
+  } else if (type == TYPE_ABOMINATION) {
+    if (seqAbominationIdle.empty() || seqAbominationIdle[0] == 0) {
+      seqAbominationIdle.clear();
+      seqAbominationWalk.clear();
+      seqAbominationAttack.clear();
+      seqAbominationHurt.clear();
+      seqAbominationDeath.clear();
 
-        int animSpeed = (type == TYPE_ALPHA_HUNTER) ? 3 : 4;
-        animIdle.Init(seqHunterIdle, animSpeed + 2, true);
-        animWalk.Init(seqHunterRun, animSpeed, true);
-        animAttack.Init(seqHunterAttack, animSpeed, false);
-        animHurt.Init(seqHunterHurt, animSpeed, false);
-        animDeath.Init(seqHunterDeath, animSpeed + 2, false);
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(
+            path, sizeof(path),
+            "Assets/Characters/Mutated Brute/idle/muted_brute_Idle_%02d.png",
+            i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqAbominationIdle.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(
+            path, sizeof(path),
+            "Assets/Characters/Mutated Brute/walk/muted_brute_Walk_%02d.png",
+            i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqAbominationWalk.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Mutated "
+                  "Brute/attack/muted_brute_Attack_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqAbominationAttack.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Mutated "
+                  "Brute/slam/muted_brute_Ground_slam_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqAbominationHurt.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(
+            path, sizeof(path),
+            "Assets/Characters/Mutated Brute/death/muted_brute_Death_%02d.png",
+            i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqAbominationDeath.push_back(handle);
+      }
+
+      if (seqAbominationWalk.empty() && !seqAbominationIdle.empty())
+        seqAbominationWalk = seqAbominationIdle;
+      if (seqAbominationAttack.empty() && !seqAbominationIdle.empty())
+        seqAbominationAttack = seqAbominationIdle;
+      if (seqAbominationHurt.empty() && !seqAbominationIdle.empty())
+        seqAbominationHurt = seqAbominationIdle;
+      if (seqAbominationDeath.empty() && !seqAbominationHurt.empty())
+        seqAbominationDeath = seqAbominationHurt;
     }
+
+    animIdle.Init(seqAbominationIdle, 8, true);      // 8 ticks/frame
+    animWalk.Init(seqAbominationWalk, 6, true);      // 6 ticks/frame
+    animAttack.Init(seqAbominationAttack, 6, false); // 6 ticks/frame
+    animHurt.Init(seqAbominationHurt, 5, false);     // 5 ticks/frame
+    animDeath.Init(seqAbominationDeath, 7, false);   // 7 ticks/frame
+  } else if (type == TYPE_HUNTER) {
+    if (seqHunterIdle.empty() || seqHunterIdle[0] == 0) {
+      seqHunterIdle.clear();
+      seqHunterWalk.clear();
+      seqHunterRun.clear();
+      seqHunterAttack.clear();
+      seqHunterHurt.clear();
+      seqHunterDeath.clear();
+
+      for (int i = 1; i <= 6; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Infected "
+                  "Hunter/idle/infected_hunterf_idle%d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHunterIdle.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(
+            path, sizeof(path),
+            "Assets/Characters/Infected Hunter/run/infected_hunter_run_%d.png",
+            i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHunterRun.push_back(handle);
+      }
+      for (int i = 1; i <= 6; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Infected "
+                  "Hunter/claw_attack/infected_hunter_claw_attack_%d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHunterAttack.push_back(handle);
+      }
+      for (int i = 1; i <= 4; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Infected "
+                  "Hunter/hurt/infected_hunter_hurt_%d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHunterHurt.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Infected "
+                  "Hunter/death/infected_hunter_death_%d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqHunterDeath.push_back(handle);
+      }
+      if (seqHunterWalk.empty() && !seqHunterRun.empty())
+        seqHunterWalk = seqHunterRun;
+    }
+  } else if (type == TYPE_FOREST_ABOMINATION) {
+    if (seqForestAbominationIdle.empty() || seqForestAbominationIdle[0] == 0) {
+      seqForestAbominationIdle.clear();
+      seqForestAbominationWalk.clear();
+      seqForestAbominationAttack.clear();
+      seqForestAbominationHurt.clear();
+      seqForestAbominationDeath.clear();
+
+      for (int i = 1; i <= 6; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Forest "
+                  "Abomination/Idle/Forest_Abomination_idle_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqForestAbominationIdle.push_back(handle);
+      }
+      for (int i = 1; i <= 7; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Forest "
+                  "Abomination/Walk/Forest_Abomination_walk_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqForestAbominationWalk.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Forest Abomination/Claw Swipe "
+                  "Attack/Forest_Abomination_claw_swipe_attack_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqForestAbominationAttack.push_back(handle);
+      }
+      for (int i = 1; i <= 5; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Forest "
+                  "Abomination/Hurt/Forest_Abomination_hurt_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqForestAbominationHurt.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Forest "
+                  "Abomination/Death/Forest_Abomination_death_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqForestAbominationDeath.push_back(handle);
+      }
+      for (int i = 1; i <= 8; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Forest Abomination/Ranged Fire Projectile "
+                  "Attack/Forest_Abomination_Projectile_Attack_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqForestAbominationProjectile.push_back(handle);
+      }
+      for (int i = 1; i <= 12; ++i) {
+        char path[256];
+        sprintf_s(path, sizeof(path),
+                  "Assets/Characters/Forest Abomination/Flame "
+                  "Attack/Forest_Abomination_Flame_Attack_%02d.png",
+                  i);
+        unsigned int handle = iLoadImage((char *)GetAssetPath(path).c_str());
+        if (handle != 0)
+          seqForestAbominationFlame.push_back(handle);
+      }
+    }
+
+    animIdle.Init(seqForestAbominationIdle, 5, true);
+    animWalk.Init(seqForestAbominationWalk, 5, true);
+    animAttack.Init(seqForestAbominationAttack, 5, false);
+    animHurt.Init(seqForestAbominationHurt, 5, false);
+    animDeath.Init(seqForestAbominationDeath, 6, false);
+    animProjectile.Init(seqForestAbominationProjectile, 5, false);
+    animFlame.Init(seqForestAbominationFlame, 5, false);
+  }
+
+  // Set animation speeds based on type
+  int animSpeed = (type == TYPE_FOREST_ABOMINATION) ? 3 : 4;
+
+  if (type == TYPE_FOREST_ABOMINATION) {
+    // Handled specifically in block above
+  } else if (type == TYPE_HUNTER) {
+    animIdle.Init(seqHunterIdle, animSpeed + 2, true);
+    animWalk.Init(seqHunterRun, animSpeed, true);
+    animAttack.Init(seqHunterAttack, animSpeed, false);
+    animHurt.Init(seqHunterHurt, animSpeed, false);
+    animDeath.Init(seqHunterDeath, animSpeed + 2, false);
+  }
 }
 
 // ============================================================================
 // AI State Machine & Physics Update
 // ============================================================================
 void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
-    // Decrement audio cooldown timers (affecting sound playback only, not gameplay)
-    static DWORD s_lastAudioTickMs = 0;
-    DWORD currentMs = GetTickCount();
-    if (currentMs - s_lastAudioTickMs >= 16) { // ~60 FPS frame tick (16ms)
-        s_lastAudioTickMs = currentMs;
-        if (s_globalWalkerAttackAudioCooldown > 0) s_globalWalkerAttackAudioCooldown--;
-        if (s_globalWalkerHurtAudioCooldown > 0) s_globalWalkerHurtAudioCooldown--;
-        if (s_globalRunnerAttackAudioCooldown > 0) s_globalRunnerAttackAudioCooldown--;
-        if (s_globalRunnerHurtAudioCooldown > 0) s_globalRunnerHurtAudioCooldown--;
-        if (s_globalRaiderAttackAudioCooldown > 0) s_globalRaiderAttackAudioCooldown--;
-        if (s_globalRaiderHurtAudioCooldown > 0) s_globalRaiderHurtAudioCooldown--;
+  // Decrement audio cooldown timers (affecting sound playback only, not
+  // gameplay)
+  static DWORD s_lastAudioTickMs = 0;
+  DWORD currentMs = GetTickCount();
+  if (currentMs - s_lastAudioTickMs >= 16) { // ~60 FPS frame tick (16ms)
+    s_lastAudioTickMs = currentMs;
+    if (s_globalWalkerAttackAudioCooldown > 0)
+      s_globalWalkerAttackAudioCooldown--;
+    if (s_globalWalkerHurtAudioCooldown > 0)
+      s_globalWalkerHurtAudioCooldown--;
+    if (s_globalRunnerAttackAudioCooldown > 0)
+      s_globalRunnerAttackAudioCooldown--;
+    if (s_globalRunnerHurtAudioCooldown > 0)
+      s_globalRunnerHurtAudioCooldown--;
+    if (s_globalRaiderAttackAudioCooldown > 0)
+      s_globalRaiderAttackAudioCooldown--;
+    if (s_globalRaiderHurtAudioCooldown > 0)
+      s_globalRaiderHurtAudioCooldown--;
+  }
+  if (walkerHurtAudioCooldown > 0)
+    walkerHurtAudioCooldown--;
+  if (runnerHurtAudioCooldown > 0)
+    runnerHurtAudioCooldown--;
+  if (raiderHurtAudioCooldown > 0)
+    raiderHurtAudioCooldown--;
+  if (runnerIdleTimer > 0)
+    runnerIdleTimer--;
+
+  double startFrameX = x;
+
+  // Gravity for jumping over obstacles
+  if (!isGrounded) {
+    vy -= 900.0 * 0.016667;
+    y += vy * 0.016667;
+    if (y <= 185.0) {
+      y = 185.0;
+      vy = 0.0;
+      isGrounded = true;
     }
-    if (walkerHurtAudioCooldown > 0) walkerHurtAudioCooldown--;
-    if (runnerHurtAudioCooldown > 0) runnerHurtAudioCooldown--;
-    if (raiderHurtAudioCooldown > 0) raiderHurtAudioCooldown--;
-    if (runnerIdleTimer > 0) runnerIdleTimer--;
+  }
 
-    double startFrameX = x;
+  EnemyState oldState = state;
 
-    // Gravity for jumping over obstacles
-    if (!isGrounded) {
-        vy -= 900.0 * 0.016667;
-        y += vy * 0.016667;
-        if (y <= 185.0) {
-            y = 185.0;
-            vy = 0.0;
-            isGrounded = true;
+  if (state == ENEMY_DEAD) {
+    if (animDeath.IsValid()) {
+      animDeath.Update();
+      animFrame = animDeath.GetCurrentFrame();
+    }
+    return;
+  }
+
+  // Decrement attack cooldown timer if active
+  if (attackCooldown > 0)
+    attackCooldown--;
+  if (clawCooldown > 0)
+    clawCooldown--;
+  if (projectileCooldown > 0)
+    projectileCooldown--;
+  if (flameCooldown > 0)
+    flameCooldown--;
+
+  double distToPlayer = std::abs(playerX - x);
+  double dyToPlayer = std::abs(playerY - y);
+
+  const double ATTACK_RANGE =
+      (type == TYPE_FOREST_ABOMINATION)
+          ? 120.0
+          : ((type == TYPE_RUNNER || type == TYPE_HUNTER)
+                 ? 80.0
+                 : ((type == TYPE_HEAVY)
+                        ? 75.0
+                        : 65.0)); // Attack range threshold in pixels
+  const double DETECTION_RANGE =
+      (type == TYPE_FOREST_ABOMINATION)
+          ? 750.0
+          : ((type == TYPE_HUNTER)
+                 ? 600.0
+                 : ((type == TYPE_RUNNER)
+                        ? 550.0
+                        : ((type == TYPE_HEAVY)
+                               ? 480.0
+                               : 500.0))); // Detection & chase range threshold
+                                           // in pixels
+
+  if (type == TYPE_FOREST_ABOMINATION && state != ENEMY_HURT) {
+    // Face player generally
+    if (playerX > x + 8.0)
+      isFacingRight = true;
+    else if (playerX < x - 8.0)
+      isFacingRight = false;
+
+    if (isOpeningAttackActive) {
+      // Opening Attack Phase: Fire exactly 3 Bio Flame Projectiles with 5s
+      // interval
+      if (state == ENEMY_ATTACK) {
+        Animation *currentAttackAnim = &animProjectile;
+        if (currentAttackAnim->IsValid()) {
+          currentAttackAnim->Update();
+          animFrame = currentAttackAnim->GetCurrentFrame();
+
+          if (animFrame >= 4 && !projectileFired) {
+            projectileFired = true;
+          }
+
+          if (currentAttackAnim->IsFinished()) {
+            openingProjectileCount++;
+            hasDealtDamage = false;
+            projectileFired = false;
+            flameHit = false;
+            animFrame = 0;
+            frameCounter = 0;
+            stateTimer = 0;
+            currentAttackAnim->Reset();
+
+            if (openingProjectileCount < 3) {
+              state = ENEMY_PATROL; // Return to Idle between shots
+              openingProjectileTimer = 0;
+            } else {
+              isOpeningAttackActive = false; // 3 projectiles completed!
+              state = ENEMY_PATROL;
+              projectileCooldown = 600; // 10s cooldown before AI shoots again
+            }
+          }
         }
+      } else {
+        // In PATROL / Idle during opening phase
+        if (animIdle.IsValid()) {
+          animIdle.Update();
+          animFrame = animIdle.GetCurrentFrame();
+        }
+        openingProjectileTimer++;
+        if (openingProjectileTimer >= 300) { // 5.0 seconds interval
+          openingProjectileTimer = 0;
+          state = ENEMY_ATTACK;
+          abominationAttack = ABOMINATION_PROJECTILE;
+          animProjectile.Reset();
+          projectileFired = false;
+          printf("FOREST ABOMINATION ATTACK\n");
+          fflush(stdout);
+        }
+      }
+    } else if (state == ENEMY_ATTACK) {
+      Animation *currentAttackAnim = &animAttack;
+      if (abominationAttack == ABOMINATION_PROJECTILE)
+        currentAttackAnim = &animProjectile;
+      else if (abominationAttack == ABOMINATION_FLAME)
+        currentAttackAnim = &animFlame;
+
+      if (currentAttackAnim->IsValid()) {
+        currentAttackAnim->Update();
+        animFrame = currentAttackAnim->GetCurrentFrame();
+
+        if (abominationAttack == ABOMINATION_PROJECTILE && animFrame >= 4 &&
+            !projectileFired) {
+          projectileFired = true;
+        }
+
+        if (currentAttackAnim->IsFinished()) {
+          if (abominationAttack == ABOMINATION_FLAME) {
+            printf("FOREST ABOMINATION FLAME ATTACK END\n");
+            fflush(stdout);
+          }
+          state = ENEMY_PATROL; // Return to Idle after attack
+          if (abominationAttack == ABOMINATION_CLAW) {
+            clawCooldown = 120; // 2 seconds
+          } else if (abominationAttack == ABOMINATION_PROJECTILE) {
+            projectileCooldown = 600; // 10 seconds
+          } else if (abominationAttack == ABOMINATION_FLAME) {
+            flameCooldown = 300; // 5 seconds
+          }
+          hasDealtDamage = false;
+          projectileFired = false;
+          flameHit = false;
+          animFrame = 0;
+          frameCounter = 0;
+          stateTimer = 0;
+          currentAttackAnim->Reset();
+        }
+      } else {
+        if (abominationAttack == ABOMINATION_FLAME) {
+          printf("FOREST ABOMINATION FLAME ATTACK END\n");
+          fflush(stdout);
+        }
+        state = ENEMY_PATROL;
+        if (currentAttackAnim)
+          currentAttackAnim->Reset();
+      }
+    } else {
+      stateTimer++;
+
+      // Execute current movement state
+      if (state == ENEMY_CHASE) {
+        // Ensure boss faces Arin direction
+        if (playerX > x + 8.0)
+          isFacingRight = true;
+        else if (playerX < x - 8.0)
+          isFacingRight = false;
+
+        double oldX = x;
+        double walkSpeed = (vx > 0.0) ? vx : 2.2;
+
+        if (avoidDirection == -1) { // Retreat
+          x -= (isFacingRight ? walkSpeed * 0.6 : -walkSpeed * 0.6);
+        } else { // Approach Arin (default for avoidDirection == 1 or 0)
+          if (distToPlayer > 130.0) {
+            x += (isFacingRight ? walkSpeed : -walkSpeed);
+          } else {
+            state = ENEMY_PATROL; // Stop walking when reaching attack distance!
+          }
+        }
+
+        // Stay within boss arena bounds
+        if (x < startX)
+          x = startX;
+        if (x > endX)
+          x = endX;
+
+        // Log when X position changes
+        if (std::abs(x - oldX) > 0.001) {
+          printf("FOREST ABOMINATION MOVING\n");
+          fflush(stdout);
+        }
+
+        // Play Walk animation
+        if (animWalk.IsValid()) {
+          animWalk.Update();
+          animFrame = animWalk.GetCurrentFrame();
+        }
+      } else if (state == ENEMY_PATROL) {
+        if (animIdle.IsValid()) {
+          animIdle.Update();
+          animFrame = animIdle.GetCurrentFrame();
+        }
+      }
+
+      // AI Decision Tick
+      bool shouldMakeDecision = (state == ENEMY_PATROL && stateTimer >= 35) ||
+                                (state == ENEMY_CHASE && stateTimer >= 75);
+      if (shouldMakeDecision) {
+        stateTimer = 0;
+
+        if (distToPlayer > 300.0) {
+          // Long distance (> 300px): 30% Projectile, 70% Walk toward Arin
+          int roll = rand() % 100;
+          if (roll < 30 && projectileCooldown <= 0) {
+            state = ENEMY_ATTACK;
+            abominationAttack = ABOMINATION_PROJECTILE;
+          } else {
+            state = ENEMY_CHASE;
+            avoidDirection = 1; // Walk toward Arin
+            printf("FOREST ABOMINATION CHASING ARIN\n");
+            fflush(stdout);
+          }
+        } else if (distToPlayer >= 100.0 && distToPlayer <= 300.0) {
+          // Medium distance (100 - 300px): Choose Claw or Projectile
+          int roll = rand() % 100;
+          if (roll < 50 && clawCooldown <= 0) {
+            state = ENEMY_ATTACK;
+            abominationAttack = ABOMINATION_CLAW;
+          } else if (roll >= 50 && projectileCooldown <= 0) {
+            state = ENEMY_ATTACK;
+            abominationAttack = ABOMINATION_PROJECTILE;
+          } else if (clawCooldown <= 0) {
+            state = ENEMY_ATTACK;
+            abominationAttack = ABOMINATION_CLAW;
+          } else if (projectileCooldown <= 0) {
+            state = ENEMY_ATTACK;
+            abominationAttack = ABOMINATION_PROJECTILE;
+          } else {
+            // Reposition / approach
+            state = ENEMY_CHASE;
+            avoidDirection = 1;
+            printf("FOREST ABOMINATION CHASING ARIN\n");
+            fflush(stdout);
+          }
+        } else {
+          // Close distance (< 100px): Choose between Flame Attack and Claw
+          // Swipe Attack
+          int roll = rand() % 100;
+          if (roll < 50 && flameCooldown <= 0) {
+            state = ENEMY_ATTACK;
+            abominationAttack = ABOMINATION_FLAME;
+          } else if (roll >= 50 && clawCooldown <= 0) {
+            state = ENEMY_ATTACK;
+            abominationAttack = ABOMINATION_CLAW;
+          } else if (flameCooldown <= 0) {
+            state = ENEMY_ATTACK;
+            abominationAttack = ABOMINATION_FLAME;
+          } else if (clawCooldown <= 0) {
+            state = ENEMY_ATTACK;
+            abominationAttack = ABOMINATION_CLAW;
+          } else {
+            state = ENEMY_CHASE;
+            avoidDirection = -1; // Walk backward if attacks on cooldown
+          }
+        }
+
+        if (state == ENEMY_ATTACK) {
+          if (abominationAttack == ABOMINATION_FLAME) {
+            printf("FOREST ABOMINATION FLAME ATTACK\n");
+          } else {
+            printf("FOREST ABOMINATION ATTACK\n");
+          }
+          fflush(stdout);
+          hasDealtDamage = false;
+          projectileFired = false;
+          flameHit = false;
+          if (abominationAttack == ABOMINATION_CLAW)
+            animAttack.Reset();
+          else if (abominationAttack == ABOMINATION_PROJECTILE)
+            animProjectile.Reset();
+          else if (abominationAttack == ABOMINATION_FLAME)
+            animFlame.Reset();
+        }
+      }
     }
+  } else if (state == ENEMY_HURT) {
+    inAttackRange = false;
+    if (animHurt.IsValid()) {
+      animHurt.Update();
+      animFrame = animHurt.GetCurrentFrame();
+      if (animHurt.IsFinished()) {
+        state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0)
+                    ? ENEMY_CHASE
+                    : ENEMY_PATROL;
+        animHurt.Reset();
+      }
+    } else {
+      state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0)
+                  ? ENEMY_CHASE
+                  : ENEMY_PATROL;
+    }
+  } else if (state == ENEMY_ATTACK) {
+    // Face player when executing attack stroke
+    if (playerX > x + 8.0)
+      isFacingRight = true;
+    else if (playerX < x - 8.0)
+      isFacingRight = false;
 
-    EnemyState oldState = state;
+    Animation *currentAttackAnim = &animAttack;
 
-    if (state == ENEMY_DEAD) {
-        if (animDeath.IsValid()) {
-            animDeath.Update();
-            animFrame = animDeath.GetCurrentFrame();
+    // Hold position during attack animation (vx = 0)
+    if (currentAttackAnim->IsValid()) {
+      currentAttackAnim->Update();
+      animFrame = currentAttackAnim->GetCurrentFrame();
+      if (currentAttackAnim->IsFinished()) {
+        state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0)
+                    ? ENEMY_CHASE
+                    : ENEMY_PATROL;
+        if (type == TYPE_RAIDER) {
+          attackCooldown = 40;
+          raiderBackstepTimer =
+              22; // Trigger step-backward evasion after attacking
+        } else {
+          attackCooldown = (type == TYPE_RUNNER || type == TYPE_HUNTER)
+                               ? 30
+                               : ((type == TYPE_HEAVY) ? 75 : 60);
+        }
+        hasDealtDamage = false;
+        animFrame = 0;
+        frameCounter = 0;
+        stateTimer = 0;
+        currentAttackAnim->Reset();
+      }
+    } else {
+      state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0)
+                  ? ENEMY_CHASE
+                  : ENEMY_PATROL;
+      if (type == TYPE_RAIDER) {
+        attackCooldown = 40;
+        raiderBackstepTimer = 22;
+      } else {
+        attackCooldown = (type == TYPE_RUNNER || type == TYPE_HUNTER)
+                             ? 35
+                             : ((type == TYPE_HEAVY) ? 75 : 60);
+      }
+      if (currentAttackAnim)
+        currentAttackAnim->Reset();
+    }
+  } else {
+    // --------------------------------------------------------------------
+    // SPECIAL RAIDER COMBAT AI: Tactical Pacing, Katana Avoidance & Opening
+    // Counters
+    // --------------------------------------------------------------------
+    if (type == TYPE_RAIDER && distToPlayer <= DETECTION_RANGE &&
+        dyToPlayer < 120.0) {
+      // 1. Post-attack Step Backward Evasion
+      if (raiderBackstepTimer > 0) {
+        raiderBackstepTimer--;
+        state = ENEMY_CHASE;
+        isFacingRight = (playerX > x);
+        double backstepSpeed = 2.4;
+        if (playerX > x)
+          x -= backstepSpeed;
+        else
+          x += backstepSpeed;
+
+        if (animWalk.IsValid()) {
+          animWalk.Update();
+          animFrame = animWalk.GetCurrentFrame();
         }
         return;
-    }
+      }
 
-    // Decrement attack cooldown timer if active
-    if (attackCooldown > 0) {
-        attackCooldown--;
-    }
-
-    double distToPlayer = std::abs(playerX - x);
-    double dyToPlayer = std::abs(playerY - y);
-
-    const double ATTACK_RANGE = (type == TYPE_RUNNER || type == TYPE_HUNTER || type == TYPE_ALPHA_HUNTER) ? 80.0 : ((type == TYPE_HEAVY) ? 75.0 : 65.0);     // Attack range threshold in pixels
-    const double DETECTION_RANGE = (type == TYPE_ALPHA_HUNTER) ? 750.0 : ((type == TYPE_HUNTER) ? 600.0 : ((type == TYPE_RUNNER) ? 550.0 : ((type == TYPE_HEAVY) ? 480.0 : 500.0))); // Detection & chase range threshold in pixels
-
-    if (state == ENEMY_HURT) {
-        inAttackRange = false;
-        if (animHurt.IsValid()) {
-            animHurt.Update();
-            animFrame = animHurt.GetCurrentFrame();
-            if (animHurt.IsFinished()) {
-                state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) ? ENEMY_CHASE : ENEMY_PATROL;
-                animHurt.Reset();
-            }
+      // 2. Katana Avoidance & Tactical Pacing (Outside immediate attack range
+      // 70px - 140px)
+      if (distToPlayer > ATTACK_RANGE && distToPlayer <= 140.0) {
+        isFacingRight = (playerX > x);
+        // If Arin is currently swinging his katana, Raider stops/steps back
+        // outside reach
+        if (playerIsAttacking) {
+          state = ENEMY_CHASE;
+          if (distToPlayer < 115.0) {
+            double stepBack = 1.8;
+            if (playerX > x)
+              x -= stepBack;
+            else
+              x += stepBack;
+          }
+          if (animIdle.IsValid()) {
+            animIdle.Update();
+            animFrame = animIdle.GetCurrentFrame();
+          } else if (animWalk.IsValid()) {
+            animWalk.Update();
+            animFrame = animWalk.GetCurrentFrame();
+          }
+          return;
         }
-        else {
-            state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) ? ENEMY_CHASE : ENEMY_PATROL;
-        }
-    }
-    else if (state == ENEMY_ATTACK) {
-        // Face player when executing attack stroke
-        if (playerX > x + 8.0) isFacingRight = true;
-        else if (playerX < x - 8.0) isFacingRight = false;
+        // If Arin is NOT swinging and Raider is ready, surge forward to punish
+        // the opening!
+        else if (attackCooldown <= 0) {
+          state = ENEMY_CHASE;
+          double surgeSpeed = 3.6;
+          if (playerX > x + 8.0)
+            x += surgeSpeed;
+          else if (playerX < x - 8.0)
+            x -= surgeSpeed;
 
-        // Hold position during attack animation (vx = 0)
-        if (animAttack.IsValid()) {
-            animAttack.Update();
-            animFrame = animAttack.GetCurrentFrame();
-            if (animAttack.IsFinished()) {
-                state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) ? ENEMY_CHASE : ENEMY_PATROL;
-                if (type == TYPE_RAIDER) {
-                    attackCooldown = 40;
-                    raiderBackstepTimer = 22; // Trigger step-backward evasion after attacking
-                } else {
-                    attackCooldown = (type == TYPE_RUNNER || type == TYPE_HUNTER || type == TYPE_ALPHA_HUNTER) ? 30 : ((type == TYPE_HEAVY) ? 75 : 60);
-                }
-                animFrame = 0;
-                frameCounter = 0;
-                stateTimer = 0;
-                animAttack.Reset();
-            }
-        }
-        else {
-            state = (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) ? ENEMY_CHASE : ENEMY_PATROL;
-            if (type == TYPE_RAIDER) {
-                attackCooldown = 40;
-                raiderBackstepTimer = 22;
-            } else {
-                attackCooldown = (type == TYPE_RUNNER || type == TYPE_HUNTER) ? 35 : ((type == TYPE_HEAVY) ? 75 : 60);
-            }
-            animAttack.Reset();
-        }
-    }
-    else {
-        // --------------------------------------------------------------------
-        // SPECIAL RAIDER COMBAT AI: Tactical Pacing, Katana Avoidance & Opening Counters
-        // --------------------------------------------------------------------
-        if (type == TYPE_RAIDER && distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) {
-            // 1. Post-attack Step Backward Evasion
-            if (raiderBackstepTimer > 0) {
-                raiderBackstepTimer--;
-                state = ENEMY_CHASE;
-                isFacingRight = (playerX > x);
-                double backstepSpeed = 2.4;
-                if (playerX > x) x -= backstepSpeed;
-                else x += backstepSpeed;
-
-                if (animWalk.IsValid()) {
-                    animWalk.Update();
-                    animFrame = animWalk.GetCurrentFrame();
-                }
-                return;
-            }
-
-            // 2. Katana Avoidance & Tactical Pacing (Outside immediate attack range 70px - 140px)
-            if (distToPlayer > ATTACK_RANGE && distToPlayer <= 140.0) {
-                isFacingRight = (playerX > x);
-                // If Arin is currently swinging his katana, Raider stops/steps back outside reach
-                if (playerIsAttacking) {
-                    state = ENEMY_CHASE;
-                    if (distToPlayer < 115.0) {
-                        double stepBack = 1.8;
-                        if (playerX > x) x -= stepBack;
-                        else x += stepBack;
-                    }
-                    if (animIdle.IsValid()) {
-                        animIdle.Update();
-                        animFrame = animIdle.GetCurrentFrame();
-                    }
-                    else if (animWalk.IsValid()) {
-                        animWalk.Update();
-                        animFrame = animWalk.GetCurrentFrame();
-                    }
-                    return;
-                }
-                // If Arin is NOT swinging and Raider is ready, surge forward to punish the opening!
-                else if (attackCooldown <= 0) {
-                    state = ENEMY_CHASE;
-                    double surgeSpeed = 3.6;
-                    if (playerX > x + 8.0) x += surgeSpeed;
-                    else if (playerX < x - 8.0) x -= surgeSpeed;
-
-                    if (distToPlayer <= ATTACK_RANGE) {
-                        state = ENEMY_ATTACK;
-                        hasDealtDamage = false;
-                        animFrame = 0;
-                        frameCounter = 0;
-                        stateTimer = 0;
-                        animAttack.Reset();
-                        return;
-                    }
-
-                    if (animWalk.IsValid()) {
-                        animWalk.Update();
-                        animFrame = animWalk.GetCurrentFrame();
-                    }
-                    return;
-                }
-            }
-        }
-
-        // Detect if player is within attack range
-        if (avoidTimer > 0) {
-            avoidTimer--;
-            if (avoidTimer > 30) {
-                // Stop movement briefly
-                if (animIdle.IsValid()) {
-                    animIdle.Update();
-                    animFrame = animIdle.GetCurrentFrame();
-                }
-            } else {
-                double avoidSpeed = (type == TYPE_RUNNER || type == TYPE_HUNTER) ? 2.5 : 1.5;
-                x += avoidDirection * avoidSpeed;
-                isFacingRight = (avoidDirection == 1);
-                if (animWalk.IsValid()) {
-                    animWalk.Update();
-                    animFrame = animWalk.GetCurrentFrame();
-                }
-            }
-        }
-        else if (distToPlayer <= ATTACK_RANGE && dyToPlayer < 120.0) {
-            inAttackRange = true;
-            // Face player when close with hysteresis threshold
-            if (playerX > x + 8.0) isFacingRight = true;
-            else if (playerX < x - 8.0) isFacingRight = false;
-
-            if (attackCooldown <= 0) {
-                state = ENEMY_ATTACK;
-                hasDealtDamage = false;
-                animFrame = 0;
-                frameCounter = 0;
-                stateTimer = 0;
-                animAttack.Reset();
-            }
-            else {
-                // Stand facing player while on attack cooldown
-                state = ENEMY_CHASE;
-                if (animIdle.IsValid()) {
-                    animIdle.Update();
-                    animFrame = animIdle.GetCurrentFrame();
-                }
-                else if (animWalk.IsValid()) {
-                    animWalk.Update();
-                    animFrame = animWalk.GetCurrentFrame();
-                }
-            }
-        }
-        else if (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) {
-            inAttackRange = false;
-            // Actively chase Arin when within detection range
-            state = ENEMY_CHASE;
-            double speed = (type == TYPE_HUNTER) ? 5.5 : ((type == TYPE_RUNNER) ? 4.2 : ((type == TYPE_RAIDER) ? 1.8 : ((type == TYPE_HEAVY) ? 1.1 : 1.5)));
-            if (playerX > x + 8.0) {
-                x += speed;
-                isFacingRight = true;
-            }
-            else if (playerX < x - 8.0) {
-                x -= speed;
-                isFacingRight = false;
-            }
-            else {
-                if (playerX > x) x += speed;
-                else x -= speed;
-            }
-
-            if (animWalk.IsValid()) {
-                animWalk.Update();
-                animFrame = animWalk.GetCurrentFrame();
-            }
-        }
-        else {
-            inAttackRange = false;
-            // Outside detection range: stay in patrol / idle
-            state = ENEMY_PATROL;
-            if (startX != endX && animWalk.IsValid()) {
-                if (isFacingRight) {
-                    x += (type == TYPE_HUNTER ? 3.0 : (type == TYPE_RUNNER ? 2.0 : (type == TYPE_HEAVY ? 0.8 : 1.0)));
-                    if (x >= endX) isFacingRight = false;
-                } else {
-                    x -= (type == TYPE_HUNTER ? 3.0 : (type == TYPE_RUNNER ? 2.0 : (type == TYPE_HEAVY ? 0.8 : 1.0)));
-                    if (x <= startX) isFacingRight = true;
-                }
-                animWalk.Update();
-                animFrame = animWalk.GetCurrentFrame();
-            }
-            else if (animIdle.IsValid()) {
-                animIdle.Update();
-                animFrame = animIdle.GetCurrentFrame();
-            }
-            else if (animWalk.IsValid()) {
-                animWalk.Update();
-                animFrame = animWalk.GetCurrentFrame();
-            }
-        }
-    }
-
-    if (state != oldState) {
-        if (state == ENEMY_PATROL) animWalk.Reset();
-        else if (state == ENEMY_CHASE) animWalk.Reset();
-        else if (state == ENEMY_ATTACK) {
-            animAttack.Reset();
+          if (distToPlayer <= ATTACK_RANGE) {
+            state = ENEMY_ATTACK;
             hasDealtDamage = false;
+            animFrame = 0;
+            frameCounter = 0;
+            stateTimer = 0;
+            animAttack.Reset();
+            return;
+          }
 
-            if (type == TYPE_SPITTER) {
-                if (s_globalWalkerAttackAudioCooldown <= 0) {
-                    PlayAudioFile("Assets/Sound/Infected Walker/Attack/walkerattack2.wav");
-                    s_globalWalkerAttackAudioCooldown = 12; // ~0.20s global attack sound throttle
-                }
-            }
-            else if (type == TYPE_RUNNER) {
-                if (s_globalRunnerAttackAudioCooldown <= 0) {
-                    PlayAudioFile("Assets/Sound/Runner/Attack/runner_attack.wav");
-                    s_globalRunnerAttackAudioCooldown = 12; // ~0.20s global attack sound throttle
-                }
-            }
-            else if (type == TYPE_RAIDER) {
-                if (s_globalRaiderAttackAudioCooldown <= 0) {
-                    PlayAudioFile("Assets/Sound/Raider/Attack/raider_attack.wav");
-                    s_globalRaiderAttackAudioCooldown = 12; // ~0.20s global attack sound throttle
-                }
-            }
+          if (animWalk.IsValid()) {
+            animWalk.Update();
+            animFrame = animWalk.GetCurrentFrame();
+          }
+          return;
         }
-        else if (state == ENEMY_HURT) animHurt.Reset();
-        else if (state == ENEMY_DEAD) animDeath.Reset();
+      }
     }
 
-    bool isMoving = std::abs(x - startFrameX) > 0.1;
-    if (type == TYPE_RUNNER) {
-        if (isGrounded && !isMoving && (state == ENEMY_CHASE || state == ENEMY_PATROL)) {
-            if (runnerIdleTimer <= 0) {
-                PlayAudioFile("Assets/Sound/Runner/Idle/runner_idle.wav");
-                runnerIdleTimer = 180; // ~3.0s between idle growls
-            }
+    // Detect if player is within attack range
+    if (avoidTimer > 0) {
+      avoidTimer--;
+      if (avoidTimer > 30) {
+        // Stop movement briefly
+        if (animIdle.IsValid()) {
+          animIdle.Update();
+          animFrame = animIdle.GetCurrentFrame();
         }
+      } else {
+        double avoidSpeed =
+            (type == TYPE_RUNNER || type == TYPE_HUNTER) ? 2.5 : 1.5;
+        x += avoidDirection * avoidSpeed;
+        isFacingRight = (avoidDirection == 1);
+        if (animWalk.IsValid()) {
+          animWalk.Update();
+          animFrame = animWalk.GetCurrentFrame();
+        }
+      }
+    } else if (distToPlayer <= ATTACK_RANGE && dyToPlayer < 120.0) {
+      inAttackRange = true;
+      // Face player when close with hysteresis threshold
+      if (playerX > x + 8.0)
+        isFacingRight = true;
+      else if (playerX < x - 8.0)
+        isFacingRight = false;
+
+      if (attackCooldown <= 0) {
+        state = ENEMY_ATTACK;
+        hasDealtDamage = false;
+        animFrame = 0;
+        frameCounter = 0;
+        stateTimer = 0;
+        animAttack.Reset();
+      } else {
+        // Stand facing player while on attack cooldown
+        state = ENEMY_CHASE;
+        if (animIdle.IsValid()) {
+          animIdle.Update();
+          animFrame = animIdle.GetCurrentFrame();
+        } else if (animWalk.IsValid()) {
+          animWalk.Update();
+          animFrame = animWalk.GetCurrentFrame();
+        }
+      }
+    } else if (distToPlayer <= DETECTION_RANGE && dyToPlayer < 120.0) {
+      inAttackRange = false;
+      // Actively chase Arin when within detection range
+      state = ENEMY_CHASE;
+      double speed = (type == TYPE_HUNTER)
+                         ? 5.5
+                         : ((type == TYPE_RUNNER)
+                                ? 4.2
+                                : ((type == TYPE_RAIDER)
+                                       ? 1.8
+                                       : ((type == TYPE_HEAVY) ? 1.1 : 1.5)));
+      if (playerX > x + 8.0) {
+        x += speed;
+        isFacingRight = true;
+      } else if (playerX < x - 8.0) {
+        x -= speed;
+        isFacingRight = false;
+      } else {
+        if (playerX > x)
+          x += speed;
+        else
+          x -= speed;
+      }
+
+      if (animWalk.IsValid()) {
+        animWalk.Update();
+        animFrame = animWalk.GetCurrentFrame();
+      }
+    } else {
+      inAttackRange = false;
+      // Outside detection range: stay in patrol / idle
+      state = ENEMY_PATROL;
+      if (startX != endX && animWalk.IsValid()) {
+        if (isFacingRight) {
+          x += (type == TYPE_HUNTER
+                    ? 3.0
+                    : (type == TYPE_RUNNER ? 2.0
+                                           : (type == TYPE_HEAVY ? 0.8 : 1.0)));
+          if (x >= endX)
+            isFacingRight = false;
+        } else {
+          x -= (type == TYPE_HUNTER
+                    ? 3.0
+                    : (type == TYPE_RUNNER ? 2.0
+                                           : (type == TYPE_HEAVY ? 0.8 : 1.0)));
+          if (x <= startX)
+            isFacingRight = true;
+        }
+        animWalk.Update();
+        animFrame = animWalk.GetCurrentFrame();
+      } else if (animIdle.IsValid()) {
+        animIdle.Update();
+        animFrame = animIdle.GetCurrentFrame();
+      } else if (animWalk.IsValid()) {
+        animWalk.Update();
+        animFrame = animWalk.GetCurrentFrame();
+      }
     }
+  }
+
+  if (state != oldState) {
+    if (state == ENEMY_PATROL)
+      animWalk.Reset();
+    else if (state == ENEMY_CHASE)
+      animWalk.Reset();
+    else if (state == ENEMY_ATTACK) {
+      animAttack.Reset();
+      animProjectile.Reset();
+      animFlame.Reset();
+      hasDealtDamage = false;
+
+      if (type == TYPE_SPITTER) {
+        if (s_globalWalkerAttackAudioCooldown <= 0) {
+          PlayAudioFile(
+              "Assets/Sound/Infected Walker/Attack/walkerattack2.wav");
+          s_globalWalkerAttackAudioCooldown =
+              12; // ~0.20s global attack sound throttle
+        }
+      } else if (type == TYPE_RUNNER) {
+        if (s_globalRunnerAttackAudioCooldown <= 0) {
+          PlayAudioFile("Assets/Sound/Runner/Attack/runner_attack.wav");
+          s_globalRunnerAttackAudioCooldown =
+              12; // ~0.20s global attack sound throttle
+        }
+      } else if (type == TYPE_RAIDER) {
+        if (s_globalRaiderAttackAudioCooldown <= 0) {
+          PlayAudioFile("Assets/Sound/Raider/Attack/raider_attack.wav");
+          s_globalRaiderAttackAudioCooldown =
+              12; // ~0.20s global attack sound throttle
+        }
+      }
+    } else if (state == ENEMY_HURT)
+      animHurt.Reset();
+    else if (state == ENEMY_DEAD)
+      animDeath.Reset();
+  }
+
+  bool isMoving = std::abs(x - startFrameX) > 0.1;
+  if (type == TYPE_RUNNER) {
+    if (isGrounded && !isMoving &&
+        (state == ENEMY_CHASE || state == ENEMY_PATROL)) {
+      if (runnerIdleTimer <= 0) {
+        PlayAudioFile("Assets/Sound/Runner/Idle/runner_idle.wav");
+        runnerIdleTimer = 180; // ~3.0s between idle growls
+      }
+    }
+  }
 }
 
 // ============================================================================
 // Render Pipeline (Viewport Relative)
 // ============================================================================
 void Enemy::Render(double camX, double camY) {
-    // Proportional visual draw sizes: Abomination 256, Heavy 230, Walker/Runner/Raider 192
-    int drawSize = (type == TYPE_ABOMINATION) ? 256 : ((type == TYPE_HEAVY) ? 230 : 192);
+  // Proportional visual draw sizes: Abomination 256, Heavy 230,
+  // Walker/Runner/Raider 192
+  int drawSize =
+      (type == TYPE_ABOMINATION) ? 256 : ((type == TYPE_HEAVY) ? 230 : 192);
 
-    double drawX = x - camX;
-    double drawY = y - camY;
+  double drawX = x - camX;
+  double drawY = y - camY;
 
-    // Aligns bottom center of drawing box to collision bounds & ground baseline
-    double drawXOffset = drawX - (drawSize - width) / 2.0;
-    double drawYOffset = (type == TYPE_HEAVY) ? (drawY + 2.0) : ((type == TYPE_SPITTER || type == TYPE_RUNNER || type == TYPE_RAIDER || type == TYPE_ABOMINATION || type == TYPE_HUNTER) ? (drawY - 6.0) : drawY);
+  // Aligns bottom center of drawing box to collision bounds & ground baseline
+  double drawXOffset = drawX - (drawSize - width) / 2.0;
+  double drawYOffset = (type == TYPE_HEAVY)
+                           ? (drawY - 20.0)
+                           : ((type == TYPE_SPITTER || type == TYPE_RUNNER ||
+                               type == TYPE_RAIDER ||
+                               type == TYPE_ABOMINATION || type == TYPE_HUNTER)
+                                  ? (drawY - 45.0)
+                                  : drawY - 45.0);
 
-    // Keep dead enemy sprites aligned with ground baseline without sinking below floor line
-    (void)state;
+  // Keep dead enemy sprites aligned with ground baseline without sinking below
+  // floor line
+  (void)state;
 
-    // Select active animation based on state
-    const Animation* activeAnim = &animIdle;
-    if (state == ENEMY_DEAD) {
-        if (animDeath.IsValid()) activeAnim = &animDeath;
-        else if (animHurt.IsValid()) activeAnim = &animHurt;
-        else activeAnim = &animIdle;
+  // Select active animation based on state
+  const Animation *activeAnim = &animIdle;
+  if (state == ENEMY_DEAD) {
+    if (animDeath.IsValid())
+      activeAnim = &animDeath;
+    else if (animHurt.IsValid())
+      activeAnim = &animHurt;
+    else
+      activeAnim = &animIdle;
+  } else if (state == ENEMY_HURT && animHurt.IsValid()) {
+    activeAnim = &animHurt;
+  } else if (state == ENEMY_ATTACK) {
+    if (type == TYPE_FOREST_ABOMINATION &&
+        abominationAttack == ABOMINATION_PROJECTILE &&
+        animProjectile.IsValid()) {
+      activeAnim = &animProjectile;
+    } else if (type == TYPE_FOREST_ABOMINATION &&
+               abominationAttack == ABOMINATION_FLAME && animFlame.IsValid()) {
+      activeAnim = &animFlame;
+    } else if (animAttack.IsValid()) {
+      activeAnim = &animAttack;
     }
-    else if (state == ENEMY_HURT && animHurt.IsValid()) {
-        activeAnim = &animHurt;
+  } else if (state == ENEMY_CHASE) {
+    if (inAttackRange && animIdle.IsValid()) {
+      activeAnim = &animIdle;
+    } else if (animWalk.IsValid()) {
+      activeAnim = &animWalk;
     }
-    else if (state == ENEMY_ATTACK && animAttack.IsValid()) {
-        activeAnim = &animAttack;
+  } else if (state == ENEMY_PATROL) {
+    if (type == TYPE_FOREST_ABOMINATION && animIdle.IsValid()) {
+      activeAnim = &animIdle;
+    } else if (startX != endX && animWalk.IsValid()) {
+      activeAnim = &animWalk;
+    } else if (animIdle.IsValid()) {
+      activeAnim = &animIdle;
+    } else if (animWalk.IsValid()) {
+      activeAnim = &animWalk;
     }
-    else if (state == ENEMY_CHASE) {
-        if (inAttackRange && animIdle.IsValid()) {
-            activeAnim = &animIdle;
-        }
-        else if (animWalk.IsValid()) {
-            activeAnim = &animWalk;
-        }
-    }
-    else if (state == ENEMY_PATROL) {
-        if (startX != endX && animWalk.IsValid()) {
-            activeAnim = &animWalk;
-        }
-        else if (animIdle.IsValid()) {
-            activeAnim = &animIdle;
-        }
-        else if (animWalk.IsValid()) {
-            activeAnim = &animWalk;
-        }
+  }
+
+  if (activeAnim != nullptr && activeAnim->IsValid()) {
+    // Apply death-specific ground alignment offset to correct floating bodies
+    double finalDrawY = drawYOffset;
+    if (state == ENEMY_DEAD || activeAnim == &animDeath) {
+      if (type == TYPE_ABOMINATION) {
+        finalDrawY -=
+            90.0; // Large bosses need more downward shift to touch floor
+      } else if (type == TYPE_FOREST_ABOMINATION) {
+        finalDrawY += 10.0; // Forest abomination needs to be lifted up so it doesn't sink into the ground
+      } else if (type == TYPE_HEAVY) {
+        finalDrawY -= 65.0;
+      } else if (type == TYPE_HUNTER) {
+        finalDrawY -= 15.0; // Hunter sprite requires less downward shift to sit correctly on the ground
+      } else {
+        finalDrawY -= 75.0; // Standard sized enemies (infected, hunters, etc.)
+      }
     }
 
-    if (activeAnim != nullptr && activeAnim->IsValid()) {
-        if (type == TYPE_ALPHA_HUNTER) {
-            glColor4f(1.0f, 0.35f, 0.35f, 1.0f);
-        }
-        activeAnim->Render((int)drawXOffset, (int)drawYOffset, drawSize, drawSize, isFacingRight);
-        if (type == TYPE_ALPHA_HUNTER) {
-            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-        }
+    if (type == TYPE_FOREST_ABOMINATION) {
+      // Default color for abomination
     }
-    else {
-        // High visibility fallback silhouette so enemies are always visible
-        double px = drawXOffset;
-        double py = drawYOffset;
-        if (type == TYPE_SPITTER || type == TYPE_HUNTER) {
-            iSetColor(50, 120, 60);
-            iFilledRectangle((int)px + 64, (int)py + 20, 64, 100);
-            iSetColor(120, 200, 90);
-            iFilledRectangle((int)px + 76, (int)py + 120, 40, 40);
-            iSetColor(255, 30, 30);
-            iFilledRectangle((int)px + (isFacingRight ? 100 : 80), (int)py + 138, 10, 8);
-        } else {
-            iSetColor(160, 40, 40);
-            iFilledRectangle((int)px + 32, (int)py + 10, 64, 80);
-            iSetColor(220, 80, 80);
-            iFilledRectangle((int)px + 44, (int)py + 90, 40, 30);
-            iSetColor(255, 220, 0);
-            iFilledRectangle((int)px + (isFacingRight ? 68 : 48), (int)py + 102, 10, 8);
-        }
+    activeAnim->Render((int)drawXOffset, (int)finalDrawY, drawSize, drawSize,
+                       isFacingRight);
+    if (type == TYPE_FOREST_ABOMINATION) {
+      glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
     }
+  } else {
+    // High visibility fallback silhouette so enemies are always visible
+    double px = drawXOffset;
+    double py = drawYOffset;
+    if (type == TYPE_SPITTER || type == TYPE_HUNTER) {
+      iSetColor(50, 120, 60);
+      iFilledRectangle((int)px + 64, (int)py + 20, 64, 100);
+      iSetColor(120, 200, 90);
+      iFilledRectangle((int)px + 76, (int)py + 120, 40, 40);
+      iSetColor(255, 30, 30);
+      iFilledRectangle((int)px + (isFacingRight ? 100 : 80), (int)py + 138, 10,
+                       8);
+    } else {
+      iSetColor(160, 40, 40);
+      iFilledRectangle((int)px + 32, (int)py + 10, 64, 80);
+      iSetColor(220, 80, 80);
+      iFilledRectangle((int)px + 44, (int)py + 90, 40, 30);
+      iSetColor(255, 220, 0);
+      iFilledRectangle((int)px + (isFacingRight ? 68 : 48), (int)py + 102, 10,
+                       8);
+    }
+  }
 }
 
 // ============================================================================
 // Health & Collision System
 // ============================================================================
 void Enemy::TakeDamage(int amount) {
-    if (state == ENEMY_DEAD) return;
+  if (state == ENEMY_DEAD)
+    return;
 
-    hp -= amount;
-    if (hp <= 0) {
-        hp = 0;
-        state = ENEMY_DEAD;
-        animDeath.Reset();
+  hp -= amount;
+  if (type == TYPE_FOREST_ABOMINATION) {
+    printf("FOREST ABOMINATION DAMAGE\n");
+    fflush(stdout);
+  }
+  if (hp <= 0) {
+    hp = 0;
+    state = ENEMY_DEAD;
+    animDeath.Reset();
 
-        if (type == TYPE_SPITTER) {
-            // Death Sound (Priority 1)
-            PlayAudioFile("Assets/Sound/Infected Walker/Death/walkerdeath2.wav");
-        }
-        else if (type == TYPE_RUNNER) {
-            // Death Sound
-            PlayAudioFile("Assets/Sound/Runner/Death/runner_death.wav");
-        }
-        else if (type == TYPE_RAIDER) {
-            // Death Sound
-            PlayAudioFile("Assets/Sound/Raider/Death/raider_ddeath.wav");
-        }
+    if (type == TYPE_SPITTER) {
+      // Death Sound (Priority 1)
+      PlayAudioFile("Assets/Sound/Infected Walker/Death/walkerdeath2.wav");
+    } else if (type == TYPE_RUNNER) {
+      // Death Sound
+      PlayAudioFile("Assets/Sound/Runner/Death/runner_death.wav");
+    } else if (type == TYPE_RAIDER) {
+      // Death Sound
+      PlayAudioFile("Assets/Sound/Raider/Death/raider_ddeath.wav");
     }
-    else {
-        state = ENEMY_HURT;
-        animHurt.Reset();
-
-        if (type == TYPE_SPITTER) {
-            // Hurt Sound (guarded by per-walker and global audio cooldowns to prevent noise spam)
-            if (walkerHurtAudioCooldown <= 0 && s_globalWalkerHurtAudioCooldown <= 0) {
-                PlayAudioFile("Assets/Sound/Infected Walker/Hurt/walker_hurt2_sound_.wav");
-                walkerHurtAudioCooldown = 18;        // ~0.30s per-walker hurt audio throttle
-                s_globalWalkerHurtAudioCooldown = 10; // ~0.16s global hurt audio throttle
-            }
-        }
-        else if (type == TYPE_RUNNER) {
-            // Hurt Sound (guarded by per-runner and global audio cooldowns)
-            if (runnerHurtAudioCooldown <= 0 && s_globalRunnerHurtAudioCooldown <= 0) {
-                PlayAudioFile("Assets/Sound/Runner/Hurt/runner_hurt.wav");
-                runnerHurtAudioCooldown = 18;        // ~0.30s per-runner hurt audio throttle
-                s_globalRunnerHurtAudioCooldown = 10; // ~0.16s global hurt audio throttle
-            }
-        }
-        else if (type == TYPE_RAIDER) {
-            // Hurt Sound (guarded by per-raider and global audio cooldowns)
-            if (raiderHurtAudioCooldown <= 0 && s_globalRaiderHurtAudioCooldown <= 0) {
-                PlayAudioFile("Assets/Sound/Raider/Hurt/raider_hurt.wav");
-                raiderHurtAudioCooldown = 18;        // ~0.30s per-raider hurt audio throttle
-                s_globalRaiderHurtAudioCooldown = 10; // ~0.16s global hurt audio throttle
-            }
-        }
+  } else {
+    if (type == TYPE_FOREST_ABOMINATION && state == ENEMY_ATTACK) {
+      return; // Hyperarmor: do not interrupt boss attacks (Flame, Projectile,
+              // Claw)
     }
+    state = ENEMY_HURT;
+    animHurt.Reset();
+
+    if (type == TYPE_SPITTER) {
+      // Hurt Sound (guarded by per-walker and global audio cooldowns to prevent
+      // noise spam)
+      if (walkerHurtAudioCooldown <= 0 &&
+          s_globalWalkerHurtAudioCooldown <= 0) {
+        PlayAudioFile(
+            "Assets/Sound/Infected Walker/Hurt/walker_hurt2_sound_.wav");
+        walkerHurtAudioCooldown = 18; // ~0.30s per-walker hurt audio throttle
+        s_globalWalkerHurtAudioCooldown =
+            10; // ~0.16s global hurt audio throttle
+      }
+    } else if (type == TYPE_RUNNER) {
+      // Hurt Sound (guarded by per-runner and global audio cooldowns)
+      if (runnerHurtAudioCooldown <= 0 &&
+          s_globalRunnerHurtAudioCooldown <= 0) {
+        PlayAudioFile("Assets/Sound/Runner/Hurt/runner_hurt.wav");
+        runnerHurtAudioCooldown = 18; // ~0.30s per-runner hurt audio throttle
+        s_globalRunnerHurtAudioCooldown =
+            10; // ~0.16s global hurt audio throttle
+      }
+    } else if (type == TYPE_RAIDER) {
+      // Hurt Sound (guarded by per-raider and global audio cooldowns)
+      if (raiderHurtAudioCooldown <= 0 &&
+          s_globalRaiderHurtAudioCooldown <= 0) {
+        PlayAudioFile("Assets/Sound/Raider/Hurt/raider_hurt.wav");
+        raiderHurtAudioCooldown = 18; // ~0.30s per-raider hurt audio throttle
+        s_globalRaiderHurtAudioCooldown =
+            10; // ~0.16s global hurt audio throttle
+      }
+    }
+  }
 }
 
 bool Enemy::CheckPlayerCollision(double px, double py, int pw, int ph) {
-    if (hp <= 0) return false;
+  if (hp <= 0)
+    return false;
 
-    bool collisionX = (x + width >= px) && (px + pw >= x);
-    bool collisionY = (y + height >= py) && (py + ph >= y);
+  bool collisionX = (x + width >= px) && (px + pw >= x);
+  bool collisionY = (y + height >= py) && (py + ph >= y);
 
-    return collisionX && collisionY;
+  return collisionX && collisionY;
 }
 
 void Enemy::PreloadAllTextures() {
-    Enemy e1(0, 0, 185.0, TYPE_SPITTER);
-    Enemy e2(0, 0, 185.0, TYPE_RUNNER);
-    Enemy e3(0, 0, 185.0, TYPE_RAIDER);
-    Enemy e4(0, 0, 185.0, TYPE_HEAVY);
-    Enemy e5(0, 0, 185.0, TYPE_ABOMINATION);
-    Enemy e6(0, 0, 185.0, TYPE_HUNTER);
+  Enemy e1(0, 0, 185.0, TYPE_SPITTER);
+  Enemy e2(0, 0, 185.0, TYPE_RUNNER);
+  Enemy e3(0, 0, 185.0, TYPE_RAIDER);
+  Enemy e4(0, 0, 185.0, TYPE_HEAVY);
+  Enemy e5(0, 0, 185.0, TYPE_ABOMINATION);
+  Enemy e6(0, 0, 185.0, TYPE_HUNTER);
 }
-
-

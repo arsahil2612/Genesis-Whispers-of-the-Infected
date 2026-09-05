@@ -1,0 +1,24 @@
+﻿diff --git a/temp_upstream.cpp b/temp_stashed.cpp
+index 8bfdbc2..72c43a0 100644
+--- a/temp_upstream.cpp
++++ b/temp_stashed.cpp
+@@ -1,18 +1,2 @@
+-#define _CRT_SECURE_NO_WARNINGS
+-#include <windows.h>
+-#include <GL/gl.h>
+-#include "game_manager.h"
+-#include "ResourceManager.h"
+-#include "igraphics_declarations.h"
+-#include <cmath>
+-#include <cstdio>
+-#include <cstdlib>
+-#include <string>
+-#include <vector>
+-#include <sstream>
+-
+-// Active Dialogue Text buffer
+-static char g_dialogueSpeaker[64] = "";
+-static char g_dialogueText[512] = "";
+-
++// Typography & Text Shadow / Outline Helpers
+ // =====================================================================

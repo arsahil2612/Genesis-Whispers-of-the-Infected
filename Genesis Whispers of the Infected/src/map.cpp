@@ -11,9 +11,9 @@
 // Map rendering layout constants
 namespace {
     const int kBgSliceWidth = 1448;
-    const int kBgSliceHeight = 720;
+    const int kBgSliceHeight = 765; // Stretched slightly to fill top
     const int kScreenHeight = 720;
-    const int kBgDrawYOffset = 0; // Align background bottom to y=0 so visual ground matches feet
+    const int kBgDrawYOffset = -45; // Shift down to close the transparent black gap with the ground
 
 #ifndef GL_CLAMP_TO_EDGE
 #define GL_CLAMP_TO_EDGE 0x812F
@@ -159,9 +159,9 @@ void Map::RenderMidground(double camX, bool bossDefeated) {
     double midCamX = camX * parallaxMidFactor;
 
     ResourceManager& rm = ResourceManager::GetInstance();
-    unsigned int texTree = rm.GetTexture("Assets/Props/Nature/nature_dead_tree_01.png");
+    unsigned int texTree = rm.GetTexture("Assets/Props/Level 1/Nature/nature_dead_tree_01.png");
     if (texTree == 0) {
-        std::string resPath = GetAssetPath("Assets/Props/Nature/nature_dead_tree_01.png");
+        std::string resPath = GetAssetPath("Assets/Props/Level 1/Nature/nature_dead_tree_01.png");
         texTree = iLoadImage((char*)resPath.c_str());
     }
 
@@ -292,34 +292,8 @@ void Map::RenderBackground(double camX, bool bossDefeated) {
 // LAYER 2: WATER / RIVER RENDERING (River surface y=0 to 130)
 // ============================================================================
 void Map::RenderWater(double camX, double camY) {
-    if (currentLevelNumber != 1) return;
-    ResourceManager& rm = ResourceManager::GetInstance();
-
-    const double kChasmStartX = 10300.0;
-    const double kChasmEndX = 11440.0;
-
-    double screenChasmStart = kChasmStartX - camX;
-    double screenChasmEnd = kChasmEndX - camX;
-
-    // Render River Water low in the chasm (y = 0 to 130), clearly visible under bridge deck at y = 185
-    if (screenChasmEnd >= -200 && screenChasmStart <= 1480) {
-        unsigned int texRiverWater = rm.GetRiverWaterTile();
-        if (texRiverWater != 0) {
-            const int kTileW = 160;
-            const int kWaterH = 130;
-
-            for (double wx = kChasmStartX; wx < kChasmEndX; wx += kTileW) {
-                double screenX = wx - camX;
-                if (screenX + kTileW >= -200 && screenX <= 1480) {
-                    int drawW = kTileW;
-                    if (wx + drawW > kChasmEndX) {
-                        drawW = (int)(kChasmEndX - wx);
-                    }
-                    iShowImage((int)screenX, 0, drawW, kWaterH, texRiverWater);
-                }
-            }
-        }
-    }
+    // River water removed per user request.
+    return;
 }
 
 // ============================================================================
@@ -327,27 +301,8 @@ void Map::RenderWater(double camX, double camY) {
 // ============================================================================
 void Map::RenderBridgeAndEnvironmentSprites(double camX, double camY) {
     if (currentLevelNumber != 1) return;
-    ResourceManager& rm = ResourceManager::GetInstance();
-
-    unsigned int texBridgeStructure = rm.GetBrokenBridgeEdgeTile();
-
-    const double kBridgeStartX = 10300.0;
-    const double kBridgeEndX = 11440.0;
-    const double kBridgeSpanW = kBridgeEndX - kBridgeStartX; // 1140 px
-
-    // Render High-Resolution Broken Bridge Structure Sprite (broken_bridge_edge.png [1774x887])
-    // Deck top surface is at fraction 0.7993 of texture height.
-    // Setting drawY = 185.0 - (0.7993 * 330.0) = -79.0 aligns top surface of bridge deck EXACTLY at y=185.0 matching platform top surface,
-    // so Arin stands directly on top of the wooden bridge planks while support pillars extend deep into the river water!
-    if (texBridgeStructure != 0) {
-        double screenBridgeX = kBridgeStartX - camX;
-        if (screenBridgeX + kBridgeSpanW >= -200 && screenBridgeX <= 1480) {
-            const int kDrawW = (int)kBridgeSpanW;
-            const int kDrawH = 330;
-            const int kDrawY = (int)floor(185.0 - (0.7993 * (double)kDrawH)); // -79
-            iShowImage((int)screenBridgeX, kDrawY, kDrawW, kDrawH, texBridgeStructure);
-        }
-    }
+    
+    // Bridge structure rendering has been removed to be replaced by the abandoned church.
 }
 
 

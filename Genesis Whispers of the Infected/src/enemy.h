@@ -14,7 +14,7 @@ enum EnemyType {
     TYPE_RAIDER,       // Raider
     TYPE_HEAVY,        // Heavy Infected
     TYPE_HUNTER,       // Fast, aggressive Infected Hunter
-    TYPE_ALPHA_HUNTER  // Level 2 Boss - Alpha Hunter
+    TYPE_FOREST_ABOMINATION  // Level 2 Boss - Forest Abomination
 };
 
 enum EnemyState {
@@ -30,6 +30,13 @@ enum BruteAttackType {
     BRUTE_PUNCH,
     BRUTE_SLAM,
     BRUTE_CHARGE
+};
+
+// Forest Abomination attack types
+enum AbominationAttackType {
+    ABOMINATION_CLAW,
+    ABOMINATION_PROJECTILE,
+    ABOMINATION_FLAME
 };
 
 // ============================================================================
@@ -80,6 +87,15 @@ public:
     static int s_globalRunnerHurtAudioCooldown;
     static int s_globalRaiderAttackAudioCooldown;
     static int s_globalRaiderHurtAudioCooldown;
+    AbominationAttackType abominationAttack;
+    int clawCooldown;
+    int projectileCooldown;
+    bool projectileFired;
+    int flameCooldown;
+    bool flameHit;
+    int openingProjectileCount;
+    int openingProjectileTimer;
+    bool isOpeningAttackActive;
     // Static Texture Handles (Cached across all instances)
     static unsigned int texWalkerIdle, texWalkerWalk, texWalkerAttack, texWalkerHurt, texWalkerDeath;
     static unsigned int texRunnerIdle, texRunnerWalk, texRunnerRun, texRunnerAttack, texRunnerHurt, texRunnerDeath;
@@ -94,6 +110,10 @@ public:
     static std::vector<unsigned int> seqHeavyIdle, seqHeavyWalk, seqHeavyAttack, seqHeavyHurt, seqHeavyDeath;
     static std::vector<unsigned int> seqAbominationIdle, seqAbominationWalk, seqAbominationAttack, seqAbominationHurt, seqAbominationDeath;
     static std::vector<unsigned int> seqHunterIdle, seqHunterWalk, seqHunterRun, seqHunterAttack, seqHunterHurt, seqHunterDeath;
+    static std::vector<unsigned int> seqAlphaHunterIdle, seqAlphaHunterWalk, seqAlphaHunterAttack, seqAlphaHunterHurt, seqAlphaHunterDeath;
+    static std::vector<unsigned int> seqForestAbominationIdle, seqForestAbominationWalk, seqForestAbominationAttack, seqForestAbominationHurt, seqForestAbominationDeath;
+    static std::vector<unsigned int> seqForestAbominationProjectile;
+    static std::vector<unsigned int> seqForestAbominationFlame;
 
     // Reusable Animation Objects
     Animation animIdle;
@@ -101,6 +121,8 @@ public:
     Animation animAttack;
     Animation animHurt;
     Animation animDeath;
+    Animation animProjectile;
+    Animation animFlame;
 
     // ========================================================================
     // Member Methods
