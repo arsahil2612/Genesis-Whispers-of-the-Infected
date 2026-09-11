@@ -79,7 +79,7 @@ public:
     // ========================================================================
     Player();
     void Initialize(double startX, double startY);
-    void Update(bool keys[], bool specialKeys[]);
+    void Update(double dt = 0.016667, bool keys[] = NULL, bool specialKeys[] = NULL);
     void Render(double camX, double camY);
     void TakeDamage(int damage);
     void AttackMelee();

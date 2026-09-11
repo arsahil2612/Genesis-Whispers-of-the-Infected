@@ -1178,6 +1178,9 @@ void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
       isFacingRight = false;
 
     Animation *currentAttackAnim = &animAttack;
+    if (type == TYPE_ABOMINATION && bruteAttack == BRUTE_SLAM && animHurt.IsValid()) {
+      currentAttackAnim = &animHurt;
+    }
 
     // Hold position during attack animation (vx = 0)
     if (currentAttackAnim->IsValid()) {
@@ -1328,7 +1331,16 @@ void Enemy::Update(double playerX, double playerY, bool playerIsAttacking) {
         animFrame = 0;
         frameCounter = 0;
         stateTimer = 0;
-        animAttack.Reset();
+        if (type == TYPE_ABOMINATION) {
+          bruteAttack = (rand() % 2 == 0) ? BRUTE_SLAM : BRUTE_PUNCH;
+          if (bruteAttack == BRUTE_SLAM && animHurt.IsValid()) {
+            animHurt.Reset();
+          } else {
+            animAttack.Reset();
+          }
+        } else {
+          animAttack.Reset();
+        }
       } else {
         // Stand facing player while on attack cooldown
         state = ENEMY_CHASE;
@@ -1494,6 +1506,8 @@ void Enemy::Render(double camX, double camY) {
     } else if (type == TYPE_FOREST_ABOMINATION &&
                abominationAttack == ABOMINATION_FLAME && animFlame.IsValid()) {
       activeAnim = &animFlame;
+    } else if (type == TYPE_ABOMINATION && bruteAttack == BRUTE_SLAM && animHurt.IsValid()) {
+      activeAnim = &animHurt;
     } else if (animAttack.IsValid()) {
       activeAnim = &animAttack;
     }
@@ -1598,6 +1612,7 @@ void Enemy::TakeDamage(int amount) {
               // Claw)
     }
     state = ENEMY_HURT;
+    hasDealtDamage = false;
     animHurt.Reset();
 
     if (type == TYPE_SPITTER) {

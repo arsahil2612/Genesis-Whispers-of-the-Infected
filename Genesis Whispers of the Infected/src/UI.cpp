@@ -874,10 +874,10 @@ void UI::DrawStaminaBar(int stamina, int maxStamina, double displayedStamina) {
 // 3. MISSION PANEL UPGRADE
 // ----------------------------------------------------------------------------
 void UI::DrawMissionPanel(const char* objectiveText, const char* areaName, double notifyTimer) {
-    int missX = 940;
-    int missY = 620;
-    int missW = 320;
-    int missH = 80;
+    int missX = 930;
+    int missY = 615;
+    int missW = 330;
+    int missH = 88;
 
     // Calculate animation alpha/pulse
     double alpha = 1.0;
@@ -889,30 +889,30 @@ void UI::DrawMissionPanel(const char* objectiveText, const char* areaName, doubl
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
     // Main dark metal panel
-    glColor4f(0.10f, 0.15f, 0.20f, alpha);
+    glColor4f(0.10f, 0.15f, 0.20f, (float)alpha);
     iFilledRectangle(missX, missY, missW, missH);
     
     // Top lighter highlight
-    glColor4f(0.15f, 0.22f, 0.30f, 0.35f * alpha);
+    glColor4f(0.15f, 0.22f, 0.30f, (float)(0.35 * alpha));
     iFilledRectangle(missX + 2, missY + (missH / 2), missW - 4, (missH / 2) - 2);
 
     // Weathered border
-    glColor4f(0.35f, 0.42f, 0.50f, 0.90f * alpha);
+    glColor4f(0.35f, 0.42f, 0.50f, (float)(0.90 * alpha));
     iRectangle(missX, missY, missW, missH);
 
     // Inner cyan tactical wireframe stroke
-    glColor4f(0.0f, 0.85f, 1.0f, 0.65f * alpha);
+    glColor4f(0.0f, 0.85f, 1.0f, (float)(0.65 * alpha));
     iRectangle(missX + 2, missY + 2, missW - 4, missH - 4);
 
     // Corner Rust Brackets
-    glColor4f(0.58f, 0.28f, 0.14f, 0.88f * alpha);
+    glColor4f(0.58f, 0.28f, 0.14f, (float)(0.88 * alpha));
     iFilledRectangle(missX, missY + missH - 8, 12, 8);
     iFilledRectangle(missX + missW - 12, missY + missH - 8, 12, 8);
     iFilledRectangle(missX, missY, 12, 8);
     iFilledRectangle(missX + missW - 12, missY, 12, 8);
 
     // Rivets
-    glColor4f(0.85f, 0.90f, 0.95f, 0.95f * alpha);
+    glColor4f(0.85f, 0.90f, 0.95f, (float)(0.95 * alpha));
     iFilledRectangle(missX + 4, missY + missH - 6, 3, 3);
     iFilledRectangle(missX + missW - 7, missY + missH - 6, 3, 3);
     iFilledRectangle(missX + 4, missY + 3, 3, 3);
@@ -921,28 +921,57 @@ void UI::DrawMissionPanel(const char* objectiveText, const char* areaName, doubl
     // Small mission indicator icon (Reticle style)
     int iconX = missX + 22;
     int iconY = missY + missH - 15;
-    glColor4f(0.0f, 0.85f, 1.0f, 0.85f * alpha);
+    glColor4f(0.0f, 0.85f, 1.0f, (float)(0.85 * alpha));
     iRectangle(iconX - 5, iconY - 5, 10, 10);
     iLine(iconX - 8, iconY, iconX + 8, iconY);
     iLine(iconX, iconY - 8, iconX, iconY + 8);
-    glColor4f(1.0f, 1.0f, 1.0f, 0.95f * alpha);
+    glColor4f(1.0f, 1.0f, 1.0f, (float)(0.95 * alpha));
     iFilledRectangle(iconX - 1, iconY - 1, 3, 3);
 
     // Scanline effect during activation
     if (alpha < 0.95) {
-        glColor4f(0.0f, 0.90f, 1.0f, 0.25f * alpha);
+        glColor4f(0.0f, 0.90f, 1.0f, (float)(0.25 * alpha));
         iLine(missX + 5, missY + 20, missX + missW - 5, missY + 20);
         iLine(missX + 5, missY + 60, missX + missW - 5, missY + 60);
     }
 
     // Texts
     const char* defaultObj = "ESCAPE THE FALLEN VILLAGE";
-    const char* objStr = objectiveText ? objectiveText : defaultObj;
+    const char* rawObjStr = objectiveText ? objectiveText : defaultObj;
 
-    DrawAlphaText(missX + 38, missY + missH - 20, "MISSION // 001", GLUT_BITMAP_HELVETICA_10, 0, 210, 240, alpha);
-    
-    // Large white/grey text for objective
-    DrawAlphaShadowText(missX + 18, missY + 25, objStr, GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
+    DrawAlphaText(missX + 38, missY + missH - 19, "MISSION // 001", GLUT_BITMAP_HELVETICA_10, 0, 210, 240, alpha);
+
+    // Word wrap objective text if width exceeds maxTextW
+    void* font = GLUT_BITMAP_HELVETICA_18;
+    int maxTextW = missW - 36; // 294px available
+    std::string fullStr = rawObjStr;
+    std::string line1 = fullStr;
+    std::string line2 = "";
+
+    if (GetTextWidth(fullStr.c_str(), font) > maxTextW) {
+        size_t lastSpace = std::string::npos;
+        for (size_t i = 0; i < fullStr.length(); ++i) {
+            if (fullStr[i] == ' ') {
+                std::string testSub = fullStr.substr(0, i);
+                if (GetTextWidth(testSub.c_str(), font) <= maxTextW) {
+                    lastSpace = i;
+                } else {
+                    break;
+                }
+            }
+        }
+        if (lastSpace != std::string::npos) {
+            line1 = fullStr.substr(0, lastSpace);
+            line2 = fullStr.substr(lastSpace + 1);
+        }
+    }
+
+    if (line2.empty()) {
+        DrawAlphaShadowText(missX + 18, missY + 26, line1.c_str(), font, 240, 245, 250, alpha, 1);
+    } else {
+        DrawAlphaShadowText(missX + 18, missY + 38, line1.c_str(), font, 240, 245, 250, alpha, 1);
+        DrawAlphaShadowText(missX + 18, missY + 16, line2.c_str(), font, 240, 245, 250, alpha, 1);
+    }
 }
 
 void UI::DrawMissionBox(const char* objectiveText, const char* areaName, double notifyTimer) {
@@ -1278,9 +1307,9 @@ void UI::DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp, doub
     }
 
     // Boss HUD dimensions & top-centered positioning
-    int barW = 600;
+    int barW = 520;
     int barH = 40;
-    int barX = 640 - (barW / 2); // 340 (left margin 340, right margin 340)
+    int barX = 640 - (barW / 2); // 380 (left margin 380, right margin to mission panel 30)
     int barY = 605;              // Positioned downward with generous top margin
 
     double bossHpPercent = (double)bossHp / (double)bossMaxHp;
@@ -1292,8 +1321,8 @@ void UI::DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp, doub
     if (displayedPercent > 1.0) displayedPercent = 1.0;
 
     // 1. Calculate Inner Health Slot Coordinates (Matching boss_health_bar_frame.png inner opening)
-    int fillX = barX + 80;    // 420
-    int maxFillW = barW - 150; // 450
+    int fillX = barX + 68;
+    int maxFillW = barW - 136;
     int fillY = barY + 16;    // 621
     int fillH = 7;            // 7px height fill
 
@@ -1360,7 +1389,7 @@ void UI::DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp, doub
     }
 
     // 5. Left Boss Skull Emblem Badge
-    int skullX = barX - 22;
+    int skullX = barX - 18;
     int skullY = barY + 2;
     int skullW = 36;
     int skullH = 36;
@@ -1500,29 +1529,59 @@ void UI::DrawNotification() {
     if (!currentNotification.active || currentNotification.timer <= 0.0) return;
 
     double alpha = 1.0;
-    if (currentNotification.timer > currentNotification.maxTimer - 0.5) {
-        alpha = (currentNotification.maxTimer - currentNotification.timer) / 0.5;
-    } else if (currentNotification.timer < 0.8) {
-        alpha = currentNotification.timer / 0.8;
+    if (currentNotification.timer > currentNotification.maxTimer - 0.4) {
+        alpha = (currentNotification.maxTimer - currentNotification.timer) / 0.4;
+    } else if (currentNotification.timer < 0.5) {
+        alpha = currentNotification.timer / 0.5;
     }
 
     if (alpha <= 0.01) return;
 
-    int boxW = 420;
-    int boxH = 55;
-    int boxX = 640 - (boxW / 2);
-    int boxY = 640;
+    void* titleFont = GLUT_BITMAP_HELVETICA_10;
+    void* msgFont = GLUT_BITMAP_HELVETICA_18;
 
-    iSetColor(10, 14, 22);
+    int titleW = GetTextWidth(currentNotification.title.c_str(), titleFont);
+    int msgW = GetTextWidth(currentNotification.message.c_str(), msgFont);
+    int maxW = (titleW > msgW) ? titleW : msgW;
+
+    int boxW = (maxW + 80 < 380) ? 380 : (maxW + 80);
+    int boxH = 56;
+    int boxX = 640 - (boxW / 2);
+    int boxY = 635;
+
+    float a = (float)alpha;
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+
+    // Dark glass body background
+    glColor4f(0.06f, 0.09f, 0.14f, 0.92f * a);
     iFilledRectangle(boxX, boxY, boxW, boxH);
-    iSetColor(0, 220, 255);
+
+    // Subtle upper glass highlight streak
+    glColor4f(0.18f, 0.25f, 0.35f, 0.35f * a);
+    iFilledRectangle(boxX + 2, boxY + (boxH / 2), boxW - 4, (boxH / 2) - 2);
+
+    // Outer border frame (Cyan / Tactical outline)
+    glColor4f(0.0f, 0.85f, 1.0f, 0.85f * a);
     iRectangle(boxX, boxY, boxW, boxH);
-    iSetColor(255, 215, 0);
+
+    // Inner gold accent line
+    glColor4f(1.0f, 0.84f, 0.0f, 0.65f * a);
     iRectangle(boxX + 2, boxY + 2, boxW - 4, boxH - 4);
 
-    int titleLen = (int)currentNotification.title.length();
-    DrawOutlinedText(640 - (titleLen * 4), boxY + 34, currentNotification.title.c_str(), GLUT_BITMAP_HELVETICA_10, 0, 240, 255);
+    // Corner brackets
+    glColor4f(0.85f, 0.45f, 0.15f, 0.90f * a);
+    iFilledRectangle(boxX, boxY + boxH - 6, 8, 6);
+    iFilledRectangle(boxX + boxW - 8, boxY + boxH - 6, 8, 6);
+    iFilledRectangle(boxX, boxY, 8, 6);
+    iFilledRectangle(boxX + boxW - 8, boxY, 8, 6);
 
-    int msgLen = (int)currentNotification.message.length();
-    DrawShadowText(640 - (msgLen * 4), boxY + 12, currentNotification.message.c_str(), GLUT_BITMAP_HELVETICA_12, 255, 255, 255);
+    // Centered Title Text (Cyan / Tactical)
+    int titleX = 640 - (titleW / 2);
+    DrawAlphaOutlinedText(titleX, boxY + 34, currentNotification.title.c_str(), titleFont, 0, 230, 255, a);
+
+    // Centered Message Text (Bright white)
+    int msgX = 640 - (msgW / 2);
+    DrawAlphaShadowText(msgX, boxY + 10, currentNotification.message.c_str(), msgFont, 255, 255, 255, a, 1);
 }

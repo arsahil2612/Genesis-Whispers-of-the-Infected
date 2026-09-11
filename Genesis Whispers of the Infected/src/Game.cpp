@@ -112,7 +112,7 @@ void Game::Update() {
     }
 
     // GAME_STATE_PLAYING: Gameplay active (Arin movement, combat, enemy AI, normal cursor)
-    m_gameManager.Update(keys, specialKeys);
+    m_gameManager.Update(dt, keys, specialKeys);
 }
 
 // ============================================================================

@@ -491,6 +491,14 @@ void GameManager::LoadLevel1() {
     gameMap.LoadLevel(currentLevel);
     m_encounterManager.Initialize(1);
 
+    m_l1StreetStage = 0;
+    m_l1SquareStage = 0;
+    m_l1MarketStage = 0;
+    m_l1CampStage = 0;
+    m_l1ChurchStage = 0;
+    m_l1QuarantineStage = 0;
+    m_l1BossStage = 0;
+
     currentAreaIndex = AREA_SPAWN_AREA;
     previousAreaIndex = AREA_SPAWN_AREA;
     areaBannerTimer = 4.0;
@@ -691,46 +699,8 @@ void GameManager::LoadLevel1() {
         }
     }
 
-    // Populate Level 1 Enemies per area specification
+    // Level 1 Enemies are populated dynamically in staged encounter waves via UpdatePlaying()
     enemies.clear();
-
-    // Section 2: Village Street (3 Walkers)
-    enemies.push_back(Enemy(1800, 1950, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(2200, 2350, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(2600, 2750, kLevel1GroundY, TYPE_SPITTER));
-
-    // Section 3: Village Square (4 Walkers, 1 Runner)
-    enemies.push_back(Enemy(3100, 3220, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(3350, 3470, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(3600, 3720, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(3850, 3970, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(4150, 4280, kLevel1GroundY, TYPE_RUNNER));
-
-    // Section 4: Abandoned Market (2 Walkers, 1 Raider)
-    enemies.push_back(Enemy(4600, 4750, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(5000, 5150, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(5400, 5550, kLevel1GroundY, TYPE_RAIDER));
-
-    // Section 5: Raider Camp (3 Raiders)
-    enemies.push_back(Enemy(6050, 6200, kLevel1GroundY, TYPE_RAIDER));
-    enemies.push_back(Enemy(6450, 6600, kLevel1GroundY, TYPE_RAIDER));
-    enemies.push_back(Enemy(6850, 7000, kLevel1GroundY, TYPE_RAIDER));
-
-    // Section 6: Abandoned Church (2 Walkers, 1 Runner)
-    enemies.push_back(Enemy(7500, 7650, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(7900, 8050, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(8350, 8500, kLevel1GroundY, TYPE_RUNNER));
-
-    // Section 7: Quarantine Zone (2 Walkers, 1 Heavy Infected #1)
-    enemies.push_back(Enemy(8950, 9100, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(9350, 9500, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(9750, 9950, kLevel1GroundY, TYPE_HEAVY));
-
-    // Section 8/9: Pre-boss Gate (1 Heavy Infected #2)
-    enemies.push_back(Enemy(11650, 11850, kLevel1GroundY, TYPE_HEAVY));
-
-    // Section 9: Mini Boss Arena (1 Mutated Brute)
-    enemies.push_back(Enemy(12200, 12450, kLevel1GroundY, TYPE_ABOMINATION));
 
     props.clear();
 
@@ -923,12 +893,15 @@ void GameManager::LoadLevel2() {
 // ============================================================================
 // Core Update Loop
 // ============================================================================
-void GameManager::Update(bool keys[], bool specialKeys[]) {
-    uiAnimTime += 0.016;
+void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
+    uiAnimTime += dt;
+
+    // Update temporary UI Notifications (Item Acquired / Mission Updates)
+    UI::UpdateNotifications(dt);
 
     // Smooth screen transition fade out
     if (menuTransitionAlpha > 0.0) {
-        menuTransitionAlpha -= 3.0 * 0.016;
+        menuTransitionAlpha -= 3.0 * dt;
         if (menuTransitionAlpha < 0.0) menuTransitionAlpha = 0.0;
     }
 
@@ -944,11 +917,11 @@ void GameManager::Update(bool keys[], bool specialKeys[]) {
     }
 
     if (missionNotifyTimer > 0.0) {
-        missionNotifyTimer -= 0.016;
-        missionNotifyAlpha += 4.0 * 0.016;
+        missionNotifyTimer -= dt;
+        missionNotifyAlpha += 4.0 * dt;
         if (missionNotifyAlpha > 1.0) missionNotifyAlpha = 1.0;
     } else {
-        missionNotifyAlpha -= 2.0 * 0.016;
+        missionNotifyAlpha -= 2.0 * dt;
         if (missionNotifyAlpha < 0.0) missionNotifyAlpha = 0.0;
     }
 
@@ -964,29 +937,30 @@ void GameManager::Update(bool keys[], bool specialKeys[]) {
         previousAreaIndex = currentAreaIndex;
         currentAreaIndex = newArea;
         areaBannerTimer = 3.0; // Briefly display area title banner on transition
+        missionNotifyTimer = 2.5; // Pulse objective panel on area transition
     }
 
     if (areaBannerTimer > 0.0) {
-        areaBannerTimer -= 0.016;
-        areaBannerAlpha += 4.0 * 0.016;
+        areaBannerTimer -= dt;
+        areaBannerAlpha += 4.0 * dt;
         if (areaBannerAlpha > 1.0) areaBannerAlpha = 1.0;
     } else {
-        areaBannerAlpha -= 3.0 * 0.016;
+        areaBannerAlpha -= 3.0 * dt;
         if (areaBannerAlpha < 0.0) areaBannerAlpha = 0.0;
     }
 
     if (currentState == STATE_PLAYING) {
-        UpdatePlaying(keys, specialKeys);
+        UpdatePlaying(dt, keys, specialKeys);
     }
 }
 
-void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
+void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
     // 0. Check Arin death transition to STATE_GAMEOVER
     if (player.hp <= 0 || player.state == STATE_DEAD) {
         if (player.state != STATE_DEAD) {
             player.SetState(STATE_DEAD);
         }
-        deathTimer += 0.016;
+        deathTimer += dt;
         if (deathTimer >= 1.5) { // 1.5s delay to allow death animation playback
             currentState = STATE_GAMEOVER;
             menuTransitionAlpha = 1.0;
@@ -998,7 +972,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     }
 
     // Smooth HUD fade-in animation
-    hudAlpha += 3.0 * 0.016;
+    hudAlpha += 3.0 * dt;
     if (hudAlpha > 1.0) hudAlpha = 1.0;
 
     // Update current level area based on player position (decoupled from background slices)
@@ -1011,7 +985,100 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     }
 
     // 1. Update Player Physics and animations
-    player.Update(keys, specialKeys);
+    player.Update((double)dt, keys, specialKeys);
+
+    // Level 1 Staged Encounter Triggers (Guaranteed 1-time activation per stage)
+    if (currentLevel == 1) {
+        // Area 2: Village Street (1448 <= x < 2896)
+        if (m_l1StreetStage == 0 && player.x >= 1650.0) {
+            m_l1StreetStage = 1;
+            enemies.push_back(Enemy(1950, 2100, kLevel1GroundY, TYPE_SPITTER));
+        }
+        else if (m_l1StreetStage == 1 && player.x >= 2150.0) {
+            m_l1StreetStage = 2;
+            enemies.push_back(Enemy(2550, 2700, kLevel1GroundY, TYPE_SPITTER));
+            enemies.push_back(Enemy(2750, 2890, kLevel1GroundY, TYPE_SPITTER));
+        }
+
+        // Area 3: Village Square (2896 <= x < 4344)
+        if (m_l1SquareStage == 0 && player.x >= 2950.0) {
+            m_l1SquareStage = 1;
+            enemies.push_back(Enemy(3250, 3400, kLevel1GroundY, TYPE_SPITTER));
+            enemies.push_back(Enemy(3450, 3600, kLevel1GroundY, TYPE_SPITTER));
+        }
+        else if (m_l1SquareStage == 1 && player.x >= 3450.0) {
+            m_l1SquareStage = 2;
+            enemies.push_back(Enemy(3750, 3900, kLevel1GroundY, TYPE_SPITTER));
+            enemies.push_back(Enemy(3950, 4100, kLevel1GroundY, TYPE_SPITTER));
+        }
+        else if (m_l1SquareStage == 2 && player.x >= 3850.0) {
+            m_l1SquareStage = 3;
+            enemies.push_back(Enemy(4250, 4340, kLevel1GroundY, TYPE_RUNNER));
+        }
+
+        // Area 4: Abandoned Market (4344 <= x < 5792)
+        if (m_l1MarketStage == 0 && player.x >= 4750.0) {
+            m_l1MarketStage = 1;
+            enemies.push_back(Enemy(5350, 5550, kLevel1GroundY, TYPE_RAIDER));
+            enemies.push_back(Enemy(5050, 5200, kLevel1GroundY, TYPE_SPITTER));
+            enemies.push_back(Enemy(5200, 5350, kLevel1GroundY, TYPE_SPITTER));
+        }
+
+        // Area 5: Raider Camp (5792 <= x < 7240)
+        if (m_l1CampStage == 0 && player.x >= 5850.0) {
+            m_l1CampStage = 1;
+            enemies.push_back(Enemy(6100, 6250, kLevel1GroundY, TYPE_RAIDER));
+        }
+        else if (m_l1CampStage == 1 && player.x >= 6200.0) {
+            m_l1CampStage = 2;
+            enemies.push_back(Enemy(6500, 6650, kLevel1GroundY, TYPE_RAIDER));
+        }
+        else if (m_l1CampStage == 2 && player.x >= 6600.0) {
+            m_l1CampStage = 3;
+            enemies.push_back(Enemy(6900, 7050, kLevel1GroundY, TYPE_RAIDER));
+        }
+
+        // Area 6: Abandoned Church (7240 <= x < 8688)
+        if (m_l1ChurchStage == 0 && player.x >= 7450.0) {
+            m_l1ChurchStage = 1;
+            enemies.push_back(Enemy(7750, 7900, kLevel1GroundY, TYPE_SPITTER));
+        }
+        else if (m_l1ChurchStage == 1 && player.x >= 7800.0) {
+            m_l1ChurchStage = 2;
+            enemies.push_back(Enemy(8100, 8250, kLevel1GroundY, TYPE_SPITTER));
+        }
+        else if (m_l1ChurchStage == 2 && player.x >= 8150.0) {
+            m_l1ChurchStage = 3;
+            enemies.push_back(Enemy(8450, 8600, kLevel1GroundY, TYPE_RUNNER));
+        }
+
+        // Area 7: Quarantine Zone (8688 <= x < 10136)
+        if (m_l1QuarantineStage == 0 && player.x >= 8750.0) {
+            m_l1QuarantineStage = 1;
+            enemies.push_back(Enemy(9050, 9200, kLevel1GroundY, TYPE_SPITTER));
+        }
+        else if (m_l1QuarantineStage == 1 && player.x >= 9200.0) {
+            m_l1QuarantineStage = 2;
+            enemies.push_back(Enemy(9500, 9650, kLevel1GroundY, TYPE_SPITTER));
+        }
+        else if (m_l1QuarantineStage == 2 && player.x >= 9600.0) {
+            m_l1QuarantineStage = 3;
+            enemies.push_back(Enemy(9950, 10100, kLevel1GroundY, TYPE_HEAVY));
+        }
+
+        // Area 8: Broken Bridge (10136 <= x < 11584) -> 0 enemies (pure platforming break)
+
+        // Area 9: Mini Boss Arena (11584 <= x < 13032)
+        if (m_l1BossStage == 0 && player.x >= 12000.0) {
+            m_l1BossStage = 1;
+            bossSpawned = true;
+            bossHp = 300;
+            bossMaxHp = 300;
+            displayedBossHp = 300.0;
+            enemies.push_back(Enemy(12400, 12600, kLevel1GroundY, TYPE_ABOMINATION));
+            UI::ShowNotification("WARNING: BOSS ENCOUNTER", "MUTATED BRUTE HAS APPEARED", 1.5);
+        }
+    }
 
     // 1b. Update Controlled Dynamic Encounter System
     m_encounterManager.Update(player, gameMap, *this, 0.016f);
@@ -1179,6 +1246,7 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
     double bossTriggerX = (currentLevel == 2) ? 13100.0 : 11800.0;
     if (player.x >= bossTriggerX && !bossSpawned) {
         bossSpawned = true;
+        UI::ShowNotification("WARNING: BOSS ENCOUNTER", (currentLevel == 2) ? "FOREST ABOMINATION APPEARED" : "MUTATED BRUTE HAS APPEARED", 1.5);
         if (currentLevel == 2) {
             printf("LEVEL 2 BOSS ARENA LOADED\n");
             printf("FOREST ABOMINATION BOSS START\n");
@@ -1340,6 +1408,8 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                     sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A NovaGen command keycard! This will grant me access to open the steel gate checkpoint.\"");
                     sprintf_s(g_pickupText, sizeof(g_pickupText), "NOVAGEN KEYCARD ACQUIRED");
                     g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
+                    UI::ShowNotification("ITEM ACQUIRED", "NOVAGEN KEYCARD", 2.0);
+                    missionNotifyTimer = 2.5;
                     break;
                 case COL_NOTE:
                     currentState = STATE_DIALOGUE;
@@ -1351,6 +1421,8 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                         sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A crumpled note:\nDr. Kael took the silver-haired girl through the forest checkpoint.\nShe is our only hope...\"");
                     }
                     sprintf_s(g_pickupText, sizeof(g_pickupText), "MISSION NOTE DISCOVERED");
+                    UI::ShowNotification("ITEM ACQUIRED", "MISSION NOTE", 2.0);
+                    break;
                     g_pickupR = 0; g_pickupG = 230; g_pickupB = 255;
                     break;
                 default:
@@ -1531,16 +1603,50 @@ void GameManager::UpdatePlaying(bool keys[], bool specialKeys[]) {
                 }
             }
 
-            // Damage player if enemy is in attacking state and collides
-            if (enemies[i].state == ENEMY_ATTACK) {
-                if (enemies[i].type == TYPE_ABOMINATION && enemies[i].bruteAttack == BRUTE_SLAM) {
-                    double slamDist = std::abs(player.x - enemies[i].x);
-                    double slamDy = std::abs(player.y - enemies[i].y);
-                    if (slamDist < 160.0 && slamDy < 80.0) {
-                        player.TakeDamage(enemies[i].damage + 10);
+            // Damage player if enemy is in attacking/slam state and collides
+            if (enemies[i].type == TYPE_ABOMINATION) {
+                bool isGroundSlam = (enemies[i].state == ENEMY_HURT) || 
+                                   (enemies[i].state == ENEMY_ATTACK && enemies[i].bruteAttack == BRUTE_SLAM);
+                if (isGroundSlam) {
+                    if (!enemies[i].hasDealtDamage) {
+                        int currentFrame = enemies[i].animHurt.GetCurrentFrame();
+                        // 8-frame Ground Slam animation: impact frames are 3 to 5
+                        if (currentFrame >= 3 && currentFrame <= 5) {
+                            double slamCenterX = enemies[i].x + (enemies[i].width / 2.0);
+                            double playerCenterX = player.x + (player.width / 2.0);
+                            double slamDist = std::abs(playerCenterX - slamCenterX);
+                            double slamDy = std::abs(player.y - enemies[i].y);
+
+                            if (slamDist <= 160.0 && slamDy <= 80.0) {
+                                player.TakeDamage(enemies[i].damage + 10);
+                                enemies[i].hasDealtDamage = true;
+                            }
+                        }
                     }
                 }
-                else if (enemies[i].type == TYPE_FOREST_ABOMINATION && enemies[i].abominationAttack == ABOMINATION_CLAW) {
+                else if (enemies[i].state == ENEMY_ATTACK && enemies[i].bruteAttack == BRUTE_PUNCH) {
+                    if (!enemies[i].hasDealtDamage) {
+                        int currentFrame = enemies[i].animAttack.GetCurrentFrame();
+                        int totalFrames = enemies[i].animAttack.GetFrameCount();
+                        bool isAtkActiveFrame = (totalFrames <= 1) || (currentFrame >= 2 && currentFrame <= 5);
+
+                        if (isAtkActiveFrame) {
+                            double atkExtra = 35.0;
+                            double atkX = enemies[i].isFacingRight ? enemies[i].x : (enemies[i].x - atkExtra);
+                            double atkW = enemies[i].width + atkExtra;
+                            bool hitX = (atkX + atkW >= player.x) && (player.x + player.width >= atkX);
+                            bool hitY = (enemies[i].y + enemies[i].height >= player.y) && (player.y + player.height >= enemies[i].y);
+
+                            if (hitX && hitY) {
+                                player.TakeDamage(enemies[i].damage);
+                                enemies[i].hasDealtDamage = true;
+                            }
+                        }
+                    }
+                }
+            }
+            else if (enemies[i].state == ENEMY_ATTACK) {
+                if (enemies[i].type == TYPE_FOREST_ABOMINATION && enemies[i].abominationAttack == ABOMINATION_CLAW) {
                     if (!enemies[i].hasDealtDamage) {
                         int currentFrame = enemies[i].animAttack.GetCurrentFrame();
                         // 8-frame animation: active damage frames between 3 and 6
@@ -2418,21 +2524,66 @@ void GameManager::RenderPlaying() {
     // SURVIVAL GAME HUD (Screen Anchored Layout)
     // ========================================================================
     if (hudAlpha >= 0.05) {
-        const char* activeObjText = "Escape the Fallen Village";
-        if (!hasKeycard && player.x >= 8000) {
-            activeObjText = "Find NovaGen Keycard in Quarantine Zone";
+        const char* activeObjText = "Search Destroyed House";
+        if (currentLevel == 1) {
+            if (bossSpawned && !bossDefeated) {
+                activeObjText = "Defeat Mutated Brute (Final Boss)";
+            }
+            else if (bossDefeated && ribbonCollected) {
+                activeObjText = "Press ENTER to Escape";
+            }
+            else if (bossDefeated && !ribbonCollected) {
+                activeObjText = "Reach the Steel Exit Gate";
+            }
+            else if (hasKeycard) {
+                if (player.x < 11584.0) {
+                    activeObjText = "Reach the Broken Bridge";
+                } else {
+                    activeObjText = "Reach the Steel Exit Gate";
+                }
+            }
+            else {
+                int area = GetAreaFromPosition(player.x);
+                switch (area) {
+                case AREA_SPAWN_AREA:
+                case AREA_DESTROYED_HOUSE:
+                    activeObjText = "Search Destroyed House";
+                    break;
+                case AREA_VILLAGE_STREET:
+                    activeObjText = "Explore Village Street";
+                    break;
+                case AREA_VILLAGE_SQUARE:
+                    activeObjText = "Investigate Village Square";
+                    break;
+                case AREA_ABANDONED_MARKET:
+                    activeObjText = "Search Abandoned Market";
+                    break;
+                case AREA_RAIDER_CAMP:
+                    activeObjText = "Clear Raider Camp";
+                    break;
+                case AREA_ABANDONED_CHURCH:
+                    activeObjText = "Search Abandoned Church";
+                    break;
+                case AREA_QUARANTINE_ZONE:
+                default:
+                    activeObjText = "Find NovaGen Keycard in Quarantine Zone";
+                    break;
+                }
+            }
         }
-        else if (hasKeycard && !bossDefeated && !bossSpawned) {
-            activeObjText = "Reach the Steel Exit Gate";
-        }
-        if (bossSpawned && !bossDefeated) {
-            activeObjText = (currentLevel == 2) ? "DEFEAT FOREST ABOMINATION" : "DEFEAT MUTATED BRUTE (FINAL BOSS)";
-        }
-        else if (bossDefeated && !ribbonCollected) {
-            activeObjText = "Reach the Steel Exit Gate";
-        }
-        else if (bossDefeated && ribbonCollected) {
-            activeObjText = "Press ENTER to Escape";
+        else {
+            if (bossSpawned && !bossDefeated) {
+                activeObjText = "DEFEAT FOREST ABOMINATION";
+            }
+            else if (bossDefeated && ribbonCollected) {
+                activeObjText = "Press ENTER to Escape";
+            }
+            else if (bossDefeated && !ribbonCollected) {
+                activeObjText = "Reach Research Facility Exit";
+            }
+            else {
+                activeObjText = "Explore Blackwood Forest";
+            }
         }
 
         // Draw Full In-Game Gameplay HUD
@@ -2993,6 +3144,8 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             g_pickupTimer = 2.5;
                             g_pickupX = collectibles[i].x;
                             g_pickupY = collectibles[i].y + 40.0;
+                            UI::ShowNotification("ITEM ACQUIRED", "NOVAGEN KEYCARD", 2.0);
+                            missionNotifyTimer = 2.5;
                             break;
                         case COL_NOTE:
                             AddInventoryItem("mission_note", 1);
@@ -3004,6 +3157,8 @@ void GameManager::HandleKeyPress(unsigned char key) {
                                 sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"A crumpled note:\nDr. Kael took the silver-haired girl through the forest checkpoint.\nShe is our only hope...\"");
                             }
                             sprintf_s(g_pickupText, sizeof(g_pickupText), "MISSION NOTE DISCOVERED");
+                            UI::ShowNotification("ITEM ACQUIRED", "MISSION NOTE", 2.0);
+                            break;
                             g_pickupR = 0; g_pickupG = 230; g_pickupB = 255;
                             g_pickupTimer = 2.5;
                             g_pickupX = collectibles[i].x;

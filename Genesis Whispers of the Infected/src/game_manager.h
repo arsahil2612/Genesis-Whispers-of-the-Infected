@@ -198,6 +198,15 @@ private:
     int score;
     int currentLevel;
 
+    // Level 1 Staged Encounter Trigger Stage Flags
+    int m_l1StreetStage;
+    int m_l1SquareStage;
+    int m_l1MarketStage;
+    int m_l1CampStage;
+    int m_l1ChurchStage;
+    int m_l1QuarantineStage;
+    int m_l1BossStage;
+
     // Inventory Management
     InventoryItem inventory[12];
     void InitInventory();
@@ -206,7 +215,7 @@ private:
     void AddInventoryItem(const std::string& itemId, int count = 1);
 
     // Helper functions for localized state updates/rendering
-    void UpdatePlaying(bool keys[], bool specialKeys[]);
+    void UpdatePlaying(float dt = 0.016f, bool keys[] = NULL, bool specialKeys[] = NULL);
     void RenderPlaying();
     void RenderMenu();
     void RenderLeaderboard();
@@ -221,7 +230,7 @@ public:
     void Initialize();
     void LoadLevel1();
     void LoadLevel2();
-    void Update(bool keys[], bool specialKeys[]);
+    void Update(float dt = 0.016f, bool keys[] = NULL, bool specialKeys[] = NULL);
     void Render();
 
     // Independent Environment Prop System Methods

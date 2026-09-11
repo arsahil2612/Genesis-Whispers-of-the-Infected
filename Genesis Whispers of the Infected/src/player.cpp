@@ -294,9 +294,10 @@ void Player::SetState(PlayerState newState) {
 // ============================================================================
 // Physics Movement & State Machine Update
 // ============================================================================
-void Player::Update(bool keys[], bool specialKeys[]) {
-    // 1. Timestep updates using fixed 60 FPS timestep (0.016667s) for Physics stability
-    double dt = 0.016667;
+void Player::Update(double dt, bool keys[], bool specialKeys[]) {
+    // Timestep safety clamping for delta time
+    if (dt <= 0.0) dt = 0.016667;
+    if (dt > 0.1) dt = 0.1;
 
     // Update invulnerability timer after taking damage
     if (isInvulnerable) {
@@ -335,16 +336,16 @@ void Player::Update(bool keys[], bool specialKeys[]) {
     }
 
     if (jumpPressed && !wasJumpPressed && isGrounded && state != STATE_ATTACK_MELEE && state != STATE_DEAD && state != STATE_HURT) {
-        if (staminaDouble >= 10.0) {
+        if (staminaDouble >= 5.0) {
             vy = 520.0; // Initial smooth upward launch velocity (px/sec)
             isGrounded = false;
             SetState(STATE_JUMP);
-            staminaDouble -= 10.0;
+            staminaDouble -= 5.0;
             if (staminaDouble <= 0.0) {
                 staminaDouble = 0.0;
                 isExhausted = true;
             }
-            staminaRegenDelayTimer = 1.0;
+            staminaRegenDelayTimer = 0.8;
 
             // Trigger Arin's Jump Sound (Plays ONCE on jump launch)
             PlayAudioFile("Assets/Audio/Player/Arin/Jump/Arin_Jump_01.wav", "Assets/Sound/Arin/Jump/arins_jump.wav");
@@ -402,24 +403,23 @@ void Player::Update(bool keys[], bool specialKeys[]) {
 
     bool isRunning = isShiftHeld && (moveLeft || moveRight);
 
-    // Sprinting Stamina Drainage (18.0 stamina per second)
+    // Sprinting Stamina Drainage (10.0 stamina per second, time-based frame rate independent; 10.0s for 100->0)
     if (isRunning) {
-        staminaDouble -= 18.0 * dt;
-        staminaRegenDelayTimer = 1.0;
+        staminaDouble -= 10.0 * dt;
+        staminaRegenDelayTimer = 0.8;
         if (staminaDouble <= 0.0) {
             staminaDouble = 0.0;
             isExhausted = true;
             isRunning = false;
         }
     }
-
-    // Stamina Auto-Regeneration when not sprinting (1.0s delay, 22.0 stamina/sec)
-    if (!isRunning && isGrounded) {
+    else {
+        // Stamina Auto-Regeneration when not sprinting (0.8s delay after stamina use, 15.0 stamina/sec; 6.67s for 0->100)
         if (staminaRegenDelayTimer > 0.0) {
             staminaRegenDelayTimer -= dt;
             if (staminaRegenDelayTimer < 0.0) staminaRegenDelayTimer = 0.0;
         } else {
-            staminaDouble += 22.0 * dt;
+            staminaDouble += 15.0 * dt;
             if (staminaDouble > (double)maxStamina) {
                 staminaDouble = (double)maxStamina;
             }
@@ -603,6 +603,8 @@ void Player::Update(bool keys[], bool specialKeys[]) {
     if (std::abs(staminaDouble - displayedStamina) < 0.1) {
         displayedStamina = staminaDouble;
     }
+    if (displayedStamina < 0.0) displayedStamina = 0.0;
+    if (displayedStamina > (double)maxStamina) displayedStamina = (double)maxStamina;
 }
 
 // ============================================================================
