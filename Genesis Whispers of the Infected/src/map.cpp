@@ -92,26 +92,9 @@ void Map::LoadLevel(int levelNumber) {
             LoadLevel1BackgroundTexture(i, false);
         }
 
-        // --- Level 1 Platform & Broken Bridge Geometry ---
-        // Section 1: Spawn Area to Quarantine Zone Ground (World X: 0 to 10300, Top Surface Y = 185)
-        platforms.push_back(Platform(0, 165, 10300, 20));
-
-        // Section 2: Broken Bridge Section 8 Traversal Platforms (World X: 10300 to 11440, Top Surface Y = 185)
-        // Segment 2A: Left Bridge Platform (10300 to 10620, Width 320, Top Y = 185)
-        platforms.push_back(Platform(10300, 165, 320, 20));
-
-        // [Gap 1: Broken Gap from 10620 to 10760 (140px jump chasm)]
-
-        // Segment 2B: Middle Broken Bridge Plank / Island (10760 to 11000, Width 240, Top Y = 185)
-        platforms.push_back(Platform(10760, 165, 240, 20));
-
-        // [Gap 2: Broken Gap from 11000 to 11150 (150px jump chasm)]
-
-        // Segment 2C: Right Bridge Platform (11150 to 11440, Width 290, Top Y = 185)
-        platforms.push_back(Platform(11150, 165, 290, 20));
-
-        // Section 3: Mini Boss Arena to Exit Gate Ground (World X: 11440 to 14480, Top Surface Y = 185)
-        platforms.push_back(Platform(11440, 165, 3040, 20));
+        // --- Level 1 Platform Geometry ---
+        // Continuous Ground (World X: 0 to 14480, Top Surface Y = 185)
+        platforms.push_back(Platform(0, 165, 14480, 20));
     }
     else if (levelNumber == 2) {
         for (int i = 0; i < 10; ++i) {

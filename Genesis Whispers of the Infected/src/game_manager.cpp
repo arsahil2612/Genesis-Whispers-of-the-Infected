@@ -596,7 +596,6 @@ void GameManager::LoadLevel1() {
     AddWorldProp("Assets/Props/Level 1/Decorations/prop_wooden_crate_01.png", 10450.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #2: Market Crate 1
 
     // 3. Market Storage & Rear Exit (x = 10500 to 11000)
-    AddWorldProp("Assets/Props/Level 1/Buildings/bld_church_abandoned.png", 10800.0, 185.0, 200.0, 250.0, PROP_LAYER_BACKGROUND); // Replaces the bridge
 
     AddWorldProp("Assets/Props/Level 1/Decorations/prop_wooden_crate_01.png", 11100.0, 185.0, 48.0, 48.0, PROP_LAYER_BACKGROUND, true); // Jumpable Obstacle #3: Market Crate 2
 
@@ -2090,8 +2089,7 @@ double GameManager::GetPropGroundOffset(const std::string& assetPath) const {
     }
 
     // 5. Large Buildings (Grocery Store, Church)
-    if (assetPath.find("bld_grocery_store_abandoned") != std::string::npos ||
-        assetPath.find("bld_church_abandoned") != std::string::npos) {
+    if (assetPath.find("bld_grocery_store_abandoned") != std::string::npos) {
         return -65.0; // Pull it further down because of image padding and size
     }
 
