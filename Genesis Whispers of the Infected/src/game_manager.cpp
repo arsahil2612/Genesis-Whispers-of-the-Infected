@@ -93,6 +93,19 @@ struct BossProjectile {
 };
 static BossProjectile g_bossProjectiles[4];
 
+struct PlayerProjectile {
+    double x, y;
+    double vx;
+    bool active;
+    double width, height;
+    int damage;
+    bool isFacingRight;
+    PlayerProjectile() : active(false) {}
+};
+static PlayerProjectile g_playerProjectiles[10];
+
+static unsigned int g_texBulletProjectile = 0;
+
 // UI PNG Asset Texture Handles
 static unsigned int g_texHealthFrame = 0;
 static unsigned int g_texHealthFill = 0;
@@ -482,6 +495,11 @@ void GameManager::Initialize() {
     leaderboard.LoadScores();
     InitInventory();
     Enemy::PreloadAllTextures();
+
+    if (g_texBulletProjectile == 0) {
+        g_texBulletProjectile = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Pistol Attack/bulletProjectile.png").c_str());
+    }
+
     LoadLevel1();
 }
 
@@ -1870,7 +1888,6 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                         bossMaxHp = enemies[i].maxHp;
                         displayedBossHp = (double)bossHp;
                         printf("FOREST ABOMINATION HP UPDATED\n");
-                        fflush(stdout);
                     }
                 }
             }
@@ -1885,6 +1902,73 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                     bossDefeated = true;
                     bossHp = 0;
                 }
+            }
+        }
+    }
+
+    // ==========================================
+    // Player Projectile Spawning & Update Logic
+    // ==========================================
+    int currentPistolFrame = player.animPistol.GetCurrentFrame();
+    bool isPistolActiveFrame = (player.animPistol.GetFrameCount() <= 1) || (currentPistolFrame >= 1 && currentPistolFrame <= 3);
+
+    // Spawn Projectile
+    if (player.state == STATE_ATTACK_PISTOL && isPistolActiveFrame && !player.hasDealtDamageThisAttack) {
+        player.hasDealtDamageThisAttack = true; // Use this flag to ensure we only spawn 1 projectile per attack
+        
+        for (int p = 0; p < 10; ++p) {
+            if (!g_playerProjectiles[p].active) {
+                g_playerProjectiles[p].isFacingRight = player.isFacingRight;
+                // Muzzle position approx
+                g_playerProjectiles[p].x = player.isFacingRight ? (player.x + player.width - 20.0) : (player.x - 10.0);
+                g_playerProjectiles[p].y = player.y + 70.0; // Hand level
+                g_playerProjectiles[p].vx = player.isFacingRight ? 25.0 : -25.0; // Fast bullet
+                g_playerProjectiles[p].width = 24.0;
+                g_playerProjectiles[p].height = 12.0;
+                g_playerProjectiles[p].damage = 45;
+                g_playerProjectiles[p].active = true;
+                break;
+            }
+        }
+    }
+
+    // Update Player Projectiles & Collision
+    for (int p = 0; p < 10; ++p) {
+        if (g_playerProjectiles[p].active) {
+            g_playerProjectiles[p].x += g_playerProjectiles[p].vx;
+
+            // Deactivate if too far off screen
+            double projCamX = gameMap.GetCameraX();
+            if (g_playerProjectiles[p].x < projCamX - 300.0 || g_playerProjectiles[p].x > projCamX + 1280.0 + 300.0) {
+                g_playerProjectiles[p].active = false;
+                continue;
+            }
+
+            // Check collision with enemies
+            bool hitSomething = false;
+            for (size_t i = 0; i < enemies.size(); ++i) {
+                if (enemies[i].hp > 0 && enemies[i].state != ENEMY_DEAD) {
+                    bool hitX = (g_playerProjectiles[p].x + g_playerProjectiles[p].width >= enemies[i].x) && 
+                                (g_playerProjectiles[p].x <= enemies[i].x + enemies[i].width);
+                    bool hitY = (g_playerProjectiles[p].y + g_playerProjectiles[p].height >= enemies[i].y) && 
+                                (g_playerProjectiles[p].y <= enemies[i].y + enemies[i].height);
+                    
+                    if (hitX && hitY) {
+                        enemies[i].TakeDamage(g_playerProjectiles[p].damage);
+                        score += 50;
+                        hitSomething = true;
+                        
+                        if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                            bossHp = enemies[i].hp;
+                            bossMaxHp = enemies[i].maxHp;
+                            displayedBossHp = (double)bossHp;
+                        }
+                        break; // Only hit one enemy per bullet
+                    }
+                }
+            }
+            if (hitSomething) {
+                g_playerProjectiles[p].active = false;
             }
         }
     }
@@ -2586,6 +2670,26 @@ void GameManager::RenderPlaying() {
     // ========================================================================
     // EFFECTS (Floating popups, particle effects, HUD overlays)
     // ========================================================================
+    
+    // Render Player Projectiles
+    for (int p = 0; p < 10; ++p) {
+        if (g_playerProjectiles[p].active) {
+            double drawX = g_playerProjectiles[p].x - camX;
+            double drawY = g_playerProjectiles[p].y - camY;
+            
+            if (g_texBulletProjectile != 0) {
+                if (g_playerProjectiles[p].isFacingRight) {
+                    iShowImage((int)drawX, (int)drawY, (int)g_playerProjectiles[p].width, (int)g_playerProjectiles[p].height, g_texBulletProjectile);
+                } else {
+                    iShowImageSub((int)drawX, (int)drawY, (int)g_playerProjectiles[p].width, (int)g_playerProjectiles[p].height, g_texBulletProjectile, 1.0, 0.0, 0.0, 1.0);
+                }
+            } else {
+                iSetColor(255, 200, 50);
+                iFilledRectangle(drawX, drawY, g_playerProjectiles[p].width, g_playerProjectiles[p].height);
+            }
+        }
+    }
+
     for (int p = 0; p < 4; ++p) {
         if (g_bossProjectiles[p].active) {
             // Render glowing trail
@@ -3381,7 +3485,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
             if (!showInventory) player.AttackMelee();
         }
         else if (key == 'k' || key == 'K') {
-            if (!showInventory) player.AttackRanged();
+            if (!showInventory && currentLevel == 2) player.AttackRanged();
         }
         else if (key == 'h' || key == 'H') {
             if (!showInventory) player.UseHeal();

@@ -14,6 +14,7 @@ enum PlayerState {
     STATE_RUN,
     STATE_JUMP,
     STATE_ATTACK_MELEE,
+    STATE_ATTACK_PISTOL,
     STATE_HURT,
     STATE_DEAD
 };
@@ -71,6 +72,7 @@ public:
     Animation animRun;
     Animation animJump;
     Animation animAttack;
+    Animation animPistol;
     Animation animHurt;
     Animation animDeath;
 

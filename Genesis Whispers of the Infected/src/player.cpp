@@ -91,7 +91,7 @@ void Player::Initialize(double startX, double startY) {
     footstepTimer = 0.0;
 
     // Load Arin full multi-frame animation sequences from asset directory statically once
-    static std::vector<unsigned int> seqIdle, seqWalk, seqRun, seqJump, seqAttack, seqHurt, seqDeath;
+    static std::vector<unsigned int> seqIdle, seqWalk, seqRun, seqJump, seqAttack, seqPistol, seqHurt, seqDeath;
 
     if (seqIdle.empty()) {
         for (int i = 1; i <= 6; ++i) {
@@ -208,6 +208,18 @@ void Player::Initialize(double startX, double startY) {
             }
         }
 
+        for (int i = 1; i <= 6; ++i) {
+            char path[256];
+            sprintf_s(path, sizeof(path), "Assets/Characters/Arin/Pistol Attack/arin_pistol_sprite_%02d.png", i);
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) {
+                seqPistol.push_back(tex);
+            }
+        }
+        if (seqPistol.empty()) {
+            seqPistol = seqIdle; // Safety fallback
+        }
+
         for (int i = 1; i <= 4; ++i) {
             char path[256];
             sprintf_s(path, sizeof(path), "Assets/Characters/Arin/Hurt/arin_hurt_sprite_%02d.png", i);
@@ -252,14 +264,16 @@ void Player::Initialize(double startX, double startY) {
     // Initialize Animation instances with tuned consistent frame tick durations:
     // Idle: 6 frames @ 8 ticks (looping), Walk: 7 frames @ 5 ticks (looping), Run: 8 frames @ 3 ticks (looping),
     // Jump: 6 frames @ 5 ticks (non-looping airborne sequence), Attack: 8 frames @ 3 ticks (non-looping 0.4s),
-    // Hurt: 4 frames @ 5 ticks (non-looping 0.4s), Death: 7 frames @ 7 ticks (non-looping)
-    animIdle.Init(seqIdle, 8, true);
-    animWalk.Init(seqWalk, 5, true);
-    animRun.Init(seqRun, 3, true);
-    animJump.Init(seqJump, 5, false);
-    animAttack.Init(seqAttack, 3, false);
-    animHurt.Init(seqHurt, 5, false);
-    animDeath.Init(seqDeath, 7, false);
+    // Initialize Animation instances with tuned consistent frame tick durations:
+    // (5 = Fast, 8 = Medium, 12 = Slow)
+    animIdle.InitSequence(seqIdle, 8, true);
+    animWalk.InitSequence(seqWalk, 6, true);
+    animRun.InitSequence(seqRun, 4, true);
+    animJump.InitSequence(seqJump, 10, false);
+    animAttack.InitSequence(seqAttack, 5, false); // Fast 5-tick melee attack
+    animPistol.InitSequence(seqPistol, 5, false); // Fast 5-tick pistol attack
+    animHurt.InitSequence(seqHurt, 6, false);
+    animDeath.InitSequence(seqDeath, 12, false);
 
     state = STATE_IDLE;
     animIdle.Reset();
@@ -286,6 +300,7 @@ void Player::SetState(PlayerState newState) {
         }
         break;
     case STATE_ATTACK_MELEE:  animAttack.Reset(); break;
+    case STATE_ATTACK_PISTOL: animPistol.Reset(); break;
     case STATE_HURT:          animHurt.Reset(); break;
     case STATE_DEAD:          animDeath.Reset(); break;
     }
@@ -335,7 +350,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
         wasJumpPressed = false;
     }
 
-    if (jumpPressed && !wasJumpPressed && isGrounded && state != STATE_ATTACK_MELEE && state != STATE_DEAD && state != STATE_HURT) {
+    if (jumpPressed && !wasJumpPressed && isGrounded && state != STATE_ATTACK_MELEE && state != STATE_ATTACK_PISTOL && state != STATE_DEAD && state != STATE_HURT) {
         if (staminaDouble >= 5.0) {
             vy = 520.0; // Initial smooth upward launch velocity (px/sec)
             isGrounded = false;
@@ -390,7 +405,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
 
     // Automatic Sprinting at Exit Gate (Level 1 Final Approach: 12800.0 <= x < 13050.0)
     bool isNearExitGate = (x >= 12800.0 && x < 13050.0);
-    if (isNearExitGate && (state != STATE_DEAD && state != STATE_ATTACK_MELEE && state != STATE_HURT)) {
+    if (isNearExitGate && (state != STATE_DEAD && state != STATE_ATTACK_MELEE && state != STATE_ATTACK_PISTOL && state != STATE_HURT)) {
         moveRight = true;
         isFacingRight = true;
         isShiftHeld = true;
@@ -440,7 +455,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
     double targetVx = 0.0;
 
     // Temporarily stop horizontal movement while attacking, hurt, or dead
-    if (state == STATE_ATTACK_MELEE || state == STATE_DEAD || state == STATE_HURT) {
+    if (state == STATE_ATTACK_MELEE || state == STATE_ATTACK_PISTOL || state == STATE_DEAD || state == STATE_HURT) {
         targetVx = 0.0;
         vx = 0.0;
     }
@@ -527,6 +542,20 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
             }
         }
     }
+    else if (state == STATE_ATTACK_PISTOL) {
+        // Lock state in ATTACK until pistol animation finishes
+        if (animPistol.IsFinished()) {
+            if (!isGrounded) {
+                SetState(STATE_JUMP);
+            }
+            else if (std::abs(vx) > 5.0 || moveLeft || moveRight) {
+                SetState(isRunning ? STATE_RUN : STATE_WALK);
+            }
+            else {
+                SetState(STATE_IDLE);
+            }
+        }
+    }
     else if (!isGrounded) {
         SetState(STATE_JUMP);
     }
@@ -574,6 +603,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
     else if (state == STATE_RUN && animRun.IsValid()) activeAnim = &animRun;
     else if (state == STATE_JUMP && animJump.IsValid()) activeAnim = &animJump;
     else if (state == STATE_ATTACK_MELEE && animAttack.IsValid()) activeAnim = &animAttack;
+    else if (state == STATE_ATTACK_PISTOL && animPistol.IsValid()) activeAnim = &animPistol;
     else if (state == STATE_HURT && animHurt.IsValid()) activeAnim = &animHurt;
     else if (state == STATE_DEAD && animDeath.IsValid()) activeAnim = &animDeath;
 
@@ -634,6 +664,7 @@ void Player::Render(double camX, double camY) {
     else if (state == STATE_RUN && animRun.IsValid()) activeAnim = &animRun;
     else if (state == STATE_JUMP && animJump.IsValid()) activeAnim = &animJump;
     else if (state == STATE_ATTACK_MELEE && animAttack.IsValid()) activeAnim = &animAttack;
+    else if (state == STATE_ATTACK_PISTOL && animPistol.IsValid()) activeAnim = &animPistol;
     else if (state == STATE_HURT && animHurt.IsValid()) activeAnim = &animHurt;
     else if (state == STATE_DEAD && animDeath.IsValid()) activeAnim = &animDeath;
 
@@ -683,9 +714,14 @@ void Player::AttackMelee() {
 
 void Player::AttackRanged() {
     if (state == STATE_DEAD || state == STATE_HURT) return;
+    if (state == STATE_ATTACK_MELEE || state == STATE_ATTACK_PISTOL || attackCooldownTimer > 0.0) return; // Prevent attack spamming
+
     if (ammo > 0) {
         ammo--;
-        rangedAttackTriggered = true;
+        currentAttackID++;
+        SetState(STATE_ATTACK_PISTOL);
+        hasDealtDamageThisAttack = false;
+        attackCooldownTimer = 0.45; // 0.45s attack and recovery cooldown
     }
 }
 
