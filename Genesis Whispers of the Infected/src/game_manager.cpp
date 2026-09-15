@@ -726,6 +726,63 @@ void GameManager::LoadLevel1() {
     }
 }
 
+void GameManager::LoadLevel2NPCs() {
+    level2NPCs.clear();
+
+    auto loadSeq = [](const char* format, int count) {
+        std::vector<unsigned int> seq;
+        for (int i = 1; i <= count; ++i) {
+            char path[256];
+            sprintf_s(path, sizeof(path), format, i);
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) seq.push_back(tex);
+        }
+        return seq;
+    };
+
+    NPC oldMan;
+    oldMan.type = NPC_OLD_MAN;
+    oldMan.x = 12600.0;
+    oldMan.y = 140.0;
+    oldMan.width = 82;
+    oldMan.height = 145;
+    oldMan.animIdle.InitSequence(loadSeq("Assets/Characters/Old Man/idle/Old_man_idle_%02d.png", 6), 10, true);
+    oldMan.animTalk.InitSequence(loadSeq("Assets/Characters/Old Man/talk/Old_man_talk_%02d.png", 6), 10, true);
+    oldMan.isTalking = false;
+    oldMan.isFacingRight = false;
+    oldMan.name = "Old Man";
+    oldMan.dialogueText = "\"Luna reached the abandoned military checkpoint.\nShe discovered clues about NovaGen.\nFollow the emergency signs beyond the forest.\nThat path leads to Facility B.\"";
+    level2NPCs.push_back(oldMan);
+
+    NPC injWoman;
+    injWoman.type = NPC_INJURED_WOMAN;
+    injWoman.x = 800.0;
+    injWoman.y = 140.0;
+    injWoman.width = 82;
+    injWoman.height = 145;
+    injWoman.animIdle.InitSequence(loadSeq("Assets/Characters/Injured Women/idle/Injured_women_idle_%02d.png", 6), 10, true);
+    injWoman.animTalk.InitSequence(loadSeq("Assets/Characters/Injured Women/talk/Injured_women_talk_%02d.png", 6), 10, true);
+    injWoman.isTalking = false;
+    injWoman.isFacingRight = false;
+    injWoman.name = "Injured Woman";
+    injWoman.dialogueText = "\"Luna passed through this forest a few days ago.\nShe was searching for the old NovaGen evacuation route.\nShe headed deeper into Blackwood Forest toward the abandoned military camp.\nFollow the road to find her trail.\"";
+    level2NPCs.push_back(injWoman);
+
+    NPC child;
+    child.type = NPC_SURVIVOR_CHILD;
+    child.x = 7000.0;
+    child.y = 140.0;
+    child.width = 82;
+    child.height = 145;
+    child.animIdle.InitSequence(loadSeq("Assets/Characters/Survivor Child/idle/survivor_child_idle_%02d.png", 6), 10, true);
+    child.animTalk.InitSequence(loadSeq("Assets/Characters/Survivor Child/talk/survivor_child_talk_%02d.png", 6), 10, true);
+    child.isTalking = false;
+    child.isFacingRight = false;
+    child.name = "Survivor Child";
+    child.dialogueText = "\"I saw Luna before the infected attacked.\nShe helped survivors and continued toward the military checkpoint.\nShe was searching for something that could open NovaGen Facility B.\"";
+    level2NPCs.push_back(child);
+}
+
 void GameManager::LoadLevel2() {
     ResourceManager::GetInstance().ClearCache();
     currentLevel = 2;
@@ -764,52 +821,84 @@ void GameManager::LoadLevel2() {
     worldProps.clear();
 
     // --- AREA 1: FOREST ENTRANCE PROPS (World X: 0 to 1448) ---
-    AddWorldProp("Assets/Props/Level 1/Nature/nature_dead_tree_01.png", 280.0, 185.0, 160.0, 240.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 1/Decorations/prop_broken_fence_01.png", 520.0, 185.0, 90.0, 60.0, PROP_LAYER_BACKGROUND, true); // Jumpable Fence
-    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 650.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND); // L2 Prop
-    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_destroyed_car_01.png", 850.0, 185.0, 150.0, 80.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 1000.0, 185.0, 60.0, 20.0, PROP_LAYER_FOREGROUND); // L2 Prop
-    AddWorldProp("Assets/Props/Level 1/Decorations/prop_burning_barrel_01.png", 1150.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true); // Fire Drum
+    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 100.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 300.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Evacuation_Route_Sign.png", 500.0, 185.0, 45.0, 80.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 700.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative
+    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 850.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 1000.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 1300.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
 
     // --- AREA 2: EVACUATION CAMP PROPS (World X: 1448 to 4344) ---
-    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 1600.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND); // L2 Prop
-    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_pickup_destroyed.png", 1800.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 1/Decorations/prop_oil_drum_01.png", 2200.0, 185.0, 44.0, 55.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 2400.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND); // L2 Prop
-    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 2480.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND); // L2 Prop
-    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_ambulance_burned.png", 2600.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 3000.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND); // L2 Prop
-    AddWorldProp("Assets/Props/Level 1/Decorations/prop_burning_barrel_01.png", 3400.0, 185.0, 65.0, 84.0, PROP_LAYER_BACKGROUND, true);
+    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 1600.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Vehicle.png", 1800.0, 185.0, 220.0, 130.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 2200.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 2250.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 2600.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND); // Decorative
+    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 2680.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 3000.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative
+    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 3150.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 3400.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
+    AddWorldProp("Assets/Props/Level 2/Evacuation_Route_Sign.png", 3700.0, 185.0, 45.0, 80.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 3900.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 4100.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
 
     // --- AREA 3: DEEP FOREST PROPS (World X: 4344 to 5800) ---
-    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 4600.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 5200.0, 185.0, 60.0, 20.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Evacuation_Route_Sign.png", 5600.0, 185.0, 40.0, 60.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 4400.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 4600.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND, true); // Obstacle
+    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 4800.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 5000.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND, true); // Obstacle
+    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 5200.0, 240.0, 80.0, 20.0, PROP_LAYER_BACKGROUND, true); // Floating platform
+    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 5500.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 5600.0, 185.0, 90.0, 30.0, PROP_LAYER_FOREGROUND, true); // Obstacle
 
-    // --- AREA 4: RIVER CROSSING PROPS ---
-    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 5950.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_pickup_destroyed.png", 6150.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 6400.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
+    // --- AREA 4: RIVER CROSSING PROPS (World X: 5800 to 6750) ---
+    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 5950.0, 260.0, 80.0, 20.0, PROP_LAYER_BACKGROUND, true); // Floating platform
+    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 6150.0, 280.0, 80.0, 20.0, PROP_LAYER_BACKGROUND, true); // Floating platform
+    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 6150.0, 310.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 6350.0, 260.0, 80.0, 20.0, PROP_LAYER_BACKGROUND, true); // Floating platform
+    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 6550.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND, true); // Obstacle
 
     // --- AREA 5: SURVIVOR HIDEOUT PROPS (World X: 6750 to 8850) ---
-    AddWorldProp("Assets/Props/Level 2/Weathered_Olive_Military_Folding_Table.png", 7200.0, 185.0, 85.0, 55.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 6900.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 7100.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Weathered_Olive_Military_Folding_Table.png", 7200.0, 185.0, 85.0, 55.0, PROP_LAYER_BACKGROUND); // Decorative
+    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 7200.0, 240.0, 20.0, 28.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 7400.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 7700.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 7800.0, 185.0, 50.0, 50.0, PROP_LAYER_FOREGROUND);
     AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 8200.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 8500.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
 
     // --- AREA 6: INFECTED FOREST PROPS (World X: 8850 to 10450) ---
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 9200.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 9700.0, 185.0, 90.0, 30.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 9000.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 9200.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative
+    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 9400.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 9700.0, 185.0, 90.0, 30.0, PROP_LAYER_FOREGROUND, true); // Obstacle
+    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 10000.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND, true); // Obstacle
+    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 10200.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
 
-    // --- AREA 7: NOVAGEN OUTPOST PROPS ---
-    AddWorldProp("Assets/Props/Level 1/Vehicles/veh_ambulance_burned.png", 10200.0, 185.0, 170.0, 95.0, PROP_LAYER_BACKGROUND);
+    // --- AREA 7: NOVAGEN OUTPOST PROPS (World X: 10450 to 11850) ---
     AddWorldProp("Assets/Props/Level 2/Facility_Direction_Sign_Transparent.png", 10600.0, 185.0, 60.0, 90.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 10800.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
     AddWorldProp("Assets/Props/Level 2/Military_Supply_Vehicle.png", 11000.0, 185.0, 220.0, 130.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 11200.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Genesis_Specimen_Container.png", 11400.0, 185.0, 40.0, 60.0, PROP_LAYER_FOREGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 11600.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 11750.0, 185.0, 50.0, 50.0, PROP_LAYER_FOREGROUND);
 
     // --- AREA 8: RESEARCH FACILITY PROPS (World X: 11850 to 12650) ---
+    AddWorldProp("Assets/Props/Level 2/Abandoned_Medical_Examination_Machine.png", 11900.0, 185.0, 90.0, 110.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Level 2/NovaGen_Containment_Chamber_1024_Transparent.png", 12000.0, 185.0, 110.0, 180.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/NovaGen_Containment_Chamber_1024_Transparent.png", 12200.0, 185.0, 110.0, 180.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Genesis_Specimen_Container.png", 12300.0, 185.0, 40.0, 60.0, PROP_LAYER_FOREGROUND);
     AddWorldProp("Assets/Props/Level 2/NovaGen_Laboratory_Computer_Terminal.png", 12400.0, 185.0, 65.0, 85.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Level 2/Genesis_Specimen_Container.png", 12550.0, 185.0, 40.0, 60.0, PROP_LAYER_FOREGROUND);
 
-    // --- AREA 9: BOSS ARENA PROPS (World X: 13750 to 14100) ---
+    // --- AREA 9 & 10: BOSS ARENA & FACILITY B ROAD (World X: 12650 to 14100) ---
+    AddWorldProp("Assets/Props/Level 2/Military_Supply_Vehicle.png", 12800.0, 185.0, 220.0, 130.0, PROP_LAYER_BACKGROUND);
+    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 13100.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true);
+    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 13400.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
     AddWorldProp("Assets/Props/Level 2/Abandoned_Medical_Examination_Machine.png", 13800.0, 185.0, 90.0, 110.0, PROP_LAYER_BACKGROUND);
 
     props.clear();
@@ -887,6 +976,8 @@ void GameManager::LoadLevel2() {
     }
 
     printf("[GENESIS Engine] Level 2: Blackwood Forest Loaded Successfully with %d pre-placed enemies.\n", (int)enemies.size());
+
+    LoadLevel2NPCs();
 }
 
 // ============================================================================
@@ -894,6 +985,17 @@ void GameManager::LoadLevel2() {
 // ============================================================================
 void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
     uiAnimTime += dt;
+
+    if (currentLevel == 2) {
+        for (auto& npc : level2NPCs) {
+            npc.Update();
+            if (player.x > npc.x) {
+                npc.isFacingRight = true;
+            } else {
+                npc.isFacingRight = false;
+            }
+        }
+    }
 
     // Update temporary UI Notifications (Item Acquired / Mission Updates)
     UI::UpdateNotifications(dt);
@@ -1885,6 +1987,17 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         }
     }
 
+    if (activePromptText.empty() && currentLevel == 2) {
+        for (auto& npc : level2NPCs) {
+            if (std::abs(player.x - npc.x) < 150.0) {
+                activePromptText = "[E] Talk";
+                activePromptX = (int)(npc.x - camX);
+                activePromptY = (int)(npc.y - camY + npc.height + 30.0);
+                break;
+            }
+        }
+    }
+
     if (activePromptText.empty() && player.x >= 13000 && bossDefeated) {
         activePromptText = "[E] Interact with Exit Gate";
         activePromptX = (int)(player.x - camX);
@@ -2058,6 +2171,25 @@ double GameManager::GetPropWorldScale(const std::string& assetPath) const {
         return 2.5;
     }
 
+    // --- LEVEL 2 PROPS SPECIFIC SCALING ---
+    if (assetPath.find("Bagpack") != std::string::npos ||
+        assetPath.find("Jerrycan") != std::string::npos) {
+        return 1.2;
+    }
+    if (assetPath.find("Sign") != std::string::npos ||
+        assetPath.find("Mossy_Fallen_Log") != std::string::npos ||
+        assetPath.find("Broken_Bridge") != std::string::npos) {
+        return 1.5;
+    }
+    if (assetPath.find("Tent") != std::string::npos ||
+        assetPath.find("Containment_Chamber") != std::string::npos) {
+        return 2.0;
+    }
+    if (assetPath.find("Military_Supply_Vehicle") != std::string::npos ||
+        assetPath.find("Burning_Wrecked_Military_SUV") != std::string::npos) {
+        return 2.5;
+    }
+
     // 4. Industrial props (Default: Barrels, oil drums, crates, fences, sandbags, generators, stones/rubble)
     return 1.8;
 }
@@ -2093,7 +2225,30 @@ double GameManager::GetPropGroundOffset(const std::string& assetPath) const {
         return -65.0; // Pull it further down because of image padding and size
     }
 
-    // 5. Sandbags, Generators & Fences
+    // --- LEVEL 2 PROPS SPECIFIC OFFSETS ---
+    if (assetPath.find("Sign") != std::string::npos) {
+        return 14.0;
+    }
+    if (assetPath.find("Bagpack") != std::string::npos ||
+        assetPath.find("Crate") != std::string::npos ||
+        assetPath.find("Jerrycan") != std::string::npos ||
+        assetPath.find("Barricade") != std::string::npos ||
+        assetPath.find("Tent") != std::string::npos ||
+        assetPath.find("Generator") != std::string::npos ||
+        assetPath.find("Mossy_Fallen_Log") != std::string::npos ||
+        assetPath.find("Table") != std::string::npos ||
+        assetPath.find("Computer") != std::string::npos ||
+        assetPath.find("Containment") != std::string::npos ||
+        assetPath.find("Machine") != std::string::npos ||
+        assetPath.find("Specimen") != std::string::npos) {
+        return 10.0;
+    }
+    if (assetPath.find("Military_Supply_Vehicle") != std::string::npos ||
+        assetPath.find("Burning_Wrecked_Military_SUV") != std::string::npos) {
+        return 10.0;
+    }
+
+    // 6. Sandbags, Generators & Fences
     if (assetPath.find("sandbags") != std::string::npos ||
         assetPath.find("generator") != std::string::npos ||
         assetPath.find("broken_fence") != std::string::npos) {
@@ -2107,6 +2262,7 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
     // Enable OpenGL Alpha Blending for clean PNG transparency across all prop textures
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f); // Reset color to prevent transparent drawing from map gradients
 
     const std::vector<VehicleSpawnPoint>& vehicles = m_encounterManager.GetVehicles();
 
@@ -2131,77 +2287,18 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
 
         // Viewport frustum culling check (-100 to 1380)
         if (renderX + renderW >= -100 && renderX <= 1380) {
-            // Check if this vehicle prop is currently in warning/shake state
-            bool isWarning = false;
-            double shakeOffsetX = 0.0;
+            double drawX = renderX;
 
-            if (worldProps[i].assetPath.find("veh_") != std::string::npos ||
-                worldProps[i].assetPath.find("car") != std::string::npos ||
-                worldProps[i].assetPath.find("ambulance") != std::string::npos ||
-                worldProps[i].assetPath.find("pickup") != std::string::npos) {
-                
-                for (size_t vIdx = 0; vIdx < vehicles.size(); ++vIdx) {
-                    if (vehicles[vIdx].isWarningActive && std::abs(vehicles[vIdx].x - worldProps[i].x) < 100.0) {
-                        isWarning = true;
-                        // Fast jitter shake animation (┬▒4px offset)
-                        shakeOffsetX = (double)((rand() % 9) - 4);
-                        break;
-                    }
+            // Defensive lazy-load in case ResourceManager failed to load during initialization
+            if (worldProps[i].textureID == 0) {
+                worldProps[i].textureID = ResourceManager::GetInstance().GetTexture(worldProps[i].assetPath);
+                if (worldProps[i].textureID == 0) {
+                    worldProps[i].textureID = iLoadImage((char*)GetAssetPath(worldProps[i].assetPath).c_str());
                 }
-            }
-
-            double drawX = renderX + shakeOffsetX;
-
-            // Render grounded contact shadow underneath Exit Gate base
-            if (worldProps[i].assetPath.find("Exit_Gate") != std::string::npos) {
-                glDisable(GL_TEXTURE_2D);
-                glBegin(GL_QUADS);
-                // Soft dark ambient occlusion contact shadow on terrain line
-                glColor4f(0.02f, 0.04f, 0.06f, 0.55f);
-                glVertex2f((float)(drawX + 15.0), (float)(renderY + 4.0));
-                glVertex2f((float)(drawX + renderW - 15.0), (float)(renderY + 4.0));
-                glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
-                glVertex2f((float)(drawX + renderW - 5.0), (float)(renderY - 10.0));
-                glVertex2f((float)(drawX + 5.0), (float)(renderY - 10.0));
-                glEnd();
-                glEnable(GL_TEXTURE_2D);
-            } 
-            // Render generic contact shadow for Level 2 environment props
-            else if (worldProps[i].assetPath.find("Level 2") != std::string::npos) {
-                glDisable(GL_TEXTURE_2D);
-                glBegin(GL_QUADS);
-                glColor4f(0.02f, 0.04f, 0.06f, 0.45f);
-                glVertex2f((float)(drawX + 10.0), (float)(renderY + 2.0));
-                glVertex2f((float)(drawX + renderW - 10.0), (float)(renderY + 2.0));
-                glColor4f(0.0f, 0.0f, 0.0f, 0.0f);
-                glVertex2f((float)(drawX + renderW - 5.0), (float)(renderY - 8.0));
-                glVertex2f((float)(drawX + 5.0), (float)(renderY - 8.0));
-                glEnd();
-                glEnable(GL_TEXTURE_2D);
             }
 
             if (worldProps[i].textureID != 0) {
                 iShowImage((int)drawX, (int)renderY, (int)renderW, (int)renderH, worldProps[i].textureID);
-            }
-
-            // Draw warning hazard effect overlay (flashing red alert box & warning header)
-            if (isWarning) {
-                glDisable(GL_TEXTURE_2D);
-                glLineWidth(2.0f);
-                
-                double alpha = 0.5 + 0.5 * sin(uiAnimTime * 20.0);
-                glColor4f(1.0f, 0.2f, 0.1f, (float)alpha);
-                
-                glBegin(GL_LINE_LOOP);
-                glVertex2f((float)drawX, (float)renderY);
-                glVertex2f((float)(drawX + renderW), (float)renderY);
-                glVertex2f((float)(drawX + renderW), (float)(renderY + renderH));
-                glVertex2f((float)drawX, (float)(renderY + renderH));
-                glEnd();
-
-                DrawShadowText((int)(drawX + (renderW / 2.0) - 75.0), (int)(renderY + renderH + 18.0), "! VEHICLE AMBUSH !", GLUT_BITMAP_HELVETICA_12, 255, 60, 60);
-
-                glEnable(GL_TEXTURE_2D);
             }
         }
     }
@@ -2462,6 +2559,14 @@ void GameManager::RenderPlaying() {
         }
     }
 
+    // Render NPCs before player
+    if (currentLevel == 2) {
+        for (auto& npc : level2NPCs) {
+            npc.Render(camX, camY);
+        }
+    }
+
+    // 4. Render Arin
     player.Render(camX, camY);
 
     // ========================================================================
@@ -2596,6 +2701,11 @@ void GameManager::RenderPlaying() {
         if (bossSpawned && !bossDefeated) {
             const char* bName = (currentLevel == 2) ? "FOREST ABOMINATION" : "MUTATED BRUTE";
             UI::DrawBossHealthBar(bName, bossHp, bossMaxHp, displayedBossHp);
+        }
+
+        if (currentLevel == 1) {
+            iSetColor(255, 255, 0);
+            UI::DrawShadowText(300, 700, "DEBUG: Press 'U' to Skip to Level 2 and see the new props!", GLUT_BITMAP_HELVETICA_18, 255, 255, 0);
         }
     }
 
@@ -2899,31 +3009,48 @@ void GameManager::RenderDialogue() {
         double promptBlink = (sin(s_dialogueTimer * 5.0) + 1.0) / 2.0;
         UI::DrawAlphaText(panelX + panelW - 200, panelY + 15, "Press [ENTER] to Continue", GLUT_BITMAP_HELVETICA_12, 120, 120, 120, fadeAlpha * (0.5 + promptBlink * 0.5));
     } else {
-        // --- NOTE READING UI (Document/Item) ---
+        // --- NOTE READING UI (Document/Item) with Area Banner Styling ---
         int panelW = 700;
         int panelH = 500;
         int panelX = (1280 - panelW) / 2;
         int panelY = (720 - panelH) / 2;
 
-        // Dark worn metal frame background
-        glColor4f(0.08f, 0.08f, 0.09f, 0.92f * fadeAlpha);
+        // Translucent Dark Glass Background Panel (Post-Apocalyptic Survival Slate)
+        glColor4f(0.04f, 0.07f, 0.11f, 0.88f * fadeAlpha);
         iFilledRectangle(panelX, panelY, panelW, panelH);
 
-        // Damaged edges & inner paper feel
-        glColor4f(0.12f, 0.12f, 0.13f, 0.85f * fadeAlpha);
-        iFilledRectangle(panelX + 15, panelY + 15, panelW - 30, panelH - 30);
-        
-        // Subtle rust border
-        glColor4f(0.35f, 0.15f, 0.1f, 0.7f * fadeAlpha);
-        iRectangle(panelX, panelY, panelW, panelH);
-        iRectangle(panelX + 2, panelY + 2, panelW - 4, panelH - 4);
-        
-        glColor4f(0.4f, 0.4f, 0.4f, 0.3f * fadeAlpha);
-        iRectangle(panelX + 15, panelY + 15, panelW - 30, panelH - 30);
+        // Subtle upper glass specular highlight
+        glColor4f(0.15f, 0.22f, 0.30f, 0.35f * fadeAlpha);
+        iFilledRectangle(panelX + 2, panelY + (panelH / 2), panelW - 4, (panelH / 2) - 2);
 
-        // Title Header
-        // Muted orange/red highlights for old emergency interface style
-        glColor4f(0.7f, 0.25f, 0.15f, fadeAlpha);
+        // Bottom dark accent shadow band
+        glColor4f(0.02f, 0.03f, 0.05f, 0.45f * fadeAlpha);
+        iFilledRectangle(panelX + 2, panelY + 2, panelW - 4, (panelH / 2) - 2);
+        
+        // Outer worn dark steel border
+        glColor4f(0.35f, 0.42f, 0.50f, 0.90f * fadeAlpha);
+        iRectangle(panelX, panelY, panelW, panelH);
+        
+        // Inner cyan tactical wireframe stroke
+        glColor4f(0.0f, 0.85f, 1.0f, 0.65f * fadeAlpha);
+        iRectangle(panelX + 2, panelY + 2, panelW - 4, panelH - 4);
+
+        // Corner Rust / Copper Metallic Brackets (Post-Apocalyptic hardware style)
+        glColor4f(0.58f, 0.28f, 0.14f, 0.88f * fadeAlpha);
+        iFilledRectangle(panelX, panelY + panelH - 8, 12, 8);
+        iFilledRectangle(panelX + panelW - 12, panelY + panelH - 8, 12, 8);
+        iFilledRectangle(panelX, panelY, 12, 8);
+        iFilledRectangle(panelX + panelW - 12, panelY, 12, 8);
+
+        // Corner Fastener Rivets
+        glColor4f(0.85f, 0.90f, 0.95f, 0.95f * fadeAlpha);
+        iFilledRectangle(panelX + 4, panelY + panelH - 6, 3, 3);
+        iFilledRectangle(panelX + panelW - 7, panelY + panelH - 6, 3, 3);
+        iFilledRectangle(panelX + 4, panelY + 3, 3, 3);
+        iFilledRectangle(panelX + panelW - 7, panelY + 3, 3, 3);
+
+        // Title Header (Dark cyan/teal fill to replace the old red header)
+        glColor4f(0.0f, 0.45f, 0.6f, 0.7f * fadeAlpha);
         iFilledRectangle(panelX + 15, panelY + panelH - 70, panelW - 30, 55);
 
         UI::DrawAlphaShadowText(panelX + 35, panelY + panelH - 52, g_dialogueSpeaker, GLUT_BITMAP_TIMES_ROMAN_24, 250, 240, 230, fadeAlpha, 2);
@@ -3121,6 +3248,11 @@ void GameManager::HandleKeyPress(unsigned char key) {
         else if (key == 9 || key == '\t' || key == 'i' || key == 'I') {
             showInventory = !showInventory;
         }
+        else if (key == 'u' || key == 'U') {
+            if (currentLevel == 1) {
+                LoadLevel2();
+            }
+        }
         else if (key == 'e' || key == 'E') {
             if (!showInventory) {
                 bool itemInteracted = false;
@@ -3206,6 +3338,21 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             break;
                         }
                         break;
+                    }
+                }
+
+                // Check Level 2 NPC interaction
+                if (!itemInteracted && currentLevel == 2) {
+                    for (auto& npc : level2NPCs) {
+                        if (std::abs(player.x - npc.x) < 150.0) {
+                            npc.isTalking = true;
+                            
+                            currentState = STATE_DIALOGUE;
+                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", npc.name.c_str());
+                            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", npc.dialogueText.c_str());
+                            itemInteracted = true;
+                            break;
+                        }
                     }
                 }
 
@@ -3295,6 +3442,13 @@ void GameManager::HandleKeyPress(unsigned char key) {
     }
     else if (currentState == STATE_DIALOGUE) {
         if (key == 13 || key == 'e' || key == 'E' || key == 32 || key == 27) { // Enter, E, Space, or ESC key
+            if (currentLevel == 2) {
+                for (auto& npc : level2NPCs) {
+                    npc.isTalking = false;
+                    npc.animTalk.Reset();
+                }
+            }
+
             if (ribbonCollected || (player.x >= 12800 && hasKeycard && bossDefeated)) {
                 currentState = STATE_VICTORY;
                 menuTransitionAlpha = 1.0;

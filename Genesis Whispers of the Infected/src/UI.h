@@ -24,6 +24,7 @@ private:
     static unsigned int texStaminaFrame;
     static unsigned int texStaminaFill;
     static unsigned int texMissionBox;
+    static unsigned int texSurvivalPanel;
     static unsigned int texInventoryPanel;
     static unsigned int texInventorySlot;
     static unsigned int texPauseOverlay;
@@ -48,6 +49,7 @@ private:
     // Notification state
     static NotificationData currentNotification;
 
+public:
     // Helper text & UI frame utilities
     static void DrawShadowText(int x, int y, const char* str, void* font, int r, int g, int b, int shadowOffset = 1);
     static void DrawOutlinedText(int x, int y, const char* str, void* font, int r, int g, int b);
@@ -55,7 +57,6 @@ private:
     static void DrawButtonSlot(int slotIdx, int textX, int textY, const char* label, void* font, int mouseX, int mouseY, bool isMouseDown, double animTime = 0.0);
     static void DrawKatanaStyleBox(int boxX, int boxY, int boxW, int boxH);
 
-public:
     static void DrawAlphaText(int x, int y, const char* str, void* font, int r, int g, int b, double alpha);
     static void DrawAlphaShadowText(int x, int y, const char* str, void* font, int r, int g, int b, double alpha, int shadowOffset = 1);
     static void DrawAlphaOutlinedText(int x, int y, const char* str, void* font, int r, int g, int b, double alpha);

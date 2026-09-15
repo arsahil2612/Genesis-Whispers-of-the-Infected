@@ -140,6 +140,45 @@ const double kPropScaleLarge  = 2.3;  // Large: Ambulance, pickup trucks, cars, 
 const double kPropScaleTall   = 1.8;  // Tall: Trees, telephone poles, street lamps, watchtowers
 
 // ============================================================================
+// NPC System
+// ============================================================================
+enum NPCType {
+    NPC_OLD_MAN,
+    NPC_INJURED_WOMAN,
+    NPC_SURVIVOR_CHILD
+};
+
+struct NPC {
+    NPCType type;
+    double x, y;
+    int width, height;
+    Animation animIdle;
+    Animation animTalk;
+    bool isTalking;
+    bool isFacingRight;
+    std::string dialogueText;
+    std::string name;
+
+    void Update() {
+        if (isTalking) {
+            animTalk.Update();
+        } else {
+            animIdle.Update();
+        }
+    }
+
+    void Render(double camX, double camY) {
+        double screenX = x - camX;
+        double screenY = y - camY;
+        if (isTalking) {
+            animTalk.Render((int)screenX, (int)screenY, width, height, isFacingRight);
+        } else {
+            animIdle.Render((int)screenX, (int)screenY, width, height, isFacingRight);
+        }
+    }
+};
+
+// ============================================================================
 // Core Game Manager Class
 // ============================================================================
 class GameManager {
@@ -155,6 +194,7 @@ private:
     std::vector<Collectible> collectibles;
     std::vector<Prop> props;
     std::vector<WorldProp> worldProps;
+    std::vector<NPC> level2NPCs;
     unsigned int texPropsSheet;
 
     // Level Area Tracking
@@ -229,7 +269,9 @@ public:
     
     void Initialize();
     void LoadLevel1();
+    // Level 2 Helpers
     void LoadLevel2();
+    void LoadLevel2NPCs();
     void Update(float dt = 0.016f, bool keys[] = NULL, bool specialKeys[] = NULL);
     void Render();
 

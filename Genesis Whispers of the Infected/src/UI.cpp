@@ -14,6 +14,7 @@ unsigned int UI::texHealthFill = 0;
 unsigned int UI::texStaminaFrame = 0;
 unsigned int UI::texStaminaFill = 0;
 unsigned int UI::texMissionBox = 0;
+unsigned int UI::texSurvivalPanel = 0;
 unsigned int UI::texInventoryPanel = 0;
 unsigned int UI::texInventorySlot = 0;
 unsigned int UI::texPauseOverlay = 0;
@@ -461,8 +462,10 @@ void UI::Initialize() {
         if (texScoreHeal == 0) texScoreHeal = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/score_heal.png").c_str());
     }
     if (texMissionBox == 0) {
-        texMissionBox = iLoadImage((char*)GetAssetPath("Assets/UI/Mission/mission_update_box.png").c_str());
-        if (texMissionBox == 0) texMissionBox = iLoadImage((char*)GetAssetPath("Assets/UI/Mission/ui_mission_box.png").c_str());
+        texMissionBox = iLoadImage((char*)GetAssetPath("Assets/UI/Mission/mission_panel.png").c_str());
+    }
+    if (texSurvivalPanel == 0) {
+        texSurvivalPanel = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/survival_data_panel.png").c_str());
     }
     if (texInventoryPanel == 0) {
         texInventoryPanel = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/inventory__panel.png").c_str());
@@ -533,59 +536,35 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
     DrawInventoryHUD(player, false, false);
 
     // 5. Score Banner (Upper Right Header) - Redesigned SURVIVAL DATA panel
-    int hudW = 260;
-    int hudH = 110;
+    int hudW = 300; // Scaled up
+    int hudH = 130;
     int hudX = 1260 - hudW; // Right-aligned under the mission panel
-    int hudY = 500;         // Placed nicely below the mission panel
+    int hudY = 480;         // Placed nicely below the mission panel
 
     double alpha = 0.9;
     
-    // Main dark metal panel
-    glColor4f(0.10f, 0.15f, 0.20f, alpha);
-    iFilledRectangle(hudX, hudY, hudW, hudH);
+    // Draw the new survival panel background image
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    if (texSurvivalPanel != 0) {
+        iShowImage(hudX, hudY, hudW, hudH, texSurvivalPanel);
+    }
     
-    // Top highlight
-    glColor4f(0.15f, 0.22f, 0.30f, 0.35f * alpha);
-    iFilledRectangle(hudX + 2, hudY + (hudH / 2), hudW - 4, (hudH / 2) - 2);
-
-    // Weathered border
-    glColor4f(0.35f, 0.42f, 0.50f, 0.90f * alpha);
-    iRectangle(hudX, hudY, hudW, hudH);
-
-    // Inner cyan tactical wireframe stroke
-    glColor4f(0.0f, 0.85f, 1.0f, 0.65f * alpha);
-    iRectangle(hudX + 2, hudY + 2, hudW - 4, hudH - 4);
-    
-    // Corner Rust Brackets
-    glColor4f(0.58f, 0.28f, 0.14f, 0.88f * alpha);
-    iFilledRectangle(hudX, hudY + hudH - 6, 8, 6);
-    iFilledRectangle(hudX + hudW - 8, hudY + hudH - 6, 8, 6);
-    iFilledRectangle(hudX, hudY, 8, 6);
-    iFilledRectangle(hudX + hudW - 8, hudY, 8, 6);
-
-    // Title: SURVIVAL DATA (Small cyan text)
-    DrawAlphaText(hudX + 15, hudY + hudH - 22, "SURVIVAL DATA", GLUT_BITMAP_HELVETICA_10, 0, 216, 255, alpha);
-    
-    // Divider
-    glColor4f(0.0f, 0.85f, 1.0f, 0.45f * alpha);
-    iLine(hudX + 10, hudY + hudH - 28, hudX + hudW - 10, hudY + hudH - 28);
-    
-    // Layout Metrics
-    int labelX = hudX + 15;
-    int valueX = hudX + 140; // Align all values neatly
+    // Layout Metrics for dynamic values (right aligned)
+    int rightBound = hudX + hudW - 35; // Slight padding on right
     
     // SCORE (Row 1)
-    DrawAlphaText(labelX, hudY + hudH - 50, "SCORE", GLUT_BITMAP_HELVETICA_10, 200, 205, 210, alpha);
     char scoreNumStr[16];
     sprintf_s(scoreNumStr, sizeof(scoreNumStr), "%07d", score);
-    DrawAlphaShadowText(valueX, hudY + hudH - 53, scoreNumStr, GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
+    int scoreW = GetTextWidth(scoreNumStr, GLUT_BITMAP_HELVETICA_18);
+    DrawAlphaShadowText(rightBound - scoreW, hudY + hudH - 55, scoreNumStr, GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
     
     // ENEMIES DEFEATED (Row 2)
-    DrawAlphaText(labelX, hudY + hudH - 75, "ENEMIES", GLUT_BITMAP_HELVETICA_10, 200, 205, 210, alpha);
-    DrawAlphaShadowText(valueX, hudY + hudH - 78, "00", GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
+    const char* enemiesStr = "00";
+    int enemiesW = GetTextWidth(enemiesStr, GLUT_BITMAP_HELVETICA_18);
+    DrawAlphaShadowText(rightBound - enemiesW, hudY + hudH - 80, enemiesStr, GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
     
     // RESOURCES (Row 3)
-    DrawAlphaText(labelX, hudY + hudH - 100, "RESOURCES", GLUT_BITMAP_HELVETICA_10, 200, 205, 210, alpha);
     int resources = player.scrapCount + player.foodCount + player.batteryCount;
     
     // Muted orange warning if no resources
@@ -594,7 +573,8 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
     
     char resNumStr[16];
     sprintf_s(resNumStr, sizeof(resNumStr), "%02d", resources);
-    DrawAlphaShadowText(valueX, hudY + hudH - 103, resNumStr, GLUT_BITMAP_HELVETICA_18, resR, resG, resB, alpha, 1);
+    int resW = GetTextWidth(resNumStr, GLUT_BITMAP_HELVETICA_18);
+    DrawAlphaShadowText(rightBound - resW, hudY + hudH - 105, resNumStr, GLUT_BITMAP_HELVETICA_18, resR, resG, resB, alpha, 1);
 
     // 6. Sleek Cinematic Area & Village Title Banner
     DrawAreaBanner(areaName, areaBannerAlpha);
@@ -888,58 +868,14 @@ void UI::DrawMissionPanel(const char* objectiveText, const char* areaName, doubl
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    // Main dark metal panel
-    glColor4f(0.10f, 0.15f, 0.20f, (float)alpha);
-    iFilledRectangle(missX, missY, missW, missH);
-    
-    // Top lighter highlight
-    glColor4f(0.15f, 0.22f, 0.30f, (float)(0.35 * alpha));
-    iFilledRectangle(missX + 2, missY + (missH / 2), missW - 4, (missH / 2) - 2);
-
-    // Weathered border
-    glColor4f(0.35f, 0.42f, 0.50f, (float)(0.90 * alpha));
-    iRectangle(missX, missY, missW, missH);
-
-    // Inner cyan tactical wireframe stroke
-    glColor4f(0.0f, 0.85f, 1.0f, (float)(0.65 * alpha));
-    iRectangle(missX + 2, missY + 2, missW - 4, missH - 4);
-
-    // Corner Rust Brackets
-    glColor4f(0.58f, 0.28f, 0.14f, (float)(0.88 * alpha));
-    iFilledRectangle(missX, missY + missH - 8, 12, 8);
-    iFilledRectangle(missX + missW - 12, missY + missH - 8, 12, 8);
-    iFilledRectangle(missX, missY, 12, 8);
-    iFilledRectangle(missX + missW - 12, missY, 12, 8);
-
-    // Rivets
-    glColor4f(0.85f, 0.90f, 0.95f, (float)(0.95 * alpha));
-    iFilledRectangle(missX + 4, missY + missH - 6, 3, 3);
-    iFilledRectangle(missX + missW - 7, missY + missH - 6, 3, 3);
-    iFilledRectangle(missX + 4, missY + 3, 3, 3);
-    iFilledRectangle(missX + missW - 7, missY + 3, 3, 3);
-
-    // Small mission indicator icon (Reticle style)
-    int iconX = missX + 22;
-    int iconY = missY + missH - 15;
-    glColor4f(0.0f, 0.85f, 1.0f, (float)(0.85 * alpha));
-    iRectangle(iconX - 5, iconY - 5, 10, 10);
-    iLine(iconX - 8, iconY, iconX + 8, iconY);
-    iLine(iconX, iconY - 8, iconX, iconY + 8);
-    glColor4f(1.0f, 1.0f, 1.0f, (float)(0.95 * alpha));
-    iFilledRectangle(iconX - 1, iconY - 1, 3, 3);
-
-    // Scanline effect during activation
-    if (alpha < 0.95) {
-        glColor4f(0.0f, 0.90f, 1.0f, (float)(0.25 * alpha));
-        iLine(missX + 5, missY + 20, missX + missW - 5, missY + 20);
-        iLine(missX + 5, missY + 60, missX + missW - 5, missY + 60);
+    // Draw the mission panel image background
+    if (texMissionBox != 0) {
+        iShowImage(missX, missY, missW, missH, texMissionBox);
     }
 
     // Texts
     const char* defaultObj = "ESCAPE THE FALLEN VILLAGE";
     const char* rawObjStr = objectiveText ? objectiveText : defaultObj;
-
-    DrawAlphaText(missX + 38, missY + missH - 19, "MISSION // 001", GLUT_BITMAP_HELVETICA_10, 0, 210, 240, alpha);
 
     // Word wrap objective text if width exceeds maxTextW
     void* font = GLUT_BITMAP_HELVETICA_18;
@@ -967,10 +903,10 @@ void UI::DrawMissionPanel(const char* objectiveText, const char* areaName, doubl
     }
 
     if (line2.empty()) {
-        DrawAlphaShadowText(missX + 18, missY + 26, line1.c_str(), font, 240, 245, 250, alpha, 1);
+        DrawAlphaShadowText(missX + 45, missY + 28, line1.c_str(), font, 240, 245, 250, alpha, 1);
     } else {
-        DrawAlphaShadowText(missX + 18, missY + 38, line1.c_str(), font, 240, 245, 250, alpha, 1);
-        DrawAlphaShadowText(missX + 18, missY + 16, line2.c_str(), font, 240, 245, 250, alpha, 1);
+        DrawAlphaShadowText(missX + 45, missY + 38, line1.c_str(), font, 240, 245, 250, alpha, 1);
+        DrawAlphaShadowText(missX + 45, missY + 18, line2.c_str(), font, 240, 245, 250, alpha, 1);
     }
 }
 
