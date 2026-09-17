@@ -134,6 +134,7 @@ static unsigned int g_texItemNovagenKeycard = 0;
 static unsigned int g_texItemMissionNote = 0;
 static unsigned int g_texItemCoin = 0;
 static unsigned int g_texItemBattery = 0;
+static unsigned int g_texItemAmmo = 0;
 static unsigned int g_texBioFlame = 0;
 
 // Instant Floating Item Pickup Notification Data
@@ -714,6 +715,10 @@ void GameManager::LoadLevel1() {
         if (g_texItemBattery == 0) {
             g_texItemBattery = ResourceManager::GetInstance().GetTexture("Assets/Items/KeyItems/battery.png");
         }
+        g_texItemAmmo = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Pistol Attack/9mmAmmo.png").c_str());
+        if (g_texItemAmmo == 0) {
+            g_texItemAmmo = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Pistol Attack/9mmAmmo.png");
+        }
     }
 
     // Level 1 Enemies are populated dynamically in staged encounter waves via UpdatePlaying()
@@ -839,85 +844,31 @@ void GameManager::LoadLevel2() {
     worldProps.clear();
 
     // --- AREA 1: FOREST ENTRANCE PROPS (World X: 0 to 1448) ---
-    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 100.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 300.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Evacuation_Route_Sign.png", 500.0, 185.0, 45.0, 80.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 700.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative
-    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 850.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 1000.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 1300.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
+    // (Props removed)
 
     // --- AREA 2: EVACUATION CAMP PROPS (World X: 1448 to 4344) ---
-    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 1600.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Vehicle.png", 1800.0, 185.0, 220.0, 130.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 2200.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 2250.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 2600.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND); // Decorative
-    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 2680.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 3000.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative
-    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 3150.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 3400.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
-    AddWorldProp("Assets/Props/Level 2/Evacuation_Route_Sign.png", 3700.0, 185.0, 45.0, 80.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 3900.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 4100.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
+    // (Props removed)
 
     // --- AREA 3: DEEP FOREST PROPS (World X: 4344 to 5800) ---
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 4400.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 4600.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND, true); // Obstacle
-    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 4800.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 5000.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND, true); // Obstacle
-    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 5200.0, 240.0, 80.0, 20.0, PROP_LAYER_BACKGROUND, true); // Floating platform
-    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 5500.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 5600.0, 185.0, 90.0, 30.0, PROP_LAYER_FOREGROUND, true); // Obstacle
+    // (Props removed)
 
     // --- AREA 4: RIVER CROSSING PROPS (World X: 5800 to 6750) ---
-    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 5950.0, 260.0, 80.0, 20.0, PROP_LAYER_BACKGROUND, true); // Floating platform
-    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 6150.0, 280.0, 80.0, 20.0, PROP_LAYER_BACKGROUND, true); // Floating platform
-    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 6150.0, 310.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Broken_Bridge_Plank_1024_Transparent.png", 6350.0, 260.0, 80.0, 20.0, PROP_LAYER_BACKGROUND, true); // Floating platform
-    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 6550.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND, true); // Obstacle
+    // (Props removed)
 
     // --- AREA 5: SURVIVOR HIDEOUT PROPS (World X: 6750 to 8850) ---
-    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 6900.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Bagpack.png", 7100.0, 185.0, 24.0, 30.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Weathered_Olive_Military_Folding_Table.png", 7200.0, 185.0, 85.0, 55.0, PROP_LAYER_BACKGROUND); // Decorative
-    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 7200.0, 240.0, 20.0, 28.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 7400.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 7700.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 7800.0, 185.0, 50.0, 50.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 8200.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 8500.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
+    // (Props removed)
 
     // --- AREA 6: INFECTED FOREST PROPS (World X: 8850 to 10450) ---
-    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 9000.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 9200.0, 185.0, 50.0, 50.0, PROP_LAYER_BACKGROUND); // Decorative
-    AddWorldProp("Assets/Props/Level 2/Military_Survival_Water_Jerrycan .png", 9400.0, 185.0, 20.0, 28.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 9700.0, 185.0, 90.0, 30.0, PROP_LAYER_FOREGROUND, true); // Obstacle
-    AddWorldProp("Assets/Props/Level 2/Mossy_Fallen_Log_Asset.png", 10000.0, 185.0, 90.0, 30.0, PROP_LAYER_BACKGROUND, true); // Obstacle
-    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 10200.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
+    // (Props removed)
 
     // --- AREA 7: NOVAGEN OUTPOST PROPS (World X: 10450 to 11850) ---
-    AddWorldProp("Assets/Props/Level 2/Facility_Direction_Sign_Transparent.png", 10600.0, 185.0, 60.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 10800.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true); // Obstacle
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Vehicle.png", 11000.0, 185.0, 220.0, 130.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Portable_Generator.png", 11200.0, 185.0, 50.0, 40.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Genesis_Specimen_Container.png", 11400.0, 185.0, 40.0, 60.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Field_Tent.png", 11600.0, 185.0, 160.0, 100.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Crate.png", 11750.0, 185.0, 50.0, 50.0, PROP_LAYER_FOREGROUND);
+    // (Props removed)
 
     // --- AREA 8: RESEARCH FACILITY PROPS (World X: 11850 to 12650) ---
-    AddWorldProp("Assets/Props/Level 2/Abandoned_Medical_Examination_Machine.png", 11900.0, 185.0, 90.0, 110.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/NovaGen_Containment_Chamber_1024_Transparent.png", 12000.0, 185.0, 110.0, 180.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/NovaGen_Containment_Chamber_1024_Transparent.png", 12200.0, 185.0, 110.0, 180.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Genesis_Specimen_Container.png", 12300.0, 185.0, 40.0, 60.0, PROP_LAYER_FOREGROUND);
-    AddWorldProp("Assets/Props/Level 2/NovaGen_Laboratory_Computer_Terminal.png", 12400.0, 185.0, 65.0, 85.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Genesis_Specimen_Container.png", 12550.0, 185.0, 40.0, 60.0, PROP_LAYER_FOREGROUND);
+    // (Props removed)
 
     // --- AREA 9 & 10: BOSS ARENA & FACILITY B ROAD (World X: 12650 to 14100) ---
-    AddWorldProp("Assets/Props/Level 2/Military_Supply_Vehicle.png", 12800.0, 185.0, 220.0, 130.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Weathered_Military_Road_Barricade.png", 13100.0, 185.0, 80.0, 50.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Burning_Wrecked_Military_SUV.png", 13400.0, 185.0, 160.0, 90.0, PROP_LAYER_BACKGROUND);
-    AddWorldProp("Assets/Props/Level 2/Abandoned_Medical_Examination_Machine.png", 13800.0, 185.0, 90.0, 110.0, PROP_LAYER_BACKGROUND);
+    // (Props removed)
 
     props.clear();
     enemies.clear();
@@ -2533,7 +2484,7 @@ void GameManager::RenderPlaying() {
                     itemDrawW = 38; itemDrawH = 38;
                     break;
                 case COL_AMMO:
-                    itemTex = g_texItemCoin;
+                    itemTex = g_texItemAmmo;
                     itemLabel = (collectibles[i].subType == 1) ? "12GA SHELLS" : "9MM AMMO";
                     lR = 255; lG = 215; lB = 0;
                     itemDrawW = 42; itemDrawH = 42;
