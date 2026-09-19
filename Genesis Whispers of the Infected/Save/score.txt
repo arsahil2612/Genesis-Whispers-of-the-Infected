@@ -1,0 +1,15 @@
+Score: 0
+HighScore: 0
+TotalKills: 0
+WalkerKills: 0
+RunnerKills: 0
+RaiderKills: 0
+HeavyKills: 0
+HunterKills: 0
+BruteKills: 0
+AbominationKills: 0
+KaelKills: 0
+Level1Completed: 0
+Level2Completed: 0
+Level3Completed: 0
+GameCompleted: 0

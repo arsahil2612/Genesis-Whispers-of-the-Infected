@@ -1,0 +1,7 @@
+GameCompleted: No
+FinalScore: 0
+TotalKills: 0
+Route: Standard
+Level1Completed: No
+Level2Completed: No
+Level3Completed: No

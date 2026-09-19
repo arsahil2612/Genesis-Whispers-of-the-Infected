@@ -36,6 +36,8 @@ void Leaderboard::LoadScores() {
 
     ScoreEntry entry;
     while (fread(&entry, sizeof(ScoreEntry), 1, file) == 1) {
+        entry.name[sizeof(entry.name) - 1] = '\0';
+        if (entry.score < 0) entry.score = 0;
         entries.push_back(entry);
     }
     fclose(file);

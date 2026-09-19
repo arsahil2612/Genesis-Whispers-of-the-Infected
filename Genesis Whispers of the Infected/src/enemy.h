@@ -59,6 +59,7 @@ public:
     bool isFacingRight;
     bool inAttackRange;
     bool hasDealtDamage;
+    bool killRecorded;
 
     EnemyType type;
     EnemyState state;

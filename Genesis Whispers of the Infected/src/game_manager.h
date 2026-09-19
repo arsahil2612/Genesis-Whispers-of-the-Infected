@@ -26,6 +26,43 @@ enum GameState {
     STATE_LEADERBOARD
 };
 
+// ============================================================================
+// Game Statistics & Score Centralized Structure
+// ============================================================================
+struct GameStats {
+    int totalKills;
+    int walkerKills;
+    int runnerKills;
+    int raiderKills;
+    int heavyKills;
+    int hunterKills;
+    int bruteKills;
+    int abominationKills;
+    int kaelKills;
+
+    bool level1Completed;
+    bool level2Completed;
+    bool level3Completed;
+    bool gameCompleted;
+
+    GameStats() { Reset(); }
+    void Reset() {
+        totalKills = 0;
+        walkerKills = 0;
+        runnerKills = 0;
+        raiderKills = 0;
+        heavyKills = 0;
+        hunterKills = 0;
+        bruteKills = 0;
+        abominationKills = 0;
+        kaelKills = 0;
+        level1Completed = false;
+        level2Completed = false;
+        level3Completed = false;
+        gameCompleted = false;
+    }
+};
+
 enum CollectibleType {
     COL_MEDKIT,
     COL_AMMO,
@@ -323,6 +360,17 @@ private:
 
     int score;
     int currentLevel;
+    GameStats stats;
+    bool bossScoreAwarded;
+    bool finalScoreSaved;
+    bool historyRecordSaved;
+    bool gameResultSaved;
+
+    // Persistence Data (Kept separate from active run score)
+    int savedPreviousScore;
+    int savedHighScore;
+    GameStats savedStats;
+    bool savedFileExists;
 
     // Level 1 Staged Encounter Trigger Stage Flags
     int m_l1StreetStage;
@@ -377,8 +425,25 @@ public:
     void HandleMouseClick(int button, int state, int mx, int my);
     void HandleMouseMove(int mx, int my);
 
-    // Score utility
+    // Score and Statistics Central API
     void AddScore(int amount);
+    int GetScore() const { return score; }
+    int GetTotalKills() const { return stats.totalKills; }
+    const GameStats& GetStats() const { return stats; }
+    bool IsLevelCompleted(int level) const;
+    bool IsGameCompleted() const { return stats.gameCompleted; }
+    void RecordEnemyKill(EnemyType type);
+    void RecordLevelCompletion(int level);
+    void RecordGameCompletion();
+    void ResetScoreAndStats();
+    void SaveScoreToFile();
+    void LoadScoreFromFile();
+    void AppendScoreHistory();
+    void SaveGameResultToFile();
+    int GetSavedPreviousScore() const { return savedPreviousScore; }
+    int GetHighScore() const { return savedHighScore; }
+    const GameStats& GetSavedStats() const { return savedStats; }
+    bool HasSavedFile() const { return savedFileExists; }
     
     // Enemy Accessors for Encounter System
     void AddEnemy(const Enemy& e) { enemies.push_back(e); }

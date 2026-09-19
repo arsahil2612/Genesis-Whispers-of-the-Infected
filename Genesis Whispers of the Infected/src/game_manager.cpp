@@ -11,6 +11,7 @@
 #include <string>
 #include <vector>
 #include <sstream>
+#include <fstream>
 
 // Active Dialogue Text buffer
 static char g_dialogueSpeaker[64] = "";
@@ -209,7 +210,11 @@ const char* GameManager::GetCurrentChapterName() const {
 
 GameManager::GameManager() {
     currentState = STATE_MENU;
-    score = 0;
+    ResetScoreAndStats();
+    savedPreviousScore = 0;
+    savedHighScore = 0;
+    savedStats.Reset();
+    savedFileExists = false;
     currentLevel = 1;
     texPropsSheet = 0;
 
@@ -568,7 +573,8 @@ int GameManager::GetActiveEnemyCount() const {
 
 void GameManager::Initialize() {
     UI::Initialize();
-    score = 0;
+    ResetScoreAndStats();
+    LoadScoreFromFile();
     leaderboard.LoadScores();
     InitInventory();
     Enemy::PreloadAllTextures();
@@ -1655,6 +1661,9 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         deathTimer += dt;
         if (deathTimer >= 1.5) { // 1.5s delay to allow death animation playback
             currentState = STATE_GAMEOVER;
+            SaveScoreToFile();
+            AppendScoreHistory();
+            SaveGameResultToFile();
             menuTransitionAlpha = 1.0;
             deathTimer = 0.0;
             return;
@@ -2681,6 +2690,12 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             // Process death frames for enemy
             enemies[i].Update(player.x, player.y);
 
+            // Record kill event ONCE per enemy
+            if (enemies[i].hp <= 0 && enemies[i].state == ENEMY_DEAD && !enemies[i].killRecorded) {
+                enemies[i].killRecorded = true;
+                RecordEnemyKill(enemies[i].type);
+            }
+
             // Check if boss died and finished Death animation
             if (enemies[i].type == TYPE_ABOMINATION || enemies[i].type == TYPE_FOREST_ABOMINATION) {
                 if (enemies[i].animDeath.IsFinished() || !enemies[i].animDeath.IsValid()) {
@@ -2689,6 +2704,24 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                 }
             }
         }
+    }
+
+    // Award boss completion score ONCE when boss is defeated
+    if (bossDefeated && !bossScoreAwarded) {
+        bossScoreAwarded = true;
+        if (currentLevel == 1) {
+            stats.bruteKills++;
+            AddScore(1000);
+        } else if (currentLevel == 2) {
+            stats.abominationKills++;
+            AddScore(2000);
+        }
+    }
+
+    if (currentLevel == 3 && m_l3Boss.IsDefeated() && !bossScoreAwarded) {
+        bossScoreAwarded = true;
+        stats.kaelKills++;
+        AddScore(3000);
     }
 
     // Periodic dead enemy cleanup (removes defeated enemies after death animation completes)
@@ -2834,9 +2867,11 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             }
         }
         else if (currentLevel == 2) {
+            RecordLevelCompletion(2);
             LoadLevel3();
         }
         else if (currentState != STATE_DIALOGUE && currentState != STATE_VICTORY) {
+            RecordLevelCompletion(1);
             currentState = STATE_VICTORY;
             menuTransitionAlpha = 1.0;
             leaderboard.AddScore("Arin", score);
@@ -4179,32 +4214,60 @@ void GameManager::RenderVictory() {
         iFilledRectangle(0, 0, 1280, 720);
     }
 
-    // 2. Title Header in Top Carved Banner Slot
-    const char* vicTitle = (currentLevel == 2) ? "LEVEL 2 COMPLETE" : "LEVEL 1 COMPLETE";
-    DrawOutlinedText(515, 545, vicTitle, GLUT_BITMAP_TIMES_ROMAN_24, 0, 255, 120);
+    // 2. Title Header & Subtitle in Top Banner Slot
+    const char* vicTitle = "LEVEL 1 COMPLETE";
+    const char* chapterSub = "THE FALLEN VILLAGE";
+    const char* updatedMission = "Mission Updated: REACH BLACKWOOD FOREST";
 
-    const char* chapterSub = (currentLevel == 2) ? "BLACKWOOD FOREST" : "THE FALLEN VILLAGE";
-    DrawShadowText(525, 505, chapterSub, GLUT_BITMAP_HELVETICA_18, 200, 200, 200);
+    if (currentLevel == 3 || stats.gameCompleted) {
+        vicTitle = "OPERATION VICTORY - GAME COMPLETE";
+        chapterSub = "NOVAGEN FACILITY B - MISSION ACCOMPLISHED";
+        updatedMission = "Status: ALL OBJECTIVES COMPLETED - ESCAPE SECURED";
+    } else if (currentLevel == 2) {
+        vicTitle = "LEVEL 2 COMPLETE";
+        chapterSub = "BLACKWOOD FOREST";
+        updatedMission = "Mission Updated: REACH NOVAGEN FACILITY B";
+    }
 
-    const char* updatedMission = (currentLevel == 2) ? "Mission Updated: REACH NOVAGEN FACILITY B" : "Mission Updated: REACH BLACKWOOD FOREST";
-    DrawOutlinedText(485, 475, updatedMission, GLUT_BITMAP_HELVETICA_12, 0, 230, 255);
+    // Center header text dynamically
+    int titleX = (1280 - UI::GetTextWidth(vicTitle, GLUT_BITMAP_TIMES_ROMAN_24)) / 2;
+    int subX = (1280 - UI::GetTextWidth(chapterSub, GLUT_BITMAP_HELVETICA_18)) / 2;
+    int missionX = (1280 - UI::GetTextWidth(updatedMission, GLUT_BITMAP_HELVETICA_12)) / 2;
 
-    // 3. Option 1: Next Level / Main Menu
+    DrawOutlinedText(titleX, 620, vicTitle, GLUT_BITMAP_TIMES_ROMAN_24, 0, 255, 120);
+    DrawShadowText(subX, 585, chapterSub, GLUT_BITMAP_HELVETICA_18, 220, 220, 220);
+
+    // 3. Stats & Score Panel Display (From memory, zero file reads per frame)
+    char scoreStr[64];
+    sprintf_s(scoreStr, sizeof(scoreStr), "FINAL SCORE: %d", score);
+    int scoreX = (1280 - UI::GetTextWidth(scoreStr, GLUT_BITMAP_TIMES_ROMAN_24)) / 2;
+    DrawOutlinedText(scoreX, 540, scoreStr, GLUT_BITMAP_TIMES_ROMAN_24, 255, 215, 0);
+
+    const char* routeStr = (m_l3Route == 2) ? "HARD" : "EASY";
+    char statsStr[128];
+    sprintf_s(statsStr, sizeof(statsStr), "TOTAL KILLS: %d    |    ROUTE: %s", stats.totalKills, routeStr);
+    int statsX = (1280 - UI::GetTextWidth(statsStr, GLUT_BITMAP_HELVETICA_18)) / 2;
+    DrawShadowText(statsX, 505, statsStr, GLUT_BITMAP_HELVETICA_18, 0, 230, 255);
+
+    DrawOutlinedText(missionX, 475, updatedMission, GLUT_BITMAP_HELVETICA_12, 0, 255, 180);
+
+    // 4. Option 1: Next Level / Main Menu
     if (currentLevel == 1) {
         RenderMenuButtonSlot(1, 485, 412, "1. NEXT LEVEL [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
     } else {
         RenderMenuButtonSlot(1, 515, 412, "1. MAIN MENU [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
     }
 
-    // 4. Option 2: Restart Level
+    // 5. Option 2: Restart Level
     RenderMenuButtonSlot(2, 530, 357, "2. RESTART LEVEL [R]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
 
-    // 5. Option 3: Exit Game
+    // 6. Option 3: Exit Game
     RenderMenuButtonSlot(3, 535, 302, "3. EXIT GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
 
-    // 6. Bottom Detail Slot: Instructions
+    // 7. Bottom Detail Slot: Instructions
     const char* vicFooter = "Press [ENTER], [R], [ESC] or Click Options to Select";
-    DrawShadowText(470, 148, vicFooter, GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
+    int footerX = (1280 - UI::GetTextWidth(vicFooter, GLUT_BITMAP_HELVETICA_12)) / 2;
+    DrawShadowText(footerX, 148, vicFooter, GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
 }
 
 void GameManager::RenderCursor() {
@@ -4455,6 +4518,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                 // Check Level 3 Escape Door interaction
                 double escapeTriggerX = (m_l3Route == 1) ? 8688.0 : 10136.0;
                 if (!itemInteracted && currentLevel == 3 && bossDefeated && std::abs(player.x - escapeTriggerX) < 150.0) {
+                    RecordGameCompletion();
                     currentState = STATE_VICTORY;
                     menuTransitionAlpha = 1.0;
                     leaderboard.AddScore("Arin", score);
@@ -4475,6 +4539,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                         ribbonCollected = true;
                     }
                     else {
+                        RecordLevelCompletion(1);
                         currentState = STATE_VICTORY;
                         menuTransitionAlpha = 1.0;
                         leaderboard.AddScore("Arin", score);
@@ -4489,8 +4554,14 @@ void GameManager::HandleKeyPress(unsigned char key) {
             if (!showInventory && currentLevel >= 2) player.AttackRanged();
         }
         else if (key == 'u' || key == 'U') { // Debug skip level key
-            if (currentLevel == 1) LoadLevel2();
-            else if (currentLevel == 2) LoadLevel3();
+            if (currentLevel == 1) {
+                RecordLevelCompletion(1);
+                LoadLevel2();
+            }
+            else if (currentLevel == 2) {
+                RecordLevelCompletion(2);
+                LoadLevel3();
+            }
         }
         else if (key == 'h' || key == 'H') {
             if (!showInventory) UseHealHotkey();
@@ -4779,11 +4850,7 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
             else if (currentState == STATE_GAMEOVER) {
                 // Slot 1: Restart Game
                 if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
-                    if (currentLevel == 2) {
-                        LoadLevel2();
-                    } else {
-                        LoadLevel1();
-                    }
+                    Initialize();
                     currentState = STATE_PLAYING;
                     menuTransitionAlpha = 1.0;
                 }
@@ -4885,6 +4952,345 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
 
 void GameManager::AddScore(int amount) {
     score += amount;
+}
+
+void GameManager::ResetScoreAndStats() {
+    score = 0;
+    stats.Reset();
+    bossScoreAwarded = false;
+    finalScoreSaved = false;
+    historyRecordSaved = false;
+    gameResultSaved = false;
+}
+
+void GameManager::RecordEnemyKill(EnemyType type) {
+    stats.totalKills++;
+    switch (type) {
+    case TYPE_SPITTER:
+        stats.walkerKills++;
+        AddScore(100);
+        break;
+    case TYPE_RUNNER:
+        stats.runnerKills++;
+        AddScore(150);
+        break;
+    case TYPE_RAIDER:
+        stats.raiderKills++;
+        AddScore(200);
+        break;
+    case TYPE_HEAVY:
+        stats.heavyKills++;
+        AddScore(250);
+        break;
+    case TYPE_HUNTER:
+        stats.hunterKills++;
+        AddScore(300);
+        break;
+    case TYPE_ABOMINATION:
+        stats.bruteKills++;
+        AddScore(1000);
+        break;
+    case TYPE_FOREST_ABOMINATION:
+        stats.abominationKills++;
+        AddScore(2000);
+        break;
+    default:
+        AddScore(100);
+        break;
+    }
+}
+
+void GameManager::RecordLevelCompletion(int level) {
+    if (level == 1 && !stats.level1Completed) {
+        stats.level1Completed = true;
+        AddScore(1500);
+    } else if (level == 2 && !stats.level2Completed) {
+        stats.level2Completed = true;
+        AddScore(2500);
+    } else if (level == 3 && !stats.level3Completed) {
+        stats.level3Completed = true;
+        AddScore(5000);
+    }
+}
+
+void GameManager::RecordGameCompletion() {
+    if (!stats.gameCompleted) {
+        stats.gameCompleted = true;
+        RecordLevelCompletion(3);
+        SaveScoreToFile();
+        AppendScoreHistory();
+        SaveGameResultToFile();
+    }
+}
+
+// Helper function for safe string-to-int conversion with range and non-digit validation
+static int SafeParseInt(const std::string& str, int defaultValue = 0, int minValue = 0, int maxValue = 100000000) {
+    if (str.empty()) return defaultValue;
+    size_t start = str.find_first_not_of(" \t\r\n");
+    if (start == std::string::npos) return defaultValue;
+
+    std::string cleanStr = str.substr(start);
+    size_t end = cleanStr.find_last_not_of(" \t\r\n");
+    if (end != std::string::npos) {
+        cleanStr = cleanStr.substr(0, end + 1);
+    }
+
+    if (cleanStr.empty()) return defaultValue;
+
+    size_t idx = 0;
+    if (cleanStr[0] == '+' || cleanStr[0] == '-') idx = 1;
+    if (idx >= cleanStr.length()) return defaultValue;
+
+    for (; idx < cleanStr.length(); ++idx) {
+        if (cleanStr[idx] < '0' || cleanStr[idx] > '9') {
+            return defaultValue;
+        }
+    }
+
+    long val = std::atol(cleanStr.c_str());
+    if (val < minValue) return minValue;
+    if (val > maxValue) return maxValue;
+    return (int)val;
+}
+
+void GameManager::SaveScoreToFile() {
+    if (finalScoreSaved) return;
+
+    if (score > savedHighScore) {
+        savedHighScore = score;
+    }
+    savedPreviousScore = score;
+
+    CreateDirectoryA("Save", NULL);
+
+    std::ofstream file("Save/score.txt");
+    if (!file.is_open()) {
+        file.clear();
+        file.open("score.txt");
+    }
+
+    if (!file.is_open()) {
+        printf("[WARNING] Failed to open score file for writing. Final score remains in memory: %d\n", score);
+        return;
+    }
+
+    try {
+        file << "Score: " << score << "\n";
+        file << "HighScore: " << savedHighScore << "\n";
+        file << "TotalKills: " << stats.totalKills << "\n";
+        file << "WalkerKills: " << stats.walkerKills << "\n";
+        file << "RunnerKills: " << stats.runnerKills << "\n";
+        file << "RaiderKills: " << stats.raiderKills << "\n";
+        file << "HeavyKills: " << stats.heavyKills << "\n";
+        file << "HunterKills: " << stats.hunterKills << "\n";
+        file << "BruteKills: " << stats.bruteKills << "\n";
+        file << "AbominationKills: " << stats.abominationKills << "\n";
+        file << "KaelKills: " << stats.kaelKills << "\n";
+        file << "Level1Completed: " << (stats.level1Completed ? 1 : 0) << "\n";
+        file << "Level2Completed: " << (stats.level2Completed ? 1 : 0) << "\n";
+        file << "Level3Completed: " << (stats.level3Completed ? 1 : 0) << "\n";
+        file << "GameCompleted: " << (stats.gameCompleted ? 1 : 0) << "\n";
+
+        if (file.fail()) {
+            printf("[WARNING] Write stream error occurred while writing score.txt.\n");
+        } else {
+            finalScoreSaved = true;
+            savedFileExists = true;
+            printf("[INFO] Final score saved successfully to Save/score.txt (Score: %d, High Score: %d)\n", score, savedHighScore);
+        }
+    } catch (...) {
+        printf("[WARNING] Exception during score.txt write. Gameplay continues normally.\n");
+    }
+
+    file.close();
+}
+
+void GameManager::AppendScoreHistory() {
+    if (historyRecordSaved) return;
+
+    CreateDirectoryA("Save", NULL);
+
+    std::ofstream file("Save/score_history.txt", std::ios::app);
+    if (!file.is_open()) {
+        file.clear();
+        file.open("score_history.txt", std::ios::app);
+    }
+
+    if (!file.is_open()) {
+        printf("[WARNING] Failed to open score_history.txt for appending. History entry skipped safely.\n");
+        return;
+    }
+
+    try {
+        const char* routeStr = "Easy";
+        if (m_l3Route == 2) routeStr = "Hard";
+        else if (m_l3Route == 1) routeStr = "Easy";
+        else routeStr = "Standard";
+
+        const char* completedStr = (stats.gameCompleted || stats.level3Completed) ? "Yes" : "No";
+
+        file << "Score: " << score << "\n";
+        file << "Kills: " << stats.totalKills << "\n";
+        file << "Route: " << routeStr << "\n";
+        file << "Completed: " << completedStr << "\n";
+        file << "---\n\n";
+
+        if (file.fail()) {
+            printf("[WARNING] Write stream error occurred while appending score_history.txt.\n");
+        } else {
+            historyRecordSaved = true;
+            printf("[INFO] Completed game score appended to Save/score_history.txt (Score: %d, Kills: %d, Route: %s, Completed: %s)\n",
+                   score, stats.totalKills, routeStr, completedStr);
+        }
+    } catch (...) {
+        printf("[WARNING] Exception during score_history.txt append. Gameplay continues normally.\n");
+    }
+
+    file.close();
+}
+
+void GameManager::SaveGameResultToFile() {
+    if (gameResultSaved) return;
+
+    CreateDirectoryA("Save", NULL);
+
+    std::ofstream file("Save/game_result.txt");
+    if (!file.is_open()) {
+        file.clear();
+        file.open("game_result.txt");
+    }
+
+    if (!file.is_open()) {
+        printf("[WARNING] Failed to open game_result.txt for writing. Result saved in memory.\n");
+        return;
+    }
+
+    try {
+        const char* routeStr = "Easy";
+        if (m_l3Route == 2) routeStr = "Hard";
+        else if (m_l3Route == 1) routeStr = "Easy";
+        else routeStr = "Standard";
+
+        file << "GameCompleted: " << (stats.gameCompleted ? "Yes" : "No") << "\n";
+        file << "FinalScore: " << score << "\n";
+        file << "TotalKills: " << stats.totalKills << "\n";
+        file << "Route: " << routeStr << "\n";
+        file << "Level1Completed: " << (stats.level1Completed ? "Yes" : "No") << "\n";
+        file << "Level2Completed: " << (stats.level2Completed ? "Yes" : "No") << "\n";
+        file << "Level3Completed: " << (stats.level3Completed ? "Yes" : "No") << "\n";
+
+        if (file.fail()) {
+            printf("[WARNING] Write stream error occurred while writing game_result.txt.\n");
+        } else {
+            gameResultSaved = true;
+            printf("[INFO] Game result saved successfully to Save/game_result.txt (Final Score: %d, Game Completed: %s)\n",
+                   score, (stats.gameCompleted ? "Yes" : "No"));
+        }
+    } catch (...) {
+        printf("[WARNING] Exception during game_result.txt write. Gameplay continues normally.\n");
+    }
+
+    file.close();
+}
+
+void GameManager::LoadScoreFromFile() {
+    savedPreviousScore = 0;
+    savedHighScore = 0;
+    savedStats.Reset();
+    savedFileExists = false;
+
+    std::ifstream file("Save/score.txt");
+    if (!file.is_open()) {
+        file.clear();
+        file.open("score.txt");
+    }
+
+    if (!file.is_open()) {
+        printf("[INFO] Save file missing. Auto-initializing default Save/score.txt file.\n");
+        SaveScoreToFile();
+        finalScoreSaved = false; // Keep flag ready for active game completion
+        return;
+    }
+
+    std::string line;
+    int linesRead = 0;
+    try {
+        while (std::getline(file, line)) {
+            if (line.empty()) continue;
+            linesRead++;
+
+            size_t colonPos = line.find(':');
+            if (colonPos == std::string::npos) continue;
+
+            std::string key = line.substr(0, colonPos);
+            std::string valStr = line.substr(colonPos + 1);
+
+            size_t kStart = key.find_first_not_of(" \t\r\n");
+            size_t kEnd = key.find_last_not_of(" \t\r\n");
+            if (kStart != std::string::npos && kEnd != std::string::npos) {
+                key = key.substr(kStart, kEnd - kStart + 1);
+            }
+
+            int val = SafeParseInt(valStr, 0, 0, 10000000);
+
+            if (key == "Score") {
+                savedPreviousScore = val;
+            } else if (key == "HighScore") {
+                savedHighScore = val;
+            } else if (key == "TotalKills") {
+                savedStats.totalKills = val;
+            } else if (key == "WalkerKills") {
+                savedStats.walkerKills = val;
+            } else if (key == "RunnerKills") {
+                savedStats.runnerKills = val;
+            } else if (key == "RaiderKills") {
+                savedStats.raiderKills = val;
+            } else if (key == "HeavyKills") {
+                savedStats.heavyKills = val;
+            } else if (key == "HunterKills") {
+                savedStats.hunterKills = val;
+            } else if (key == "BruteKills") {
+                savedStats.bruteKills = val;
+            } else if (key == "AbominationKills") {
+                savedStats.abominationKills = val;
+            } else if (key == "KaelKills") {
+                savedStats.kaelKills = val;
+            } else if (key == "Level1Completed") {
+                savedStats.level1Completed = (val == 1);
+            } else if (key == "Level2Completed") {
+                savedStats.level2Completed = (val == 1);
+            } else if (key == "Level3Completed") {
+                savedStats.level3Completed = (val == 1);
+            } else if (key == "GameCompleted") {
+                savedStats.gameCompleted = (val == 1);
+            }
+        }
+        file.close();
+
+        if (linesRead == 0) {
+            printf("[INFO] Save file is empty. Safe initial defaults maintained (0).\n");
+        } else {
+            savedFileExists = true;
+            if (savedHighScore < savedPreviousScore) {
+                savedHighScore = savedPreviousScore;
+            }
+            printf("[INFO] Save file loaded successfully (Saved Score: %d, High Score: %d)\n", savedPreviousScore, savedHighScore);
+        }
+    } catch (...) {
+        printf("[WARNING] Exception encountered during save loading. Safe fallback defaults initialized.\n");
+        savedPreviousScore = 0;
+        savedHighScore = 0;
+        savedStats.Reset();
+        savedFileExists = false;
+        if (file.is_open()) file.close();
+    }
+}
+
+bool GameManager::IsLevelCompleted(int level) const {
+    if (level == 1) return stats.level1Completed;
+    if (level == 2) return stats.level2Completed;
+    if (level == 3) return stats.level3Completed;
+    return false;
 }
 
 int GameManager::GetAreaFromPosition(double px) const {

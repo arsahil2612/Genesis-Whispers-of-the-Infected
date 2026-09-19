@@ -116,6 +116,7 @@ Enemy::Enemy(double sX, double eX, double startY, EnemyType t) {
   stateTimer = 0;
   rangedShotFired = false;
   lastHitAttackID = -1;
+  killRecorded = false;
   walkerHurtAudioCooldown = 0;
   runnerIdleTimer = 0;
   runnerHurtAudioCooldown = 0;
