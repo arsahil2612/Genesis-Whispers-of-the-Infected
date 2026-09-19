@@ -190,9 +190,14 @@ void Map::RenderMidground(double camX, bool bossDefeated) {
 void Map::RenderGroundSurface(double camX) {
     ResourceManager& rm = ResourceManager::GetInstance();
 
-    std::string groundTilePath = (currentLevelNumber == 2)
-        ? "Assets/Tiles/Ground/village_grass_tile.png"
-        : "Assets/Tiles/Ground/dirt_tile.png";
+    std::string groundTilePath;
+    if (currentLevelNumber == 3) {
+        groundTilePath = "Assets/Tiles/Ground/level3tile/level3tile.png";
+    } else if (currentLevelNumber == 2) {
+        groundTilePath = "Assets/Tiles/Ground/village_grass_tile.png";
+    } else {
+        groundTilePath = "Assets/Tiles/Ground/dirt_tile.png";
+    }
 
     unsigned int texGround = rm.GetTexture(groundTilePath);
     if (texGround == 0) {
@@ -200,12 +205,20 @@ void Map::RenderGroundSurface(double camX) {
         texGround = iLoadImage((char*)resolved.c_str());
     }
 
+    // Fallback check for root level3tile.png if subfolder path load returns 0
+    if (texGround == 0 && currentLevelNumber == 3) {
+        texGround = rm.GetTexture("Assets/Tiles/Ground/level3tile.png");
+        if (texGround == 0) {
+            texGround = iLoadImage((char*)GetAssetPath("Assets/Tiles/Ground/level3tile.png").c_str());
+        }
+    }
+
     if (texGround == 0) return;
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 
-    const int tileSize = 185; // Ground Y=0 to 185 matching top collision surface Y=185
+    const int tileSize = 185; // Ground Y=0 to 185 matching top collision surface Y=185 (Square aspect ratio)
 
     for (size_t pIdx = 0; pIdx < platforms.size(); ++pIdx) {
         const Platform& plat = platforms[pIdx];
@@ -219,7 +232,28 @@ void Map::RenderGroundSurface(double camX) {
                     if (wx + drawW > plat.x + plat.width) {
                         drawW = (int)(plat.x + plat.width - wx);
                     }
-                    iShowImage((int)screenX, 0, drawW, tileSize, texGround);
+
+                    // Level 3 Final Boss Arena Atmosphere Enhancement (Darker lighting & blue/purple reflections)
+                    if (currentLevelNumber == 3 && wx >= 6800.0) {
+                        glColor4f(0.70f, 0.60f, 0.90f, 1.0f); // Darker tone with purple/blue reflection accent
+                        iShowImage((int)screenX, 0, drawW, tileSize, texGround);
+                        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
+                        // Blue/purple wet reflective overlay for Dr. Kael Monster boss arena mood
+                        glDisable(GL_TEXTURE_2D);
+                        glBegin(GL_QUADS);
+                        glColor4f(0.08f, 0.04f, 0.25f, 0.18f);
+                        glVertex2f((float)screenX, 0.0f);
+                        glVertex2f((float)(screenX + drawW), 0.0f);
+                        glColor4f(0.18f, 0.08f, 0.40f, 0.28f);
+                        glVertex2f((float)(screenX + drawW), (float)tileSize);
+                        glVertex2f((float)screenX, (float)tileSize);
+                        glEnd();
+                        glEnable(GL_TEXTURE_2D);
+                    } else {
+                        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+                        iShowImage((int)screenX, 0, drawW, tileSize, texGround);
+                    }
                 }
             }
         }

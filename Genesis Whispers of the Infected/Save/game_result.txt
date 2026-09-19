@@ -1,6 +1,6 @@
 GameCompleted: No
-FinalScore: 0
-TotalKills: 0
+FinalScore: 12100
+TotalKills: 24
 Route: Standard
 Level1Completed: No
 Level2Completed: No

@@ -135,7 +135,33 @@ static unsigned int g_texItemNovagenKeycard = 0;
 static unsigned int g_texItemMissionNote = 0;
 static unsigned int g_texItemCoin = 0;
 static unsigned int g_texItemBattery = 0;
+enum GrenadeState {
+    GRENADE_INACTIVE,
+    GRENADE_AIRBORNE,
+    GRENADE_LANDED,
+    GRENADE_EXPLODING
+};
+
+struct GrenadeProjectile {
+    double x, y;
+    double vx, vy;
+    int width, height;
+    bool isFacingRight;
+    GrenadeState state;
+    double timer;
+    bool dealtDamage;
+
+    GrenadeProjectile() : x(0), y(0), vx(0), vy(0), width(24), height(24), isFacingRight(true), state(GRENADE_INACTIVE), timer(0), dealtDamage(false) {}
+};
+
+static GrenadeProjectile g_grenade;
+static unsigned int g_texGrenadeAir = 0;
+static unsigned int g_texGrenadeLanded = 0;
+static unsigned int g_texGrenadeExplode = 0;
+static unsigned int g_texItemGrenade = 0;
+
 static unsigned int g_texItemAmmo = 0;
+static unsigned int g_texItemSMG = 0;
 static unsigned int g_texBioFlame = 0;
 
 // Instant Floating Item Pickup Notification Data
@@ -451,7 +477,21 @@ void GameManager::UseInventorySlot(int slotIndex) {
     else if (id == "katana") {
         currentState = STATE_DIALOGUE;
         sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin's Katana");
-        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Tempered steel blade (50 Melee DMG).\nPress J during gameplay to perform melee katana slashes!\"");
+        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Tempered steel blade (50 Melee DMG).\nPress J or Left Click during gameplay to perform melee katana slashes!\"");
+    }
+    else if (id == "smg_weapon") {
+        if (player.hasSMG) {
+            player.SwitchWeapon(WEAPON_SMG);
+            showInventory = false;
+            UI::ShowNotification("WEAPON EQUIPPED", "SMG (SUBMACHINE GUN)", 1.5);
+        }
+    }
+    else if (id == "grenade_weapon") {
+        if (player.hasGrenade && player.grenadeCount > 0) {
+            player.SwitchWeapon(WEAPON_GRENADE);
+            showInventory = false;
+            UI::ShowNotification("WEAPON EQUIPPED", "GRENADE (TACTICAL)", 1.5);
+        }
     }
 
     if (item.count <= 0) {
@@ -548,6 +588,10 @@ void GameManager::AddInventoryItem(const std::string& itemId, int count) {
                 inventory[i] = InventoryItem("scrap_metal", "SCRAP METAL", "Crafting & upgrade material", count, "Assets/Items/KeyItems/Scrap_Metal.png");
             } else if (itemId == "mission_note") {
                 inventory[i] = InventoryItem("mission_note", "CLASSIFIED NOTE", "Intel on Project Genesis & Luna", count, "Assets/Items/Documents/Mission_note.png");
+            } else if (itemId == "smg_weapon") {
+                inventory[i] = InventoryItem("smg_weapon", "SMG", "Automatic Submachine Gun (28 DMG) [Select: 3]", count, "Assets/Characters/Arin/Weapon/SMG.png");
+            } else if (itemId == "grenade_weapon") {
+                inventory[i] = InventoryItem("grenade_weapon", "GRENADE", "Tactical Explosive (100 DMG) [Select: 5]", count, "Assets/Characters/Arin/Weapon/Grenade.png");
             } else {
                 inventory[i] = InventoryItem(itemId, "SURVIVAL ITEM", "Useful survival resource", count, "Assets/Items/KeyItems/Scrap_Metal.png");
             }
@@ -801,6 +845,10 @@ void GameManager::LoadLevel1() {
         if (g_texItemAmmo == 0) {
             g_texItemAmmo = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Pistol Attack/9mmAmmo.png");
         }
+        g_texItemSMG = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/SMG.png").c_str());
+        if (g_texItemSMG == 0) {
+            g_texItemSMG = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Weapon/SMG.png");
+        }
     }
 
     // Level 1 Enemies are populated dynamically in staged encounter waves via UpdatePlaying()
@@ -889,9 +937,20 @@ void GameManager::LoadLevel2NPCs() {
 }
 
 void GameManager::LoadLevel2() {
+    bool savedHasSMG = player.hasSMG;
+    int savedSmgMag = player.smgMag;
+    int savedSmgReserve = player.smgReserve;
+    WeaponType savedWeapon = player.currentWeapon;
+
     ResourceManager::GetInstance().ClearCache();
     currentLevel = 2;
     player.Initialize(200, 185); // Arin starting location in Blackwood Forest Entrance
+    if (savedHasSMG) {
+        player.hasSMG = savedHasSMG;
+        player.smgMag = savedSmgMag;
+        player.smgReserve = savedSmgReserve;
+        player.currentWeapon = savedWeapon;
+    }
     gameMap.LoadLevel(2);
 
     currentAreaIndex = L2_AREA_FOREST_ENTRANCE;
@@ -1030,6 +1089,9 @@ void GameManager::LoadLevel2() {
 
     collectibles.clear();
     collectibles.push_back(Collectible(450, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
+    collectibles.push_back(Collectible(600, kLevel1GroundY, 48, 48, COL_GRENADE_WEAPON, true, 0)); // Grenade Weapon Pickup (Near spawn)
+    collectibles.push_back(Collectible(750, kLevel1GroundY, 48, 48, COL_SMG_WEAPON, true, 0)); // SMG Weapon Pickup
+    collectibles.push_back(Collectible(1200, kLevel1GroundY, 48, 48, COL_GRENADE_WEAPON, true, 0)); // Secondary Grenade Pickup
     collectibles.push_back(Collectible(1300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
     collectibles.push_back(Collectible(2400, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));
     collectibles.push_back(Collectible(3600, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
@@ -1097,6 +1159,11 @@ void GameManager::LoadLevel3NPCs() {
 }
 
 void GameManager::LoadLevel3() {
+    bool savedHasSMG = player.hasSMG;
+    int savedSmgMag = player.smgMag;
+    int savedSmgReserve = player.smgReserve;
+    WeaponType savedWeapon = player.currentWeapon;
+
     ResourceManager::GetInstance().ClearCache();
     currentLevel = 3;
     m_l3Route = 0; // Common BG
@@ -1108,6 +1175,12 @@ void GameManager::LoadLevel3() {
     m_l3NpcWaveCount = 0;
 
     player.Initialize(200, 185);
+    if (savedHasSMG) {
+        player.hasSMG = savedHasSMG;
+        player.smgMag = savedSmgMag;
+        player.smgReserve = savedSmgReserve;
+        player.currentWeapon = savedWeapon;
+    }
     gameMap.SetL3Route(0);
     gameMap.LoadLevel(3);
 
@@ -2256,6 +2329,23 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                     sprintf_s(g_pickupText, sizeof(g_pickupText), "+1 SCRAP METAL");
                     g_pickupR = 200; g_pickupG = 210; g_pickupB = 220;
                     break;
+                case COL_SMG_WEAPON:
+                    player.hasSMG = true;
+                    player.SwitchWeapon(WEAPON_SMG);
+                    AddInventoryItem("smg_weapon", 1);
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "SMG ACQUIRED");
+                    g_pickupR = 0; g_pickupG = 255; g_pickupB = 200;
+                    UI::ShowNotification("WEAPON UNLOCKED", "SMG (SUBMACHINE GUN) ACQUIRED [KEY 3]", 3.0);
+                    break;
+                case COL_GRENADE_WEAPON:
+                    player.hasGrenade = true;
+                    player.grenadeCount += 3;
+                    player.SwitchWeapon(WEAPON_GRENADE);
+                    AddInventoryItem("grenade_weapon", player.grenadeCount);
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "GRENADE ACQUIRED");
+                    g_pickupR = 255; g_pickupG = 150; g_pickupB = 0;
+                    UI::ShowNotification("WEAPON UNLOCKED", "GRENADE (TACTICAL) ACQUIRED [KEY 5]", 3.0);
+                    break;
                 case COL_AMMO:
                     player.ammo += 15;
                     sprintf_s(g_pickupText, sizeof(g_pickupText), "+15 PISTOL AMMO");
@@ -2758,6 +2848,88 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                 g_playerProjectiles[p].active = true;
                 break;
             }
+        }
+    }
+    else if (player.state == STATE_ATTACK_SMG && !player.hasDealtDamageThisAttack) {
+        player.hasDealtDamageThisAttack = true;
+        for (int p = 0; p < 10; ++p) {
+            if (!g_playerProjectiles[p].active) {
+                g_playerProjectiles[p].isFacingRight = player.isFacingRight;
+                g_playerProjectiles[p].x = player.isFacingRight ? (player.x + player.width - 15.0) : (player.x - 15.0);
+                g_playerProjectiles[p].y = player.y + 68.0;
+                g_playerProjectiles[p].vx = player.isFacingRight ? 28.0 : -28.0; // Rapid SMG bullet
+                g_playerProjectiles[p].width = 24.0;
+                g_playerProjectiles[p].height = 12.0;
+                g_playerProjectiles[p].damage = kSmgDamage; // 28 DMG
+                g_playerProjectiles[p].active = true;
+                break;
+            }
+        }
+    }
+
+    // Spawn Thrown Grenade Projectile
+    if (player.state == STATE_ATTACK_GRENADE && player.animGrenadeThrow.GetCurrentFrame() >= 0 && !player.grenadeSpawnedThisThrow) {
+        player.grenadeSpawnedThisThrow = true;
+        if (player.grenadeCount > 0) {
+            player.grenadeCount--;
+        }
+        g_grenade.isFacingRight = player.isFacingRight;
+        g_grenade.x = player.isFacingRight ? (player.x + player.width + 10.0) : (player.x - 20.0);
+        g_grenade.y = player.y + 65.0;
+        g_grenade.vx = player.isFacingRight ? 350.0 : -350.0;
+        g_grenade.vy = 300.0; // Upward launch arc
+        g_grenade.state = GRENADE_AIRBORNE;
+        g_grenade.timer = 0.0;
+        g_grenade.dealtDamage = false;
+    }
+
+    // Update Thrown Grenade Physics & Explosion Logic
+    if (g_grenade.state == GRENADE_AIRBORNE) {
+        g_grenade.x += g_grenade.vx * dt;
+        g_grenade.vy -= 1100.0 * dt; // Gravity
+        g_grenade.y += g_grenade.vy * dt;
+
+        double groundY = kLevel1GroundY + 8.0;
+        if (g_grenade.y <= groundY) {
+            g_grenade.y = groundY;
+            g_grenade.vx = 0.0;
+            g_grenade.vy = 0.0;
+            g_grenade.state = GRENADE_LANDED;
+            g_grenade.timer = 1.5; // 1.5 second fuse delay
+        }
+    }
+    else if (g_grenade.state == GRENADE_LANDED) {
+        g_grenade.timer -= dt;
+        if (g_grenade.timer <= 0.0) {
+            g_grenade.state = GRENADE_EXPLODING;
+            g_grenade.timer = 0.45; // Explosion animation duration
+            g_grenade.dealtDamage = false;
+        }
+    }
+    else if (g_grenade.state == GRENADE_EXPLODING) {
+        g_grenade.timer -= dt;
+        if (!g_grenade.dealtDamage) {
+            g_grenade.dealtDamage = true;
+            double expCenterX = g_grenade.x;
+            double expCenterY = g_grenade.y;
+            double explosionRadius = 150.0;
+            int explosionDamage = 100;
+
+            for (size_t i = 0; i < enemies.size(); ++i) {
+                if (enemies[i].hp > 0 && enemies[i].state != ENEMY_DEAD) {
+                    double enCenterX = enemies[i].x + enemies[i].width / 2.0;
+                    double enCenterY = enemies[i].y + enemies[i].height / 2.0;
+                    double dx = enCenterX - expCenterX;
+                    double dy = enCenterY - expCenterY;
+                    double dist = std::sqrt(dx * dx + dy * dy);
+                    if (dist <= explosionRadius) {
+                        enemies[i].TakeDamage(explosionDamage);
+                    }
+                }
+            }
+        }
+        if (g_grenade.timer <= 0.0) {
+            g_grenade.state = GRENADE_INACTIVE;
         }
     }
 
@@ -3479,6 +3651,30 @@ void GameManager::RenderPlaying() {
                     lR = 0; lG = 230; lB = 255;
                     itemDrawW = 44; itemDrawH = 44;
                     break;
+                case COL_SMG_WEAPON:
+                    if (g_texItemSMG == 0) {
+                        g_texItemSMG = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/SMG.png").c_str());
+                        if (g_texItemSMG == 0) {
+                            g_texItemSMG = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Weapon/SMG.png");
+                        }
+                    }
+                    itemTex = g_texItemSMG;
+                    itemLabel = "SMG WEAPON";
+                    lR = 0; lG = 255; lB = 200;
+                    itemDrawW = 54; itemDrawH = 36;
+                    break;
+                case COL_GRENADE_WEAPON:
+                    if (g_texItemGrenade == 0) {
+                        g_texItemGrenade = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/Grenade.png").c_str());
+                        if (g_texItemGrenade == 0) {
+                            g_texItemGrenade = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Weapon/Grenade.png");
+                        }
+                    }
+                    itemTex = g_texItemGrenade;
+                    itemLabel = "GRENADE";
+                    lR = 255; lG = 150; lB = 0;
+                    itemDrawW = 44; itemDrawH = 44;
+                    break;
                 default:
                     break;
                 }
@@ -3617,6 +3813,51 @@ void GameManager::RenderPlaying() {
             } else {
                 iSetColor(255, 200, 50);
                 iFilledRectangle(drawX, drawY, g_playerProjectiles[p].width, g_playerProjectiles[p].height);
+            }
+        }
+    }
+
+    // Render Thrown Grenade Projectile & Explosion Visual Effects
+    if (g_grenade.state != GRENADE_INACTIVE) {
+        double drawX = g_grenade.x - camX;
+        double drawY = g_grenade.y - camY;
+
+        if (g_texGrenadeAir == 0) {
+            g_texGrenadeAir = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Grenade Attack/Grenade Explode/grenade_in_air_3.png").c_str());
+            if (g_texGrenadeAir == 0) g_texGrenadeAir = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Grenade Attack/Grenade Explode/grenade_in_air_3.png");
+            g_texGrenadeLanded = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Grenade Attack/Grenade Explode/grenade_lands_1.png").c_str());
+            if (g_texGrenadeLanded == 0) g_texGrenadeLanded = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Grenade Attack/Grenade Explode/grenade_lands_1.png");
+            g_texGrenadeExplode = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Grenade Attack/Grenade Explode/grenade_explosion_4.png").c_str());
+            if (g_texGrenadeExplode == 0) g_texGrenadeExplode = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Grenade Attack/Grenade Explode/grenade_explosion_4.png");
+        }
+
+        if (g_grenade.state == GRENADE_AIRBORNE) {
+            if (g_texGrenadeAir != 0) {
+                iShowImage((int)drawX, (int)drawY, 28, 28, g_texGrenadeAir);
+            } else {
+                iSetColor(255, 140, 0);
+                iFilledCircle(drawX + 14, drawY + 14, 12);
+            }
+        }
+        else if (g_grenade.state == GRENADE_LANDED) {
+            if (g_texGrenadeLanded != 0) {
+                iShowImage((int)drawX, (int)drawY, 28, 28, g_texGrenadeLanded);
+            } else {
+                iSetColor(255, 100, 0);
+                iFilledCircle(drawX + 14, drawY + 14, 12);
+            }
+        }
+        else if (g_grenade.state == GRENADE_EXPLODING) {
+            int expW = 200, expH = 200;
+            int expX = (int)(drawX - expW / 2 + 14);
+            int expY = (int)(drawY - expH / 2 + 14);
+            if (g_texGrenadeExplode != 0) {
+                iShowImage(expX, expY, expW, expH, g_texGrenadeExplode);
+            } else {
+                iSetColor(255, 200, 0);
+                iFilledCircle(drawX + 14, drawY + 14, 90);
+                iSetColor(255, 60, 0);
+                iFilledCircle(drawX + 14, drawY + 14, 60);
             }
         }
     }
@@ -4453,6 +4694,25 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             g_pickupR = 0; g_pickupG = 220; g_pickupB = 255;
                             g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
                             break;
+                        case COL_SMG_WEAPON:
+                            player.hasSMG = true;
+                            player.SwitchWeapon(WEAPON_SMG);
+                            AddInventoryItem("smg_weapon", 1);
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "SMG ACQUIRED");
+                            g_pickupR = 0; g_pickupG = 255; g_pickupB = 200;
+                            g_pickupTimer = 2.5; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
+                            UI::ShowNotification("WEAPON UNLOCKED", "SMG (SUBMACHINE GUN) ACQUIRED [KEY 3]", 3.0);
+                            break;
+                        case COL_GRENADE_WEAPON:
+                            player.hasGrenade = true;
+                            player.grenadeCount += 3;
+                            player.SwitchWeapon(WEAPON_GRENADE);
+                            AddInventoryItem("grenade_weapon", player.grenadeCount);
+                            sprintf_s(g_pickupText, sizeof(g_pickupText), "GRENADE ACQUIRED");
+                            g_pickupR = 255; g_pickupG = 150; g_pickupB = 0;
+                            g_pickupTimer = 2.5; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
+                            UI::ShowNotification("WEAPON UNLOCKED", "GRENADE (TACTICAL) ACQUIRED [KEY 5]", 3.0);
+                            break;
                         case COL_AMMO:
                             player.ammo += 15;
                             sprintf_s(g_pickupText, sizeof(g_pickupText), "+15 PISTOL AMMO");
@@ -4547,11 +4807,58 @@ void GameManager::HandleKeyPress(unsigned char key) {
                 }
             }
         }
+        else if (key == '1') {
+            if (!showInventory) {
+                player.SwitchWeapon(WEAPON_KATANA);
+                UI::ShowNotification("WEAPON EQUIPPED", "KATANA (MELEE)", 1.5);
+            }
+        }
+        else if (key == '2') {
+            if (!showInventory) {
+                player.SwitchWeapon(WEAPON_PISTOL);
+                UI::ShowNotification("WEAPON EQUIPPED", "PISTOL (9MM)", 1.5);
+            }
+        }
+        else if (key == '3') {
+            if (!showInventory) {
+                if (player.hasSMG) {
+                    player.SwitchWeapon(WEAPON_SMG);
+                    UI::ShowNotification("WEAPON EQUIPPED", "SMG (SUBMACHINE GUN)", 1.5);
+                } else {
+                    UI::ShowNotification("WEAPON LOCKED", "SMG NOT UNLOCKED YET", 1.5);
+                }
+            }
+        }
+        else if (key == '4') {
+            if (!showInventory) {
+                if (player.hasGrenade && player.grenadeCount > 0) {
+                    player.SwitchWeapon(WEAPON_GRENADE);
+                    UI::ShowNotification("WEAPON EQUIPPED", "GRENADE (TACTICAL)", 1.5);
+                } else if (!player.hasGrenade) {
+                    UI::ShowNotification("WEAPON LOCKED", "GRENADE NOT UNLOCKED YET", 1.5);
+                } else {
+                    UI::ShowNotification("NO GRENADES", "OUT OF GRENADES", 1.5);
+                }
+            }
+        }
+        else if (key == 'r' || key == 'R') {
+            if (!showInventory) player.ReloadWeapon();
+        }
         else if (key == 'j' || key == 'J') {
-            if (!showInventory) player.AttackMelee();
+            if (!showInventory) {
+                if (player.currentWeapon == WEAPON_SMG) player.AttackSMG();
+                else if (player.currentWeapon == WEAPON_GRENADE) player.AttackGrenade();
+                else if (player.currentWeapon == WEAPON_PISTOL) player.AttackRanged();
+                else player.AttackMelee();
+            }
         }
         else if (key == 'k' || key == 'K') {
-            if (!showInventory && currentLevel >= 2) player.AttackRanged();
+            if (!showInventory) {
+                if (player.currentWeapon == WEAPON_SMG) player.AttackSMG();
+                else if (player.currentWeapon == WEAPON_GRENADE) player.AttackGrenade();
+                else if (player.currentWeapon == WEAPON_PISTOL) player.AttackRanged();
+                else player.AttackMelee();
+            }
         }
         else if (key == 'u' || key == 'U') { // Debug skip level key
             if (currentLevel == 1) {
@@ -4942,7 +5249,15 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                             return;
                         }
                     } else {
-                        player.AttackMelee();
+                        if (player.currentWeapon == WEAPON_SMG) {
+                            player.AttackSMG();
+                        } else if (player.currentWeapon == WEAPON_GRENADE) {
+                            player.AttackGrenade();
+                        } else if (player.currentWeapon == WEAPON_PISTOL) {
+                            player.AttackRanged();
+                        } else {
+                            player.AttackMelee();
+                        }
                     }
                 }
             }

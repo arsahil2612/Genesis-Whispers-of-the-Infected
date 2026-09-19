@@ -73,7 +73,9 @@ enum CollectibleType {
     COL_KEYCARD,
     COL_SCRAP,
     COL_RUSTY_KEY,
-    COL_COIN
+    COL_COIN,
+    COL_SMG_WEAPON,
+    COL_GRENADE_WEAPON
 };
 
 struct Collectible {

@@ -35,6 +35,8 @@ unsigned int UI::texIconBattery = 0;
 unsigned int UI::texIconWaterBottle = 0;
 unsigned int UI::texIconScrap = 0;
 unsigned int UI::texIconKatana = 0;
+unsigned int UI::texIconSMG = 0;
+unsigned int UI::texIconGrenade = 0;
 
 NotificationData UI::currentNotification = { "", "", 0.0, 3.5, false };
 
@@ -386,8 +388,8 @@ void UI::DrawPauseMenu(int mouseX, int mouseY, bool isMouseDown, double animTime
 
         DrawShadowText(430, 430, "A / D or LEFT / RIGHT  - Move Character", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
         DrawShadowText(430, 390, "W / SPACE / UP         - Jump", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
-        DrawShadowText(430, 350, "J / LEFT CLICK         - Katana Slash", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
-        DrawShadowText(430, 310, "K / RIGHT CLICK        - Ranged Attack", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(430, 350, "J / LEFT CLICK         - Attack / Fire / Throw", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
+        DrawShadowText(430, 310, "1 / 2 / 3 / 4          - Katana / Pistol / SMG / Grenade", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
         DrawShadowText(430, 270, "E                      - Interact / Pick Up", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
         DrawShadowText(430, 230, "H                      - Use First Aid Kit", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
         DrawShadowText(430, 190, "TAB / I                - Open Inventory", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
@@ -578,6 +580,21 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
 
     // 6. Sleek Cinematic Area & Village Title Banner
     DrawAreaBanner(areaName, areaBannerAlpha);
+
+    // 7. Draw Active Weapon Display (Bottom Right)
+    if (player.currentWeapon == WEAPON_GRENADE) {
+        DrawWeaponDisplay("GRENADE", player.grenadeCount, 0, true);
+    } else if (player.currentWeapon == WEAPON_SMG) {
+        DrawWeaponDisplay("SMG", player.smgMag, player.smgReserve, true);
+    } else if (player.currentWeapon == WEAPON_PISTOL) {
+        DrawWeaponDisplay("PISTOL", player.ammo, 48, true);
+    } else {
+        DrawWeaponDisplay("KATANA", 0, 0, false);
+    }
+
+    // On-screen Control Hint Bar above weapon panel
+    DrawAlphaShadowText(1030, 85, "1:Katana  2:Pistol  3:SMG  4:Grenade", GLUT_BITMAP_HELVETICA_10, 200, 210, 220, alpha, 1);
+    DrawAlphaShadowText(1030, 72, "Left Mouse / J = Attack / Throw", GLUT_BITMAP_HELVETICA_10, 255, 180, 50, alpha, 1);
 }
 
 void UI::DrawAreaBanner(const char* areaName, double alpha, const char* chapterName) {
@@ -1110,7 +1127,7 @@ void UI::DrawInventoryIndicator(const Player& player, bool hasKeycard, bool ribb
 // ----------------------------------------------------------------------------
 // 5. WEAPON DISPLAY UPGRADE
 // ----------------------------------------------------------------------------
-void UI::DrawWeaponDisplay(const char* weaponName, int ammo, bool usesAmmo) {
+void UI::DrawWeaponDisplay(const char* weaponName, int ammo, int reserveAmmo, bool usesAmmo) {
     // Positioned in Bottom-Right Position
     int boxX = 1040;
     int boxY = 20;
@@ -1126,7 +1143,7 @@ void UI::DrawWeaponDisplay(const char* weaponName, int ammo, bool usesAmmo) {
     int wellW = 64;
     int wellH = 55;
 
-    // Recessed dark well for equipped Katana
+    // Recessed dark well
     iSetColor(8, 10, 14);
     iFilledRectangle(wellX, wellY, wellW, wellH);
     iSetColor(40, 48, 56);
@@ -1134,47 +1151,79 @@ void UI::DrawWeaponDisplay(const char* weaponName, int ammo, bool usesAmmo) {
     iSetColor(90, 50, 25); // Subtle rust-brown inner border accent
     iRectangle(wellX + 1, wellY + 1, wellW - 2, wellH - 2);
 
-    // Load & Render Katana Icon Centered in Well
-    if (texIconKatana == 0) {
-        texIconKatana = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/katana.png").c_str());
-        if (texIconKatana == 0) {
-            texIconKatana = ResourceManager::GetInstance().GetTexture("Assets/Items/KeyItems/katana.png");
+    std::string nameStr = weaponName ? weaponName : "KATANA";
+    if (nameStr == "GRENADE") {
+        if (texIconGrenade == 0) {
+            texIconGrenade = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/Grenade.png").c_str());
+            if (texIconGrenade == 0) {
+                texIconGrenade = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Weapon/Grenade.png");
+            }
         }
-    }
-
-    if (texIconKatana != 0) {
-        // Katana resolution 1536x1024 (aspect ratio 1.5).
-        // Center Katana image inside 64x55 well: 54px width x 36px height
-        int imgW = 54;
-        int imgH = 36;
-        int imgX = wellX + (wellW - imgW) / 2;
-        int imgY = wellY + (wellH - imgH) / 2;
-        iShowImage(imgX, imgY, imgW, imgH, texIconKatana);
+        if (texIconGrenade != 0) {
+            int imgW = 44;
+            int imgH = 44;
+            int imgX = wellX + (wellW - imgW) / 2;
+            int imgY = wellY + (wellH - imgH) / 2;
+            iShowImage(imgX, imgY, imgW, imgH, texIconGrenade);
+        } else {
+            DrawOutlinedText(wellX + 6, wellY + 18, "GREN", GLUT_BITMAP_HELVETICA_18, 255, 150, 0);
+        }
+    } else if (nameStr == "SMG") {
+        if (texIconSMG == 0) {
+            texIconSMG = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/SMG.png").c_str());
+            if (texIconSMG == 0) {
+                texIconSMG = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Weapon/SMG.png");
+            }
+        }
+        if (texIconSMG != 0) {
+            int imgW = 54;
+            int imgH = 36;
+            int imgX = wellX + (wellW - imgW) / 2;
+            int imgY = wellY + (wellH - imgH) / 2;
+            iShowImage(imgX, imgY, imgW, imgH, texIconSMG);
+        } else {
+            DrawOutlinedText(wellX + 10, wellY + 18, "SMG", GLUT_BITMAP_HELVETICA_18, 255, 215, 0);
+        }
     } else {
-        // Sleek Katana Blade Vector Icon Fallback
-        int iconX = wellX + 18;
-        int iconY = wellY + 14;
-        iSetColor(220, 230, 245); // Silver Katana Blade
-        iLine(iconX + 2, iconY + 4, iconX + 26, iconY + 28);
-        iLine(iconX + 3, iconY + 3, iconX + 27, iconY + 27);
-        iSetColor(215, 110, 40); // Muted Orange/Gold Guard
-        iFilledCircle(iconX + 9, iconY + 11, 4);
-        iSetColor(140, 40, 30); // Dark Red Handle Wrap
-        iLine(iconX + 2, iconY + 4, iconX + 9, iconY + 11);
+        // Load & Render Katana Icon Centered in Well
+        if (texIconKatana == 0) {
+            texIconKatana = iLoadImage((char*)GetAssetPath("Assets/Items/KeyItems/katana.png").c_str());
+            if (texIconKatana == 0) {
+                texIconKatana = ResourceManager::GetInstance().GetTexture("Assets/Items/KeyItems/katana.png");
+            }
+        }
+
+        if (texIconKatana != 0) {
+            int imgW = 54;
+            int imgH = 36;
+            int imgX = wellX + (wellW - imgW) / 2;
+            int imgY = wellY + (wellH - imgH) / 2;
+            iShowImage(imgX, imgY, imgW, imgH, texIconKatana);
+        } else {
+            // Sleek Katana Blade Vector Icon Fallback
+            int iconX = wellX + 18;
+            int iconY = wellY + 14;
+            iSetColor(220, 230, 245); // Silver Katana Blade
+            iLine(iconX + 2, iconY + 4, iconX + 26, iconY + 28);
+            iLine(iconX + 3, iconY + 3, iconX + 27, iconY + 27);
+            iSetColor(215, 110, 40); // Muted Orange/Gold Guard
+            iFilledCircle(iconX + 9, iconY + 11, 4);
+            iSetColor(140, 40, 30); // Dark Red Handle Wrap
+            iLine(iconX + 2, iconY + 4, iconX + 9, iconY + 11);
+        }
     }
 
     // 3. Text Presentation (Military / Survivor Equipment Style)
     int textX = boxX + 84;
 
-    // Weapon Name: KATANA (Off-white / Steel Ivory)
-    DrawOutlinedText(textX, boxY + boxH - 24, weaponName ? weaponName : "KATANA", GLUT_BITMAP_HELVETICA_18, 235, 230, 220);
+    // Weapon Name: KATANA / PISTOL / SMG / GRENADE
+    DrawOutlinedText(textX, boxY + boxH - 24, nameStr.c_str(), GLUT_BITMAP_HELVETICA_18, 235, 230, 220);
 
-    // Sub-text: MELEE WEAPON [J] or AMMO counter (Muted survival orange / rust accent)
+    // Sub-text: MELEE WEAPON [1] or AMMO counter
     if (usesAmmo) {
-        DrawAmmoCounter(ammo, 48);
+        DrawAmmoCounter(ammo, reserveAmmo);
     } else {
-        // Muted Survival Amber/Orange indicator instead of bright cyan
-        DrawShadowText(textX, boxY + 16, "MELEE WEAPON [J]", GLUT_BITMAP_HELVETICA_10, 215, 120, 45);
+        DrawShadowText(textX, boxY + 16, "MELEE WEAPON [1]", GLUT_BITMAP_HELVETICA_10, 215, 120, 45);
     }
 }
 
@@ -1183,7 +1232,11 @@ void UI::DrawAmmoCounter(int ammo, int reserveAmmo) {
     int boxY = 20;
 
     char ammoStr[32];
-    sprintf_s(ammoStr, sizeof(ammoStr), "AMMO %d / %d", ammo, reserveAmmo);
+    if (reserveAmmo == 0) {
+        sprintf_s(ammoStr, sizeof(ammoStr), "%d", ammo);
+    } else {
+        sprintf_s(ammoStr, sizeof(ammoStr), "%d / %d", ammo, reserveAmmo);
+    }
     DrawShadowText(boxX + 84, boxY + 16, ammoStr, GLUT_BITMAP_HELVETICA_12, 215, 120, 45);
 }
 

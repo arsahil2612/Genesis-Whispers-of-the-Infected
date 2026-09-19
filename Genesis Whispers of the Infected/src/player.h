@@ -5,6 +5,20 @@
 #include <chrono>
 #include "animation.h"
 
+// SMG Configurable Weapon Parameters
+const int kSmgDamage = 28;
+const double kSmgFireInterval = 0.12; // Cooldown interval in seconds (0.10 - 0.15s)
+const int kSmgMaxMag = 30;
+const int kSmgMaxReserve = 120;
+
+// Weapon Selection Taxonomy
+enum WeaponType {
+    WEAPON_KATANA = 1,
+    WEAPON_PISTOL = 2,
+    WEAPON_SMG = 3,
+    WEAPON_GRENADE = 4
+};
+
 // ============================================================================
 // Player Character Animation & Physics States
 // ============================================================================
@@ -15,6 +29,9 @@ enum PlayerState {
     STATE_JUMP,
     STATE_ATTACK_MELEE,
     STATE_ATTACK_PISTOL,
+    STATE_ATTACK_SMG,
+    STATE_RELOAD_SMG,
+    STATE_ATTACK_GRENADE,
     STATE_HURT,
     STATE_DEAD
 };
@@ -46,6 +63,17 @@ public:
     double staminaRegenDelayTimer;
     bool isExhausted;
 
+    // Weapon & SMG & Grenade System Attributes
+    WeaponType currentWeapon;
+    bool hasSMG;
+    int smgMag;
+    int smgReserve;
+    double smgFireCooldownTimer;
+    double reloadTimer;
+    bool hasGrenade;
+    int grenadeCount;
+    bool grenadeSpawnedThisThrow;
+
     // Grounding & Orientation Flags
     bool isGrounded;
     bool wasJumpPressed;
@@ -73,6 +101,9 @@ public:
     Animation animJump;
     Animation animAttack;
     Animation animPistol;
+    Animation animSMG;
+    Animation animSMGReload;
+    Animation animGrenadeThrow;
     Animation animHurt;
     Animation animDeath;
 
@@ -86,6 +117,10 @@ public:
     void TakeDamage(int damage);
     void AttackMelee();
     void AttackRanged();
+    void AttackSMG();
+    void AttackGrenade();
+    void ReloadWeapon();
+    void SwitchWeapon(WeaponType type);
     void UseHeal();
     void UseFood();
     void UseWaterBottle();

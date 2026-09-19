@@ -40,6 +40,15 @@ Player::Player() {
     displayedStamina = 100.0;
     staminaRegenDelayTimer = 0.0;
     isExhausted = false;
+    currentWeapon = WEAPON_KATANA;
+    hasSMG = false;
+    smgMag = kSmgMaxMag;
+    smgReserve = kSmgMaxReserve;
+    smgFireCooldownTimer = 0.0;
+    reloadTimer = 0.0;
+    hasGrenade = false;
+    grenadeCount = 0;
+    grenadeSpawnedThisThrow = false;
     isGrounded = true;
     wasJumpPressed = false;
     isFacingRight = true;
@@ -54,6 +63,8 @@ Player::Player() {
     currentAnimationFrame = 0;
     footstepTimer = 0.0;
 }
+
+static unsigned int g_texSMGEffect = 0;
 
 // ============================================================================
 // Initialization & Asset Preloading
@@ -76,6 +87,15 @@ void Player::Initialize(double startX, double startY) {
     displayedStamina = (double)stamina;
     staminaRegenDelayTimer = 0.0;
     isExhausted = false;
+    currentWeapon = WEAPON_KATANA;
+    hasSMG = false;
+    smgMag = kSmgMaxMag;
+    smgReserve = kSmgMaxReserve;
+    smgFireCooldownTimer = 0.0;
+    reloadTimer = 0.0;
+    hasGrenade = false;
+    grenadeCount = 0;
+    grenadeSpawnedThisThrow = false;
     isGrounded = true;
     wasJumpPressed = false;
     wasAttackPressed = false;
@@ -91,19 +111,35 @@ void Player::Initialize(double startX, double startY) {
     footstepTimer = 0.0;
 
     // Load Arin full multi-frame animation sequences from asset directory statically once
-    static std::vector<unsigned int> seqIdle, seqWalk, seqRun, seqJump, seqAttack, seqPistol, seqHurt, seqDeath;
+    static std::vector<unsigned int> seqIdle, seqWalk, seqRun, seqJump, seqAttack, seqPistol, seqSMG, seqSMGReload, seqGrenadeThrow, seqHurt, seqDeath;
 
-    if (seqIdle.empty()) {
+    bool needsLoading = seqIdle.empty() || (seqIdle.size() > 0 && seqIdle[0] == 0);
+
+    if (needsLoading) {
+        seqIdle.clear();
+        seqWalk.clear();
+        seqRun.clear();
+        seqJump.clear();
+        seqAttack.clear();
+        seqPistol.clear();
+        seqSMG.clear();
+        seqSMGReload.clear();
+        seqGrenadeThrow.clear();
+        seqHurt.clear();
+        seqDeath.clear();
+
         for (int i = 1; i <= 6; ++i) {
             char path[256];
             sprintf_s(path, sizeof(path), "Assets/Characters/Arin/Idle/arin_idle_sprite_%02d.png", i);
-            seqIdle.push_back(iLoadImage((char*)GetAssetPath(path).c_str()));
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) seqIdle.push_back(tex);
         }
 
         for (int i = 1; i <= 7; ++i) {
             char path[256];
             sprintf_s(path, sizeof(path), "Assets/Characters/Arin/Walk/arin_walk_sprite_%02d.png", i);
-            seqWalk.push_back(iLoadImage((char*)GetAssetPath(path).c_str()));
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) seqWalk.push_back(tex);
         }
 
         for (int i = 1; i <= 8; ++i) {
@@ -217,13 +253,55 @@ void Player::Initialize(double startX, double startY) {
             }
         }
         if (seqPistol.empty()) {
-            seqPistol = seqIdle; // Safety fallback
+            seqPistol = seqAttack; // Safety fallback
+        }
+
+        for (int i = 1; i <= 4; ++i) {
+            char path[256];
+            sprintf_s(path, sizeof(path), "Assets/Characters/Arin/SMG Attack/Smg_fire/smg_attack_%d.png", i);
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) {
+                seqSMG.push_back(tex);
+            }
+        }
+        if (seqSMG.empty()) {
+            seqSMG = seqPistol;
+        }
+
+        for (int i = 1; i <= 3; ++i) {
+            char path[256];
+            sprintf_s(path, sizeof(path), "Assets/Characters/Arin/SMG Attack/Smg_reload/Reload_%d.png", i);
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) {
+                seqSMGReload.push_back(tex);
+            }
+        }
+        if (seqSMGReload.empty()) {
+            seqSMGReload = seqSMG;
+        }
+
+        for (int i = 1; i <= 4; ++i) {
+            char path[256];
+            sprintf_s(path, sizeof(path), "Assets/Characters/Arin/Grenade Attack/Grenade Throw/grenade_attack_%d.png", i);
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) {
+                seqGrenadeThrow.push_back(tex);
+            }
+        }
+        if (seqGrenadeThrow.empty()) {
+            seqGrenadeThrow = seqAttack;
         }
 
         for (int i = 1; i <= 4; ++i) {
             char path[256];
             sprintf_s(path, sizeof(path), "Assets/Characters/Arin/Hurt/arin_hurt_sprite_%02d.png", i);
-            seqHurt.push_back(iLoadImage((char*)GetAssetPath(path).c_str()));
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) {
+                seqHurt.push_back(tex);
+            }
+        }
+        if (seqHurt.empty()) {
+            seqHurt = seqIdle;
         }
 
         for (int i = 1; i <= 7; ++i) {
@@ -259,6 +337,8 @@ void Player::Initialize(double startX, double startY) {
                 seqDeath = seqHurt;
             }
         }
+
+        g_texSMGEffect = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/SMG Attack/smg_effect/SMG_effect.png").c_str());
     }
 
     // Initialize Animation instances with tuned consistent frame tick durations:
@@ -272,6 +352,9 @@ void Player::Initialize(double startX, double startY) {
     animJump.InitSequence(seqJump, 10, false);
     animAttack.InitSequence(seqAttack, 5, false); // Fast 5-tick melee attack
     animPistol.InitSequence(seqPistol, 5, false); // Fast 5-tick pistol attack
+    animSMG.InitSequence(seqSMG, 3, false);       // 3-tick rapid SMG fire
+    animSMGReload.InitSequence(seqSMGReload, 6, false); // 6-tick reload
+    animGrenadeThrow.InitSequence(seqGrenadeThrow, 5, false); // 5-tick grenade throw
     animHurt.InitSequence(seqHurt, 6, false);
     animDeath.InitSequence(seqDeath, 12, false);
 
@@ -301,6 +384,9 @@ void Player::SetState(PlayerState newState) {
         break;
     case STATE_ATTACK_MELEE:  animAttack.Reset(); break;
     case STATE_ATTACK_PISTOL: animPistol.Reset(); break;
+    case STATE_ATTACK_SMG:    animSMG.Reset(); break;
+    case STATE_RELOAD_SMG:    animSMGReload.Reset(); break;
+    case STATE_ATTACK_GRENADE: animGrenadeThrow.Reset(); break;
     case STATE_HURT:          animHurt.Reset(); break;
     case STATE_DEAD:          animDeath.Reset(); break;
     }
@@ -331,6 +417,29 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
         }
     }
 
+    // Update SMG fire rate cooldown timer
+    if (smgFireCooldownTimer > 0.0) {
+        smgFireCooldownTimer -= dt;
+        if (smgFireCooldownTimer < 0.0) {
+            smgFireCooldownTimer = 0.0;
+        }
+    }
+
+    // Update SMG reload timer logic
+    if (state == STATE_RELOAD_SMG) {
+        reloadTimer -= dt;
+        if (reloadTimer <= 0.0 || animSMGReload.IsFinished()) {
+            reloadTimer = 0.0;
+            int needed = kSmgMaxMag - smgMag;
+            if (needed > 0 && smgReserve > 0) {
+                int reloadAmount = (smgReserve >= needed) ? needed : smgReserve;
+                smgMag += reloadAmount;
+                smgReserve -= reloadAmount;
+            }
+            SetState(STATE_IDLE);
+        }
+    }
+
     // 2. Physics movement constants (px/sec & px/sec^2) - Tuned for smooth responsive control
     const double WALK_SPEED = 180.0;    // Walking target speed
     const double RUN_SPEED = 320.0;     // Running target speed
@@ -350,7 +459,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
         wasJumpPressed = false;
     }
 
-    if (jumpPressed && !wasJumpPressed && isGrounded && state != STATE_ATTACK_MELEE && state != STATE_ATTACK_PISTOL && state != STATE_DEAD && state != STATE_HURT) {
+    if (jumpPressed && !wasJumpPressed && isGrounded && state != STATE_ATTACK_MELEE && state != STATE_ATTACK_PISTOL && state != STATE_ATTACK_SMG && state != STATE_RELOAD_SMG && state != STATE_DEAD && state != STATE_HURT) {
         if (staminaDouble >= 5.0) {
             vy = 520.0; // Initial smooth upward launch velocity (px/sec)
             isGrounded = false;
@@ -368,10 +477,23 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
     }
     wasJumpPressed = jumpPressed;
 
-    // 3b. Katana Melee Attack System: Triggered by J key (Edge Detected Single Key Press)
-    bool attackPressed = keys['j'] || keys['J'];
-    if (attackPressed && !wasAttackPressed) {
-        AttackMelee();
+    // 3b. Weapon Attack System: Single key/mouse attack & automatic hold-to-fire for SMG
+    bool physLButtonDown = ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
+    bool attackPressed = ((keys != NULL) && (keys['j'] || keys['J'])) || physLButtonDown;
+    if (currentWeapon == WEAPON_SMG) {
+        if (attackPressed && smgFireCooldownTimer <= 0.0 && state != STATE_RELOAD_SMG && state != STATE_HURT && state != STATE_DEAD) {
+            AttackSMG();
+        }
+    } else {
+        if (attackPressed && !wasAttackPressed) {
+            if (currentWeapon == WEAPON_GRENADE) {
+                AttackGrenade();
+            } else if (currentWeapon == WEAPON_PISTOL) {
+                AttackRanged();
+            } else {
+                AttackMelee();
+            }
+        }
     }
     wasAttackPressed = attackPressed;
 
@@ -405,7 +527,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
 
     // Automatic Sprinting at Exit Gate (Level 1 Final Approach: 12800.0 <= x < 13050.0)
     bool isNearExitGate = (x >= 12800.0 && x < 13050.0);
-    if (isNearExitGate && (state != STATE_DEAD && state != STATE_ATTACK_MELEE && state != STATE_ATTACK_PISTOL && state != STATE_HURT)) {
+    if (isNearExitGate && (state != STATE_DEAD && state != STATE_ATTACK_MELEE && state != STATE_ATTACK_PISTOL && state != STATE_ATTACK_SMG && state != STATE_RELOAD_SMG && state != STATE_HURT)) {
         moveRight = true;
         isFacingRight = true;
         isShiftHeld = true;
@@ -455,7 +577,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
     double targetVx = 0.0;
 
     // Temporarily stop horizontal movement while attacking, hurt, or dead
-    if (state == STATE_ATTACK_MELEE || state == STATE_ATTACK_PISTOL || state == STATE_DEAD || state == STATE_HURT) {
+    if (state == STATE_ATTACK_MELEE || state == STATE_ATTACK_PISTOL || state == STATE_ATTACK_SMG || state == STATE_RELOAD_SMG || state == STATE_DEAD || state == STATE_HURT) {
         targetVx = 0.0;
         vx = 0.0;
     }
@@ -556,6 +678,48 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
             }
         }
     }
+    else if (state == STATE_ATTACK_SMG) {
+        // Lock state in ATTACK until SMG frame or cooldown finishes
+        if (animSMG.IsFinished() || smgFireCooldownTimer <= 0.0) {
+            if (!isGrounded) {
+                SetState(STATE_JUMP);
+            }
+            else if (std::abs(vx) > 5.0 || moveLeft || moveRight) {
+                SetState(isRunning ? STATE_RUN : STATE_WALK);
+            }
+            else {
+                SetState(STATE_IDLE);
+            }
+        }
+    }
+    else if (state == STATE_RELOAD_SMG) {
+        // Lock state in RELOAD until reload animation finishes
+        if (animSMGReload.IsFinished() || reloadTimer <= 0.0) {
+            if (!isGrounded) {
+                SetState(STATE_JUMP);
+            }
+            else if (std::abs(vx) > 5.0 || moveLeft || moveRight) {
+                SetState(isRunning ? STATE_RUN : STATE_WALK);
+            }
+            else {
+                SetState(STATE_IDLE);
+            }
+        }
+    }
+    else if (state == STATE_ATTACK_GRENADE) {
+        // Lock state in ATTACK until grenade throw animation finishes
+        if (animGrenadeThrow.IsFinished()) {
+            if (!isGrounded) {
+                SetState(STATE_JUMP);
+            }
+            else if (std::abs(vx) > 5.0 || moveLeft || moveRight) {
+                SetState(isRunning ? STATE_RUN : STATE_WALK);
+            }
+            else {
+                SetState(STATE_IDLE);
+            }
+        }
+    }
     else if (!isGrounded) {
         SetState(STATE_JUMP);
     }
@@ -604,6 +768,9 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
     else if (state == STATE_JUMP && animJump.IsValid()) activeAnim = &animJump;
     else if (state == STATE_ATTACK_MELEE && animAttack.IsValid()) activeAnim = &animAttack;
     else if (state == STATE_ATTACK_PISTOL && animPistol.IsValid()) activeAnim = &animPistol;
+    else if (state == STATE_ATTACK_SMG && animSMG.IsValid()) activeAnim = &animSMG;
+    else if (state == STATE_RELOAD_SMG && animSMGReload.IsValid()) activeAnim = &animSMGReload;
+    else if (state == STATE_ATTACK_GRENADE && animGrenadeThrow.IsValid()) activeAnim = &animGrenadeThrow;
     else if (state == STATE_HURT && animHurt.IsValid()) activeAnim = &animHurt;
     else if (state == STATE_DEAD && animDeath.IsValid()) activeAnim = &animDeath;
 
@@ -665,10 +832,28 @@ void Player::Render(double camX, double camY) {
     else if (state == STATE_JUMP && animJump.IsValid()) activeAnim = &animJump;
     else if (state == STATE_ATTACK_MELEE && animAttack.IsValid()) activeAnim = &animAttack;
     else if (state == STATE_ATTACK_PISTOL && animPistol.IsValid()) activeAnim = &animPistol;
+    else if (state == STATE_ATTACK_SMG && animSMG.IsValid()) activeAnim = &animSMG;
+    else if (state == STATE_RELOAD_SMG && animSMGReload.IsValid()) activeAnim = &animSMGReload;
+    else if (state == STATE_ATTACK_GRENADE && animGrenadeThrow.IsValid()) activeAnim = &animGrenadeThrow;
     else if (state == STATE_HURT && animHurt.IsValid()) activeAnim = &animHurt;
     else if (state == STATE_DEAD && animDeath.IsValid()) activeAnim = &animDeath;
 
     activeAnim->Render((int)drawXOffset, (int)drawYOffset, drawW, drawH, isFacingRight);
+
+    // Render SMG Muzzle Flash Effect during SMG firing state
+    if (state == STATE_ATTACK_SMG && g_texSMGEffect != 0) {
+        int effW = 44;
+        int effH = 32;
+        if (isFacingRight) {
+            int effX = (int)(drawXOffset + drawW * 0.70);
+            int effY = (int)(drawYOffset + drawH * 0.52);
+            iShowImage(effX, effY, effW, effH, g_texSMGEffect);
+        } else {
+            int effX = (int)(drawXOffset + drawW * 0.30 - effW);
+            int effY = (int)(drawYOffset + drawH * 0.52);
+            iShowImageSub(effX, effY, effW, effH, g_texSMGEffect, 1.0, 0.0, 0.0, 1.0);
+        }
+    }
 }
 
 // ============================================================================
@@ -723,6 +908,47 @@ void Player::AttackRanged() {
         hasDealtDamageThisAttack = false;
         attackCooldownTimer = 0.45; // 0.45s attack and recovery cooldown
     }
+}
+
+void Player::AttackSMG() {
+    if (state == STATE_DEAD || state == STATE_HURT || state == STATE_RELOAD_SMG) return;
+    if (smgFireCooldownTimer > 0.0) return;
+
+    if (smgMag > 0) {
+        smgMag--;
+        currentAttackID++;
+        SetState(STATE_ATTACK_SMG);
+        hasDealtDamageThisAttack = false;
+        smgFireCooldownTimer = kSmgFireInterval; // 0.12s cooldown
+        PlayAudioFile("Sounds/Pistol/pistol_shot.wav");
+    } else {
+        ReloadWeapon();
+    }
+}
+
+void Player::ReloadWeapon() {
+    if (state == STATE_DEAD || state == STATE_HURT || state == STATE_RELOAD_SMG) return;
+
+    if (currentWeapon == WEAPON_SMG) {
+        if (smgMag < kSmgMaxMag && smgReserve > 0) {
+            SetState(STATE_RELOAD_SMG);
+            reloadTimer = 0.6;
+        }
+    }
+}
+
+void Player::AttackGrenade() {
+    if (state == STATE_DEAD || state == STATE_HURT || state == STATE_ATTACK_GRENADE || state == STATE_RELOAD_SMG) return;
+    if (!hasGrenade || grenadeCount <= 0) return;
+
+    SetState(STATE_ATTACK_GRENADE);
+    grenadeSpawnedThisThrow = false;
+}
+
+void Player::SwitchWeapon(WeaponType type) {
+    if (type == WEAPON_SMG && !hasSMG) return;
+    if (type == WEAPON_GRENADE && !hasGrenade) return;
+    currentWeapon = type;
 }
 
 void Player::UseHeal() {

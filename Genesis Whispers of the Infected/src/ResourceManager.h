@@ -56,6 +56,7 @@ public:
     // Road & Ground Tiles
     unsigned int GetBrokenRoadTile();
     unsigned int GetConcreteGroundTile();
+    unsigned int GetLevel3Tile();
 
     // Cache management
     void ClearCache();

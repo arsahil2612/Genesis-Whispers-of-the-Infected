@@ -121,6 +121,14 @@ unsigned int ResourceManager::GetConcreteGroundTile() {
     return GetTexture("Assets/Tiles/Ground/concrete_ground_tile.png");
 }
 
+unsigned int ResourceManager::GetLevel3Tile() {
+    unsigned int tex = GetTexture("Assets/Tiles/Ground/level3tile/level3tile.png");
+    if (tex == 0) {
+        tex = GetTexture("Assets/Tiles/Ground/level3tile.png");
+    }
+    return tex;
+}
+
 void ResourceManager::ClearCache() {
     for (std::map<std::string, unsigned int>::iterator it = m_textureCache.begin(); it != m_textureCache.end(); ++it) {
         if (it->second != 0) {

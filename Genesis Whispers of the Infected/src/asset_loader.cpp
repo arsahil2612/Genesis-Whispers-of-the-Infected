@@ -27,6 +27,12 @@ std::string GetAssetPath(const std::string &relativePath) {
 }
 
 void PlayAudioFile(const std::string &primaryRelativePath, const std::string &fallbackRelativePath) {
+    // Safety Guard: Ignore non-audio files (e.g. .png, .jpg, .bmp) so Windows PlaySound never launches image viewers
+    if (primaryRelativePath.find(".png") != std::string::npos || primaryRelativePath.find(".jpg") != std::string::npos ||
+        fallbackRelativePath.find(".png") != std::string::npos || fallbackRelativePath.find(".jpg") != std::string::npos) {
+        return;
+    }
+
     static std::map<std::string, std::string> loadedAliases;
     static std::map<std::string, std::string> loadedFullPaths;
     static int nextAliasId = 0;
