@@ -949,6 +949,171 @@ void GameManager::LoadLevel2() {
     LoadLevel2NPCs();
 }
 
+void GameManager::LoadLevel3NPCs() {
+    level3NPCs.clear();
+
+    auto loadSeq = [](const char* format, int count) {
+        std::vector<unsigned int> seq;
+        for (int i = 1; i <= count; ++i) {
+            char path[256];
+            sprintf_s(path, sizeof(path), format, i);
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) seq.push_back(tex);
+        }
+        return seq;
+    };
+
+    NPC oldMan;
+    oldMan.type = NPC_OLD_MAN;
+    oldMan.x = 450.0;
+    oldMan.y = 140.0;
+    oldMan.width = 82;
+    oldMan.height = 145;
+    oldMan.animIdle.InitSequence(loadSeq("Assets/Characters/Old Man/idle/Old_man_idle_%02d.png", 6), 10, true);
+    oldMan.animTalk.InitSequence(loadSeq("Assets/Characters/Old Man/talk/Old_man_talk_%02d.png", 6), 10, true);
+    oldMan.isTalking = false;
+    oldMan.isFacingRight = true;
+    oldMan.name = "Old Commander";
+    oldMan.dialogueText = "\"Arin! Beyond this checkpoint lies NovaGen Facility B. Dr. Kael has taken Subject Luna inside!\n"
+                          "You have two choices ahead:\n"
+                          "1. EASY ROUTE (Antechamber path - controlled encounters)\n"
+                          "2. HARD ROUTE (Main research corridors - heavy infected swarms!)\n"
+                          "Beware... infected are closing in! Select your path quickly!\"";
+    level3NPCs.push_back(oldMan);
+
+    NPC injWoman;
+    injWoman.type = NPC_INJURED_WOMAN;
+    injWoman.x = 600.0;
+    injWoman.y = 140.0;
+    injWoman.width = 82;
+    injWoman.height = 145;
+    injWoman.animIdle.InitSequence(loadSeq("Assets/Characters/Injured Women/idle/Injured_women_idle_%02d.png", 6), 10, true);
+    injWoman.animTalk.InitSequence(loadSeq("Assets/Characters/Injured Women/talk/Injured_women_talk_%02d.png", 6), 10, true);
+    injWoman.isTalking = false;
+    injWoman.isFacingRight = false;
+    injWoman.name = "Injured Scientist";
+    injWoman.dialogueText = "\"Kael's serum transformation is almost complete... If you take too long, the infected will swarm this room!\"";
+    level3NPCs.push_back(injWoman);
+}
+
+void GameManager::LoadLevel3() {
+    ResourceManager::GetInstance().ClearCache();
+    currentLevel = 3;
+    m_l3Route = 0; // Common BG
+    m_l3NpcDialogueActive = false;
+    m_l3Interrupted = false;
+    m_l3NpcTimer = 0.0;
+    m_l3SpawnTimer = 0.0;
+    m_l3NpcHitCount = 0;
+
+    player.Initialize(200, 185);
+    gameMap.SetL3Route(0);
+    gameMap.LoadLevel(3);
+
+    currentAreaIndex = 0;
+    previousAreaIndex = 0;
+    areaBannerTimer = 4.0;
+    areaBannerAlpha = 1.0;
+
+    bossSpawned = false;
+    bossDefeated = false;
+    bossHp = 1200;
+    bossMaxHp = 1200;
+    displayedBossHp = 1200.0;
+    ribbonCollected = false;
+    hasKeycard = false;
+    showInventory = false;
+    hudAlpha = 0.0;
+
+    props.clear();
+    enemies.clear();
+    collectibles.clear();
+    worldProps.clear();
+
+    // Collectibles in Level 3
+    collectibles.push_back(Collectible(300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
+    collectibles.push_back(Collectible(600, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
+    collectibles.push_back(Collectible(1200, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));
+    collectibles.push_back(Collectible(2500, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
+    collectibles.push_back(Collectible(4000, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
+
+    LoadLevel3NPCs();
+    m_l3Boss.phase = L3_BOSS_INACTIVE;
+
+    UI::ShowNotification("CHAPTER 3: FINAL CONFRONTATION", "NOVAGEN RESEARCH FACILITY B", 3.0);
+    printf("[GENESIS Engine] Level 3: Novagen Facility B Loaded (Common Scene).\n");
+}
+
+void GameManager::TriggerLevel3Route(int route) {
+    m_l3Route = route; // 1 = Easy Route, 2 = Hard Route
+    gameMap.SetL3Route(route);
+    enemies.clear();
+
+    if (route == 1) { // EASY ROUTE
+        UI::ShowNotification("ROUTE SELECTED", "EASY ROUTE: CONTROLLED ANTECHAMBER", 2.5);
+        gameMap.SetLevelWidth(10136);
+
+        // Escalating Easy Route enemies across dynamic backgrounds (easy_bg1 to easy_bg5)
+        // Slice 0 (easy_bg1): 2 Spitters/Walkers, 1 Runner
+        enemies.push_back(Enemy(600, 750, kLevel1GroundY, TYPE_SPITTER));
+        enemies.push_back(Enemy(1100, 1200, kLevel1GroundY, TYPE_RUNNER));
+
+        // Slice 1 (easy_bg2): 2 Walkers, 1 Raider
+        enemies.push_back(Enemy(1800, 1950, kLevel1GroundY, TYPE_SPITTER));
+        enemies.push_back(Enemy(2400, 2550, kLevel1GroundY, TYPE_RAIDER));
+
+        // Slice 2 (easy_bg3): 2 Walkers, 1 Heavy Infected, 1 Hunter
+        enemies.push_back(Enemy(3200, 3350, kLevel1GroundY, TYPE_SPITTER));
+        enemies.push_back(Enemy(3700, 3850, kLevel1GroundY, TYPE_HEAVY));
+        enemies.push_back(Enemy(4100, 4250, kLevel1GroundY, TYPE_HUNTER));
+
+        // Slice 3 (easy_bg4): 2 Raiders, 1 Heavy, 1 Hunter
+        enemies.push_back(Enemy(4800, 4950, kLevel1GroundY, TYPE_RAIDER));
+        enemies.push_back(Enemy(5300, 5450, kLevel1GroundY, TYPE_HEAVY));
+        enemies.push_back(Enemy(5700, 5850, kLevel1GroundY, TYPE_HUNTER));
+
+        // Slice 4 (easy_bg5): Culmination - Mutated Brute (Abomination) + 2 Hunters
+        enemies.push_back(Enemy(6400, 6550, kLevel1GroundY, TYPE_ABOMINATION));
+        enemies.push_back(Enemy(6800, 6950, kLevel1GroundY, TYPE_HUNTER));
+    }
+    else { // HARD ROUTE (route == 2)
+        UI::ShowNotification("ROUTE SELECTED", "HARD ROUTE: HIGH DENSITY INFECTED CORRIDORS", 2.5);
+        gameMap.SetLevelWidth(11584);
+
+        // Larger enemy counts, faster combinations across hard_bg1 to hard_bg6
+        // Slice 0 (hard_bg1): 3 Walkers, 2 Runners
+        enemies.push_back(Enemy(500, 600, kLevel1GroundY, TYPE_RUNNER));
+        enemies.push_back(Enemy(800, 900, kLevel1GroundY, TYPE_SPITTER));
+        enemies.push_back(Enemy(1200, 1300, kLevel1GroundY, TYPE_RUNNER));
+
+        // Slice 1 (hard_bg2): 2 Raiders, 2 Hunters
+        enemies.push_back(Enemy(1800, 1900, kLevel1GroundY, TYPE_RAIDER));
+        enemies.push_back(Enemy(2200, 2300, kLevel1GroundY, TYPE_HUNTER));
+        enemies.push_back(Enemy(2600, 2700, kLevel1GroundY, TYPE_HUNTER));
+
+        // Slice 2 (hard_bg3): 2 Heavies, 2 Spitters, 1 Abomination
+        enemies.push_back(Enemy(3200, 3300, kLevel1GroundY, TYPE_HEAVY));
+        enemies.push_back(Enemy(3600, 3700, kLevel1GroundY, TYPE_SPITTER));
+        enemies.push_back(Enemy(4000, 4100, kLevel1GroundY, TYPE_ABOMINATION));
+
+        // Slice 3 (hard_bg4): Swarm wave (3 Runners, 2 Hunters, 1 Raider)
+        enemies.push_back(Enemy(4600, 4700, kLevel1GroundY, TYPE_RUNNER));
+        enemies.push_back(Enemy(5000, 5100, kLevel1GroundY, TYPE_HUNTER));
+        enemies.push_back(Enemy(5400, 5500, kLevel1GroundY, TYPE_RUNNER));
+        enemies.push_back(Enemy(5800, 5900, kLevel1GroundY, TYPE_RAIDER));
+
+        // Slice 4 (hard_bg5): Heavy Brutes + Hunters
+        enemies.push_back(Enemy(6300, 6400, kLevel1GroundY, TYPE_HEAVY));
+        enemies.push_back(Enemy(6700, 6800, kLevel1GroundY, TYPE_ABOMINATION));
+        enemies.push_back(Enemy(7100, 7200, kLevel1GroundY, TYPE_HUNTER));
+
+        // Slice 5 (hard_bg6): Final pre-boss assault wave
+        enemies.push_back(Enemy(7600, 7700, kLevel1GroundY, TYPE_HUNTER));
+        enemies.push_back(Enemy(8000, 8100, kLevel1GroundY, TYPE_HEAVY));
+        enemies.push_back(Enemy(8300, 8400, kLevel1GroundY, TYPE_ABOMINATION));
+    }
+}
+
 // ============================================================================
 // Core Update Loop
 // ============================================================================
@@ -958,11 +1123,12 @@ void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
     if (currentLevel == 2) {
         for (auto& npc : level2NPCs) {
             npc.Update();
-            if (player.x > npc.x) {
-                npc.isFacingRight = true;
-            } else {
-                npc.isFacingRight = false;
-            }
+            npc.isFacingRight = (player.x > npc.x);
+        }
+    } else if (currentLevel == 3 && m_l3Route == 0) {
+        for (auto& npc : level3NPCs) {
+            npc.Update();
+            npc.isFacingRight = (player.x > npc.x);
         }
     }
 
@@ -1310,82 +1476,160 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         if (player.x > 14400.0) {
             player.x = 14400.0;
         }
+    } else if (currentLevel == 3) {
+        if (m_l3Route == 0) { // Common BG Scene
+            m_l3NpcTimer += dt;
+            m_l3SpawnTimer += dt;
+
+            // Periodic ambush enemy spawning in Common Scene
+            if (m_l3SpawnTimer >= 3.5) {
+                m_l3SpawnTimer = 0.0;
+                if (enemies.size() < 4) {
+                    double sx = (rand() % 2 == 0) ? 100.0 : 800.0;
+                    EnemyType t = (rand() % 2 == 0) ? TYPE_RUNNER : TYPE_SPITTER;
+                    enemies.push_back(Enemy(sx, sx + 100.0, kLevel1GroundY, t));
+                }
+            }
+
+            // Interruption check: player hit count or dialogue timeout
+            if (!m_l3Interrupted && m_l3NpcTimer >= 16.0) {
+                m_l3Interrupted = true;
+                TriggerLevel3Route(2); // Forced HARD ROUTE!
+                UI::ShowNotification("INFECTED AMBUSH!", "DIALOGUE TIMEOUT - FORCED INTO HARD ROUTE!", 3.0);
+            }
+        }
     }
 
     // Check boss spawning boundary trigger
-    double bossTriggerX = (currentLevel == 2) ? 13100.0 : 11800.0;
-    if (player.x >= bossTriggerX && !bossSpawned) {
-        bossSpawned = true;
-        UI::ShowNotification("WARNING: BOSS ENCOUNTER", (currentLevel == 2) ? "FOREST ABOMINATION APPEARED" : "MUTATED BRUTE HAS APPEARED", 1.5);
-        if (currentLevel == 2) {
-            printf("LEVEL 2 BOSS ARENA LOADED\n");
-            printf("FOREST ABOMINATION BOSS START\n");
-            printf("FOREST ABOMINATION ACTIVE\n");
-            fflush(stdout);
+    if (currentLevel == 3 && m_l3Route > 0) {
+        double arenaTriggerX = (m_l3Route == 1) ? 7200.0 : 8600.0;
+        if (player.x >= arenaTriggerX && !bossSpawned) {
+            bossSpawned = true;
+            m_l3Boss.Initialize(arenaTriggerX + 600.0, 185.0);
+            UI::ShowNotification("WARNING: FINAL BOSS", "DR. KAEL - HUMAN FORM", 3.0);
+        }
 
-            // Spawn Arin on the left side of the screen
-            player.x = 13150.0;
+        if (bossSpawned && !bossDefeated) {
+            m_l3Boss.Update(player, dt);
+            bossHp = m_l3Boss.hp;
+            bossMaxHp = m_l3Boss.maxHp;
+            displayedBossHp = (double)m_l3Boss.hp;
 
-            // Spawn Forest Abomination on the right side of the screen
+            // Player melee attack hitting Dr Kael / Monster Kael
+            if (player.state == STATE_ATTACK_MELEE && player.animAttack.GetCurrentFrame() == 2) {
+                if (m_l3Boss.CheckPlayerCollision(player.x, player.y, player.width, player.height, player)) {
+                    m_l3Boss.TakeDamage(50);
+                }
+            }
+
+            // Player ranged attack hitting Dr Kael / Monster Kael
+            if (player.state == STATE_ATTACK_PISTOL && player.animPistol.GetCurrentFrame() == 2) {
+                if (abs((player.x + (player.isFacingRight ? 150.0 : -150.0)) - m_l3Boss.x) < 180.0) {
+                    m_l3Boss.TakeDamage(35);
+                }
+            }
+
+            // Boss Dialogue Trigger
+            if (m_l3Boss.IsInDialogue() && currentState == STATE_PLAYING) {
+                currentState = STATE_DIALOGUE;
+                sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
+                sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
+            }
+
+            // Lock camera in arena bounds
+            double minCam = arenaTriggerX - 100.0;
+            double maxCam = arenaTriggerX + 100.0;
+            double minPx  = arenaTriggerX - 50.0;
+            double maxPx  = arenaTriggerX + 1100.0;
+
+            gameMap.SetCameraX(arenaTriggerX - 100.0);
+            if (player.x < minPx) player.x = minPx;
+            if (player.x > maxPx) player.x = maxPx;
+
+            if (m_l3Boss.IsDefeated()) {
+                bossDefeated = true;
+                UI::ShowNotification("FINAL BOSS DEFEATED", "FACILITY ESCAPE DOOR UNLOCKED!", 3.0);
+            }
+        }
+        else {
+            gameMap.ApplyCameraTracking(player.x, player.y, 1280, 720);
+        }
+    }
+    else if (currentLevel < 3) {
+        double bossTriggerX = (currentLevel == 2) ? 13100.0 : 11800.0;
+        if (player.x >= bossTriggerX && !bossSpawned) {
+            bossSpawned = true;
+            UI::ShowNotification("WARNING: BOSS ENCOUNTER", (currentLevel == 2) ? "FOREST ABOMINATION APPEARED" : "MUTATED BRUTE HAS APPEARED", 1.5);
+            if (currentLevel == 2) {
+                printf("LEVEL 2 BOSS ARENA LOADED\n");
+                printf("FOREST ABOMINATION BOSS START\n");
+                printf("FOREST ABOMINATION ACTIVE\n");
+                fflush(stdout);
+
+                // Spawn Arin on the left side of the screen
+                player.x = 13150.0;
+
+                // Spawn Forest Abomination on the right side of the screen
+                for (size_t i = 0; i < enemies.size(); ++i) {
+                    if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                        enemies[i].x = 13750.0;
+                        enemies[i].startX = 13050.0;
+                        enemies[i].endX = 14100.0;
+                        enemies[i].isFacingRight = false; // Facing left toward Arin
+                        enemies[i].state = ENEMY_ATTACK;  // Start with Ranged Fire Projectile Attack immediately!
+                        enemies[i].abominationAttack = ABOMINATION_PROJECTILE;
+                        enemies[i].animProjectile.Reset();
+                        enemies[i].projectileFired = false;
+                        enemies[i].isOpeningAttackActive = true;
+                        enemies[i].openingProjectileCount = 0;
+                        enemies[i].openingProjectileTimer = 0;
+                    }
+                }
+            }
+            // Load boss stats dynamically
             for (size_t i = 0; i < enemies.size(); ++i) {
-                if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
-                    enemies[i].x = 13750.0;
-                    enemies[i].startX = 13050.0;
-                    enemies[i].endX = 14100.0;
-                    enemies[i].isFacingRight = false; // Facing left toward Arin
-                    enemies[i].state = ENEMY_ATTACK;  // Start with Ranged Fire Projectile Attack immediately!
-                    enemies[i].abominationAttack = ABOMINATION_PROJECTILE;
-                    enemies[i].animProjectile.Reset();
-                    enemies[i].projectileFired = false;
-                    enemies[i].isOpeningAttackActive = true;
-                    enemies[i].openingProjectileCount = 0;
-                    enemies[i].openingProjectileTimer = 0;
+                if ((currentLevel == 2 && enemies[i].type == TYPE_FOREST_ABOMINATION) ||
+                    (currentLevel == 1 && enemies[i].type == TYPE_ABOMINATION)) {
+                    bossMaxHp = enemies[i].maxHp;
+                    bossHp = enemies[i].hp;
+                    displayedBossHp = (double)enemies[i].hp;
                 }
             }
         }
-        // Load boss stats dynamically
-        for (size_t i = 0; i < enemies.size(); ++i) {
-            if ((currentLevel == 2 && enemies[i].type == TYPE_FOREST_ABOMINATION) ||
-                (currentLevel == 1 && enemies[i].type == TYPE_ABOMINATION)) {
-                bossMaxHp = enemies[i].maxHp;
-                bossHp = enemies[i].hp;
-                displayedBossHp = (double)enemies[i].hp;
-            }
-        }
-    }
 
-    // If boss fight is active, lock the player camera inside the arena bounds and track positions
-    if (bossSpawned && !bossDefeated) {
-        double minCam = (currentLevel == 2) ? 13000.0 : 11400.0;
-        double maxCam = (currentLevel == 2) ? 13100.0 : 12600.0;
-        double minPx  = (currentLevel == 2) ? 13050.0 : 11450.0;
-        double maxPx  = (currentLevel == 2) ? 14100.0 : 12650.0;
+        // If boss fight is active, lock the player camera inside the arena bounds and track positions
+        if (bossSpawned && !bossDefeated) {
+            double minCam = (currentLevel == 2) ? 13000.0 : 11400.0;
+            double maxCam = (currentLevel == 2) ? 13100.0 : 12600.0;
+            double minPx  = (currentLevel == 2) ? 13050.0 : 11450.0;
+            double maxPx  = (currentLevel == 2) ? 14100.0 : 12650.0;
 
-        double targetCam = player.x - (1280.0 / 2.0);
-        if (targetCam < minCam) targetCam = minCam;
-        if (targetCam > maxCam) targetCam = maxCam;
+            double targetCam = player.x - (1280.0 / 2.0);
+            if (targetCam < minCam) targetCam = minCam;
+            if (targetCam > maxCam) targetCam = maxCam;
 
-        double curCam = gameMap.GetCameraX();
-        double nextCam = curCam + (targetCam - curCam) * 0.1;
-        gameMap.SetCameraX(nextCam);
+            double curCam = gameMap.GetCameraX();
+            double nextCam = curCam + (targetCam - curCam) * 0.1;
+            gameMap.SetCameraX(nextCam);
 
-        if (player.x < minPx) player.x = minPx;
-        if (player.x > maxPx) player.x = maxPx;
+            if (player.x < minPx) player.x = minPx;
+            if (player.x > maxPx) player.x = maxPx;
 
-        if (currentLevel == 2) {
-            printf("ARIN POSITION: %.1f\n", player.x);
-            for (size_t i = 0; i < enemies.size(); ++i) {
-                if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
-                    printf("FOREST ABOMINATION POSITION: %.1f\n", enemies[i].x);
-                    break;
+            if (currentLevel == 2) {
+                printf("ARIN POSITION: %.1f\n", player.x);
+                for (size_t i = 0; i < enemies.size(); ++i) {
+                    if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                        printf("FOREST ABOMINATION POSITION: %.1f\n", enemies[i].x);
+                        break;
+                    }
                 }
+                fflush(stdout);
             }
-            fflush(stdout);
         }
-    }
-    else {
-        // Normal viewport tracking
-        gameMap.ApplyCameraTracking(player.x, player.y, 1280, 720);
+        else {
+            // Normal viewport tracking
+            gameMap.ApplyCameraTracking(player.x, player.y, 1280, 720);
+        }
     }
 
     // Update animated props (flickering fires)
@@ -1971,7 +2215,7 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
     }
 
     // 8. Exit Gate Ending Trigger
-    double exitPosTrigger = (currentLevel == 2) ? 14350.0 : 12900.0;
+    double exitPosTrigger = (currentLevel == 3) ? ((m_l3Route == 1) ? 8688.0 : 10136.0) : ((currentLevel == 2) ? 14350.0 : 12900.0);
     if (player.x >= exitPosTrigger && bossDefeated) {
         if (currentLevel == 1 && !hasKeycard) {
             if (currentState == STATE_PLAYING) {
@@ -1987,6 +2231,9 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                 sprintf_s(g_dialogueText, sizeof(g_dialogueText), "\"Luna's silver-blue ribbon! It's caught on the steel gate latch... She survived. I will find you, Luna!\"");
                 ribbonCollected = true;
             }
+        }
+        else if (currentLevel == 2) {
+            LoadLevel3();
         }
         else if (currentState != STATE_DIALOGUE && currentState != STATE_VICTORY) {
             currentState = STATE_VICTORY;
@@ -2599,6 +2846,15 @@ void GameManager::RenderPlaying() {
         for (auto& npc : level2NPCs) {
             npc.Render(camX, camY);
         }
+    } else if (currentLevel == 3 && m_l3Route == 0) {
+        for (auto& npc : level3NPCs) {
+            npc.Render(camX, camY);
+        }
+    }
+
+    // Render Level 3 Boss
+    if (currentLevel == 3) {
+        m_l3Boss.Render(camX, camY);
     }
 
     // 4. Render Arin
@@ -2754,13 +3010,21 @@ void GameManager::RenderPlaying() {
 
         // Render Boss Health Bar centered at top if Boss fight active
         if (bossSpawned && !bossDefeated) {
-            const char* bName = (currentLevel == 2) ? "FOREST ABOMINATION" : "MUTATED BRUTE";
-            UI::DrawBossHealthBar(bName, bossHp, bossMaxHp, displayedBossHp);
+            if (currentLevel == 3 && m_l3Boss.IsActiveMonster()) {
+                UI::DrawBossHealthBar("DR. KAEL (MUTATED FORM)", m_l3Boss.hp, m_l3Boss.maxHp, (double)m_l3Boss.hp);
+            } else if (currentLevel < 3) {
+                const char* bName = (currentLevel == 2) ? "FOREST ABOMINATION" : "MUTATED BRUTE";
+                UI::DrawBossHealthBar(bName, bossHp, bossMaxHp, displayedBossHp);
+            }
         }
 
         if (currentLevel == 1) {
             iSetColor(255, 255, 0);
-            UI::DrawShadowText(300, 700, "DEBUG: Press 'U' to Skip to Level 2 and see the new props!", GLUT_BITMAP_HELVETICA_18, 255, 255, 0);
+            UI::DrawShadowText(300, 700, "DEBUG: Press 'U' to Skip to Level 2!", GLUT_BITMAP_HELVETICA_18, 255, 255, 0);
+        }
+        else if (currentLevel == 2) {
+            iSetColor(255, 255, 0);
+            UI::DrawShadowText(300, 700, "DEBUG: Press 'U' to Skip to Level 3 (NPC Common Area)!", GLUT_BITMAP_HELVETICA_18, 255, 255, 0);
         }
     }
 
@@ -3307,6 +3571,9 @@ void GameManager::HandleKeyPress(unsigned char key) {
             if (currentLevel == 1) {
                 LoadLevel2();
             }
+            else if (currentLevel == 2) {
+                LoadLevel3();
+            }
         }
         else if (key == 'e' || key == 'E') {
             if (!showInventory) {
@@ -3411,8 +3678,36 @@ void GameManager::HandleKeyPress(unsigned char key) {
                     }
                 }
 
-                // If no item was near, check Exit Gate interaction
-                if (!itemInteracted && player.x >= 12900 && bossDefeated) {
+                // Check Level 3 NPC interaction
+                if (!itemInteracted && currentLevel == 3 && m_l3Route == 0) {
+                    for (auto& npc : level3NPCs) {
+                        if (std::abs(player.x - npc.x) < 150.0) {
+                            npc.isTalking = true;
+                            currentState = STATE_DIALOGUE;
+                            m_l3NpcDialogueActive = true;
+                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Old Commander");
+                            sprintf_s(g_dialogueText, sizeof(g_dialogueText),
+                                "\"Arin! NovaGen Facility B lies ahead. Select your route:\n"
+                                "1. EASY ROUTE (Controlled Antechamber)\n"
+                                "2. HARD ROUTE (High-Density Infected Swarm!)\n"
+                                "Press [1] for Easy Route | Press [2] for Hard Route\"");
+                            itemInteracted = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Check Level 3 Escape Door interaction
+                double escapeTriggerX = (m_l3Route == 1) ? 8688.0 : 10136.0;
+                if (!itemInteracted && currentLevel == 3 && bossDefeated && std::abs(player.x - escapeTriggerX) < 150.0) {
+                    currentState = STATE_VICTORY;
+                    menuTransitionAlpha = 1.0;
+                    leaderboard.AddScore("Arin", score);
+                    itemInteracted = true;
+                }
+
+                // If no item was near, check Level 1 Exit Gate interaction
+                if (!itemInteracted && currentLevel == 1 && player.x >= 12900 && bossDefeated) {
                     if (!hasKeycard) {
                         currentState = STATE_DIALOGUE;
                         sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Arin");
@@ -3436,7 +3731,11 @@ void GameManager::HandleKeyPress(unsigned char key) {
             if (!showInventory) player.AttackMelee();
         }
         else if (key == 'k' || key == 'K') {
-            if (!showInventory && currentLevel == 2) player.AttackRanged();
+            if (!showInventory && currentLevel >= 2) player.AttackRanged();
+        }
+        else if (key == 'u' || key == 'U') { // Debug skip level key
+            if (currentLevel == 1) LoadLevel2();
+            else if (currentLevel == 2) LoadLevel3();
         }
         else if (key == 'h' || key == 'H') {
             if (!showInventory) player.UseHeal();
@@ -3496,7 +3795,39 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
     }
     else if (currentState == STATE_DIALOGUE) {
-        if (key == 13 || key == 'e' || key == 'E' || key == 32 || key == 27) { // Enter, E, Space, or ESC key
+        if (currentLevel == 3 && m_l3Boss.IsInDialogue()) {
+            if (key == 13 || key == 'e' || key == 'E' || key == 32) {
+                m_l3Boss.AdvanceDialogue();
+                if (!m_l3Boss.IsInDialogue()) {
+                    currentState = STATE_PLAYING;
+                    player.ResetInputState();
+                } else {
+                    sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
+                    sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
+                }
+            }
+        }
+        else if (currentLevel == 3 && m_l3NpcDialogueActive) {
+            if (key == '1') {
+                TriggerLevel3Route(1);
+                m_l3NpcDialogueActive = false;
+                currentState = STATE_PLAYING;
+                player.ResetInputState();
+            }
+            else if (key == '2') {
+                TriggerLevel3Route(2);
+                m_l3NpcDialogueActive = false;
+                currentState = STATE_PLAYING;
+                player.ResetInputState();
+            }
+            else if (key == 13 || key == 'e' || key == 'E' || key == 32 || key == 27) {
+                TriggerLevel3Route(1); // Default to Easy Route
+                m_l3NpcDialogueActive = false;
+                currentState = STATE_PLAYING;
+                player.ResetInputState();
+            }
+        }
+        else if (key == 13 || key == 'e' || key == 'E' || key == 32 || key == 27) { // Enter, E, Space, or ESC key
             if (currentLevel == 2) {
                 for (auto& npc : level2NPCs) {
                     npc.isTalking = false;
@@ -3535,6 +3866,10 @@ void GameManager::HandleKeyPress(unsigned char key) {
                 LoadLevel2();
                 currentState = STATE_PLAYING;
                 menuTransitionAlpha = 1.0;
+            } else if (currentLevel == 2) {
+                LoadLevel3();
+                currentState = STATE_PLAYING;
+                menuTransitionAlpha = 1.0;
             } else {
                 currentState = STATE_MENU;
                 menuTransitionAlpha = 1.0;
@@ -3545,7 +3880,9 @@ void GameManager::HandleKeyPress(unsigned char key) {
             menuTransitionAlpha = 1.0;
         }
         else if (key == 'r' || key == 'R' || key == '2') { // R or 2 = Restart Level
-            if (currentLevel == 2) {
+            if (currentLevel == 3) {
+                LoadLevel3();
+            } else if (currentLevel == 2) {
                 LoadLevel2();
             } else {
                 LoadLevel1();

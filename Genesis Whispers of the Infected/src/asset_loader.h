@@ -20,6 +20,9 @@ unsigned int LoadLevel1BackgroundTexture(int sliceIndex, bool bossDefeated);
 // Loads (or returns cached) texture handle for a Level 2 background slice.
 unsigned int LoadLevel2BackgroundTexture(int sliceIndex);
 
+// Loads (or returns cached) texture handle for a Level 3 background slice (route: 0=Common, 1=Easy, 2=Hard)
+unsigned int LoadLevel3BackgroundTexture(int route, int sliceIndex);
+
 // Clears static background texture caches
 void ClearBackgroundCache();
 

@@ -22,6 +22,7 @@ private:
     int levelWidth;
     int levelHeight;
     int currentLevelNumber;
+    int l3Route; // 0 = Common, 1 = Easy Route, 2 = Hard Route
 
     // Parallax Factor Constants
     double parallaxFarFactor;      // 0.25 (Sky, distant horizon)
@@ -51,7 +52,10 @@ public:
     double GetCameraY() const { return cameraY; }
     void SetCameraX(double cx) { cameraX = cx; }
     int GetLevelWidth() const { return levelWidth; }
+    void SetLevelWidth(int lw) { levelWidth = lw; }
     int GetCurrentLevelNumber() const { return currentLevelNumber; }
+    int GetL3Route() const { return l3Route; }
+    void SetL3Route(int r) { l3Route = r; }
 
     // Parallax Factor Getters
     double GetParallaxFarFactor() const { return parallaxFarFactor; }

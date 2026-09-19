@@ -72,6 +72,7 @@ Map::Map() {
     levelWidth = 14480; // 10 background sections of width 1448
     levelHeight = 768;
     currentLevelNumber = 1;
+    l3Route = 0;
 
     // Parallax Factor Configurations
     parallaxFarFactor = 0.25;      // Layer 1: Sky & distant horizon (25% speed)
@@ -105,10 +106,24 @@ void Map::LoadLevel(int levelNumber) {
         // Section 1: Forest Entrance to Evacuation Camp Ground (World X: 0 to 14480, Top Surface Y = 185)
         platforms.push_back(Platform(0, 165, 14480, 20));
     }
+    else if (levelNumber == 3) {
+        // Preload common and initial route textures
+        LoadLevel3BackgroundTexture(0, 0);
+        for (int i = 0; i < 10; ++i) {
+            LoadLevel3BackgroundTexture(1, i);
+            LoadLevel3BackgroundTexture(2, i);
+        }
+
+        // Level 3 Continuous Ground
+        platforms.push_back(Platform(0, 165, 14480, 20));
+    }
 }
 
 // Helper to resolve texture for current active level
-static unsigned int GetCurrentLevelBgTexture(int levelNumber, int sliceIndex, bool bossDefeated) {
+static unsigned int GetCurrentLevelBgTexture(int levelNumber, int sliceIndex, bool bossDefeated, int l3Route = 0) {
+    if (levelNumber == 3) {
+        return LoadLevel3BackgroundTexture(l3Route, sliceIndex);
+    }
     if (levelNumber == 2) {
         return LoadLevel2BackgroundTexture(sliceIndex);
     }
@@ -121,12 +136,26 @@ static unsigned int GetCurrentLevelBgTexture(int levelNumber, int sliceIndex, bo
 void Map::RenderFarBackground(double camX, bool bossDefeated) {
     double farCamX = camX * parallaxFarFactor;
 
+    if (currentLevelNumber == 3 && l3Route == 0) {
+        // Common background - renders fixed or tracking across ground
+        unsigned int tex = LoadLevel3BackgroundTexture(0, 0);
+        if (tex != 0) {
+            for (int i = 0; i < 3; ++i) {
+                double xPos = (i * kBgSliceWidth) - farCamX;
+                if (xPos + kBgSliceWidth >= -200 && xPos <= 1480) {
+                    iShowImage((int)floor(xPos), kBgDrawYOffset, kBgSliceWidth + 1, kBgSliceHeight, tex);
+                }
+            }
+        }
+        return;
+    }
+
     // Render distant backdrop slices contiguously without overlapping vertical seams
     for (int i = 0; i < 10; ++i) {
         double xPos = (i * kBgSliceWidth) - farCamX;
 
         if (xPos + kBgSliceWidth >= -200 && xPos <= 1480) {
-            unsigned int tex = GetCurrentLevelBgTexture(currentLevelNumber, i, bossDefeated);
+            unsigned int tex = GetCurrentLevelBgTexture(currentLevelNumber, i, bossDefeated, l3Route);
             if (tex != 0) {
                 int drawX = (int)floor(xPos);
                 iShowImage(drawX, kBgDrawYOffset, kBgSliceWidth + 1, kBgSliceHeight, tex);

@@ -7,6 +7,7 @@
 #include "leaderboard.h"
 #include "UI.h"
 #include "EncounterManager.h"
+#include "Level3Boss.h"
 #include <vector>
 #include <string>
 
@@ -195,6 +196,14 @@ private:
     std::vector<Prop> props;
     std::vector<WorldProp> worldProps;
     std::vector<NPC> level2NPCs;
+    std::vector<NPC> level3NPCs;
+    Level3Boss m_l3Boss;
+    int m_l3Route; // 0 = Undecided/Common, 1 = Easy Route, 2 = Hard Route
+    bool m_l3NpcDialogueActive;
+    bool m_l3Interrupted;
+    double m_l3NpcTimer;
+    double m_l3SpawnTimer;
+    int m_l3NpcHitCount;
     unsigned int texPropsSheet;
 
     // Level Area Tracking
@@ -269,9 +278,12 @@ public:
     
     void Initialize();
     void LoadLevel1();
-    // Level 2 Helpers
+    // Level 2 & 3 Helpers
     void LoadLevel2();
     void LoadLevel2NPCs();
+    void LoadLevel3();
+    void LoadLevel3NPCs();
+    void TriggerLevel3Route(int route);
     void Update(float dt = 0.016f, bool keys[] = NULL, bool specialKeys[] = NULL);
     void Render();
 

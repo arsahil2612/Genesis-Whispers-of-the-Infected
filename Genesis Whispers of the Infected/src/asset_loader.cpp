@@ -83,6 +83,9 @@ void PlayAudioFile(const std::string &primaryRelativePath, const std::string &fa
 static unsigned int g_level1BgTextures[10] = { 0 };
 static int g_level1BgSourceIndex[10] = { 0 };
 static unsigned int g_level2BgTextures[10] = { 0 };
+static unsigned int g_level3CommonTexture = 0;
+static unsigned int g_level3EasyTextures[10] = { 0 };
+static unsigned int g_level3HardTextures[10] = { 0 };
 
 // ============================================================================
 // Background Slice Index Resolution
@@ -179,11 +182,74 @@ unsigned int LoadLevel2BackgroundTexture(int sliceIndex) {
     return tex;
 }
 
+unsigned int LoadLevel3BackgroundTexture(int route, int sliceIndex) {
+    // route: 0 = Common BG, 1 = Easy Route, 2 = Hard Route
+    if (route == 0) {
+        if (g_level3CommonTexture != 0) return g_level3CommonTexture;
+        std::string resolved = GetAssetPath("Assets/Backgrounds/Level3/Common Background/common_bg.png");
+        g_level3CommonTexture = iLoadImage((char*)resolved.c_str());
+        return g_level3CommonTexture;
+    }
+
+    if (sliceIndex < 0 || sliceIndex >= 10) return 0;
+
+    if (route == 1) { // Easy Route
+        if (g_level3EasyTextures[sliceIndex] != 0) return g_level3EasyTextures[sliceIndex];
+
+        std::string path;
+        if (sliceIndex >= 0 && sliceIndex <= 4) {
+            char b[128];
+            sprintf(b, "Assets/Backgrounds/Level3/Easy Route/easy_bg%d.png", sliceIndex + 1);
+            path = b;
+        } else if (sliceIndex == 5) {
+            path = "Assets/Backgrounds/Level3/Easy Route/final_arena.png";
+        } else if (sliceIndex == 6) {
+            path = "Assets/Backgrounds/Level3/Easy Route/escape_door.png";
+        } else {
+            path = "Assets/Backgrounds/Level3/Easy Route/ending_bg.png";
+        }
+
+        std::string resolved = GetAssetPath(path);
+        unsigned int tex = iLoadImage((char*)resolved.c_str());
+        if (tex == 0) {
+            tex = LoadLevel2BackgroundTexture(sliceIndex);
+        }
+        g_level3EasyTextures[sliceIndex] = tex;
+        return tex;
+    } else { // Hard Route (route == 2)
+        if (g_level3HardTextures[sliceIndex] != 0) return g_level3HardTextures[sliceIndex];
+
+        std::string path;
+        if (sliceIndex >= 0 && sliceIndex <= 5) {
+            char b[128];
+            sprintf(b, "Assets/Backgrounds/Level3/Hard Route/hard_bg%d.png", sliceIndex + 1);
+            path = b;
+        } else if (sliceIndex == 6) {
+            path = "Assets/Backgrounds/Level3/Hard Route/final_arena.png";
+        } else if (sliceIndex == 7) {
+            path = "Assets/Backgrounds/Level3/Hard Route/escape_door.png";
+        } else {
+            path = "Assets/Backgrounds/Level3/Hard Route/ending_bg.png";
+        }
+
+        std::string resolved = GetAssetPath(path);
+        unsigned int tex = iLoadImage((char*)resolved.c_str());
+        if (tex == 0) {
+            tex = LoadLevel2BackgroundTexture(sliceIndex);
+        }
+        g_level3HardTextures[sliceIndex] = tex;
+        return tex;
+    }
+}
+
 void ClearBackgroundCache() {
     for (int i = 0; i < 10; ++i) {
         g_level1BgTextures[i] = 0;
         g_level1BgSourceIndex[i] = 0;
         g_level2BgTextures[i] = 0;
+        g_level3EasyTextures[i] = 0;
+        g_level3HardTextures[i] = 0;
     }
+    g_level3CommonTexture = 0;
 }
 
