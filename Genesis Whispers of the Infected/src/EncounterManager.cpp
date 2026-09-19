@@ -224,7 +224,7 @@ void EncounterManager::CheckTriggerZones(Player& player, Map& map, GameManager& 
         TriggerZone& z = m_zones[i];
         if (z.triggered && !z.repeatable) continue;
 
-        if (player.x >= z.startX && player.x <= z.endX) {
+        if (player.x >= z.startX) {
             if (z.type == ZONE_QUIET) {
                 z.triggered = true;
                 m_globalCooldownRemaining = 2.0f;

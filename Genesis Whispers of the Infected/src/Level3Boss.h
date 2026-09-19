@@ -8,9 +8,23 @@
 
 enum Level3BossPhase {
     L3_BOSS_INACTIVE,
+    L3_BOSS_HUMAN_INTRO,
+    L3_BOSS_HUMAN_IDLE,
+    L3_BOSS_HUMAN_DIALOGUE_READY,
     L3_BOSS_HUMAN_DIALOGUE,
-    L3_BOSS_HUMAN_ANGRY_DRONES,
+    L3_BOSS_HUMAN_DIALOGUE_COMPLETE,
+    L3_BOSS_HUMAN_ANGER,
+    L3_BOSS_HUMAN_SUMMON_DRONE,
+    L3_BOSS_HUMAN_DRONE_SUMMON_COMPLETE,
+    L3_BOSS_HUMAN_DRONE_ATTACK,
+    L3_BOSS_HUMAN_PREPARE_SERUM,
     L3_BOSS_HUMAN_INJECT_SERUM,
+    L3_BOSS_HUMAN_SERUM_COMPLETE,
+    L3_BOSS_TRANSFORMATION_PREPARE,
+    L3_BOSS_KAEL_TRANSFORMING,
+    L3_BOSS_MONSTER_KAEL_INITIALIZE,
+    L3_BOSS_MONSTER_KAEL_IDLE,
+    L3_BOSS_HUMAN_ANGRY_DRONES,
     L3_BOSS_HUMAN_TRANSFORMING,
     L3_BOSS_MONSTER_ACTIVE,
     L3_BOSS_DEFEATED
@@ -86,7 +100,9 @@ public:
 
     // Human Kael Animations
     Animation animHumanIdle;
+    Animation animHumanWalk;
     Animation animHumanTalk;
+    Animation animHumanHurt;
     Animation animHumanSummon;
     Animation animHumanInject;
     Animation animHumanTransform;
@@ -109,9 +125,13 @@ public:
     double chargeStartX;
     double chargeTargetX;
 
+    // Asset Loading Flag
+    bool assetsLoaded;
+
 public:
     Level3Boss();
     
+    void PreloadAssets();
     void Initialize(double arenaX, double arenaY);
     void Update(Player& player, float dt);
     void Render(double camX, double camY);
@@ -120,7 +140,21 @@ public:
     bool CheckPlayerCollision(double px, double py, int pw, int ph, Player& player);
 
     void AdvanceDialogue();
+    bool IsInIntro() const { return phase == L3_BOSS_HUMAN_INTRO; }
+    bool IsDialogueReady() const { return phase == L3_BOSS_HUMAN_DIALOGUE_READY; }
     bool IsInDialogue() const { return phase == L3_BOSS_HUMAN_DIALOGUE; }
+    bool IsDialogueComplete() const { return phase == L3_BOSS_HUMAN_DIALOGUE_COMPLETE; }
+    bool IsAngerPhase() const { return phase == L3_BOSS_HUMAN_ANGER; }
+    bool IsSummonDronePhase() const { return phase == L3_BOSS_HUMAN_SUMMON_DRONE; }
+    bool IsDroneSummonCompletePhase() const { return phase == L3_BOSS_HUMAN_DRONE_SUMMON_COMPLETE; }
+    bool IsDroneAttackPhase() const { return phase == L3_BOSS_HUMAN_DRONE_ATTACK; }
+    bool IsPrepareSerumPhase() const { return phase == L3_BOSS_HUMAN_PREPARE_SERUM; }
+    bool IsInjectSerumPhase() const { return phase == L3_BOSS_HUMAN_INJECT_SERUM; }
+    bool IsSerumCompletePhase() const { return phase == L3_BOSS_HUMAN_SERUM_COMPLETE; }
+    bool IsTransformationPreparePhase() const { return phase == L3_BOSS_TRANSFORMATION_PREPARE; }
+    bool IsKaelTransformingPhase() const { return phase == L3_BOSS_KAEL_TRANSFORMING; }
+    bool IsMonsterKaelInitializePhase() const { return phase == L3_BOSS_MONSTER_KAEL_INITIALIZE; }
+    bool IsMonsterKaelIdlePhase() const { return phase == L3_BOSS_MONSTER_KAEL_IDLE; }
     bool IsTransforming() const { return phase == L3_BOSS_HUMAN_INJECT_SERUM || phase == L3_BOSS_HUMAN_TRANSFORMING; }
     bool IsActiveMonster() const { return phase == L3_BOSS_MONSTER_ACTIVE; }
     bool IsDefeated() const { return phase == L3_BOSS_DEFEATED; }

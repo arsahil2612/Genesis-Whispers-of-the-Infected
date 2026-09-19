@@ -136,8 +136,8 @@ static unsigned int GetCurrentLevelBgTexture(int levelNumber, int sliceIndex, bo
 void Map::RenderFarBackground(double camX, bool bossDefeated) {
     double farCamX = camX * parallaxFarFactor;
 
-    // Determine background camera offset: Level 3 environment slices scroll 1:1 dynamically with gameplay camera
-    double bgCamX = (currentLevelNumber == 3) ? camX : farCamX;
+    // Determine background camera offset with parallax scrolling across all levels
+    double bgCamX = farCamX;
 
     // Render distant backdrop slices contiguously without overlapping vertical seams
     for (int i = 0; i < 10; ++i) {

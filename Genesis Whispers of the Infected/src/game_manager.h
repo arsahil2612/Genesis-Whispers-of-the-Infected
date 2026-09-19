@@ -337,6 +337,7 @@ private:
     void LoadInventoryTextures();
     void UseInventorySlot(int slotIndex);
     void AddInventoryItem(const std::string& itemId, int count = 1);
+    void UseHealHotkey();
 
     // Helper functions for localized state updates/rendering
     void UpdatePlaying(float dt = 0.016f, bool keys[] = NULL, bool specialKeys[] = NULL);

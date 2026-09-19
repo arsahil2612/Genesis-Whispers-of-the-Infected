@@ -16,6 +16,7 @@ Level3Boss::Level3Boss() {
     isFacingRight = false;
     phase = L3_BOSS_INACTIVE;
     monsterState = MONSTER_IDLE;
+    assetsLoaded = false;
 
     dialogueStep = 0;
     dialogueTimer = 0.0;
@@ -30,26 +31,12 @@ Level3Boss::Level3Boss() {
     chargeTargetX = 0;
 }
 
-void Level3Boss::Initialize(double arenaX, double arenaY) {
-    x = arenaX;
-    y = arenaY;
-    width = 180;
-    height = 200;
-    hp = 1200;
-    maxHp = 1200;
-    isFacingRight = false;
-    phase = L3_BOSS_HUMAN_DIALOGUE;
-    monsterState = MONSTER_IDLE;
+void Level3Boss::PreloadAssets() {
+    if (assetsLoaded && animHumanIdle.IsValid() && animHumanIdle.GetTextureID() != 0) {
+        if (glIsTexture(animHumanIdle.GetTextureID())) return;
+    }
 
-    dialogueStep = 0;
-    dialogueTimer = 0.0;
-    introTimer = 0.0;
-    transformTimer = 0.0;
-    attackCooldownTimer = 2.0;
-
-    drones.clear();
-    droneProjectiles.clear();
-    spikes.clear();
+    printf("[GENESIS Engine] Preloading Dr. Kael Assets...\n");
 
     auto loadSeq = [](const char* format, int count) {
         std::vector<unsigned int> seq;
@@ -62,10 +49,12 @@ void Level3Boss::Initialize(double arenaX, double arenaY) {
         return seq;
     };
 
-    // 1. Load Human Kael Animations
+    // 1. Load Human Kael Animations (6 animation sets)
     animHumanIdle.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Human/Idle/idle_%02d.png", 6), 12, true);
+    animHumanWalk.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Human/walk/walk_%02d.png", 8), 10, true);
     animHumanTalk.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Human/talk/talk_%02d.png", 8), 10, true);
-    animHumanSummon.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Human/summon drone/summon_drone_%02d.png", 8), 8, true);
+    animHumanHurt.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Human/hurt/hurt_%02d.png", 4), 8, false);
+    animHumanSummon.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Human/summon drone/summon_drone_%02d.png", 8), 8, false);
     animHumanInject.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Human/inject serum/inject_serum_%02d.png", 8), 12, false);
     animHumanTransform.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Human/transformation to monster/transformation_%02d.png", 9), 14, false);
 
@@ -79,27 +68,80 @@ void Level3Boss::Initialize(double arenaX, double arenaY) {
     animMonsterSpike.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Monster/spike attack/ground spikes/monster_ground_spike_attack_%02d.png", 8), 6, false);
     animMonsterCharge.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Monster/spike attack/monster charge animation/monster_charge_animation_%02d.png", 8), 6, true);
 
-    // First dialogue
+    assetsLoaded = true;
+    printf("[GENESIS Engine] Dr. Kael Assets Preloaded. Idle frames: %d, Talk frames: %d (Valid: %s, TexID: %u)\n",
+           animHumanIdle.GetFrameCount(), animHumanTalk.GetFrameCount(), animHumanIdle.IsValid() ? "YES" : "NO", animHumanIdle.GetTextureID());
+}
+
+void Level3Boss::Initialize(double arenaX, double arenaY) {
+    printf("[GENESIS Engine] HUMAN KAEL INITIALIZATION STARTED\n");
+    x = arenaX + 750.0;
+    y = arenaY;
+    width = 180;
+    height = 200;
+    hp = 1200;
+    maxHp = 1200;
+    isFacingRight = false;
+    phase = L3_BOSS_HUMAN_INTRO;
+    monsterState = MONSTER_IDLE;
+
+    dialogueStep = 0;
+    dialogueTimer = 0.0;
+    introTimer = 0.0;
+    transformTimer = 0.0;
+    attackCooldownTimer = 2.0;
+
+    drones.clear();
+    droneProjectiles.clear();
+    spikes.clear();
+
+    assetsLoaded = false;
+    PreloadAssets();
+
+    // First dialogue (Step 0)
     currentSpeaker = "Dr. Kael";
-    currentText = "\"Ah, Arin... You survived my little biological experiments. But Project Genesis cannot be stopped!\"";
+    currentText = "\"Ah, Arin... So you survived my test subjects. I am Dr. Kael, chief architect of Project Genesis.\"";
+    animHumanTalk.Reset();
+    animHumanIdle.Reset();
+    animHumanWalk.Reset();
+
+    printf("[GENESIS Engine] HUMAN KAEL INITIALIZED at X=%.1f, Y=%.1f (Phase: %d, Idle Valid: %s, TexID: %u)\n",
+           x, y, (int)phase, animHumanIdle.IsValid() ? "YES" : "NO", animHumanIdle.GetTextureID());
 }
 
 void Level3Boss::AdvanceDialogue() {
     dialogueStep++;
     if (dialogueStep == 1) {
         currentSpeaker = "Arin";
-        currentText = "\"Where is Subject Luna, Kael?! What have you done with the antidote?\"";
+        currentText = "\"Kael! I know who you are. What have you done with Subject Luna? Where is she?!\"";
     }
     else if (dialogueStep == 2) {
         currentSpeaker = "Dr. Kael";
-        currentText = "\"Antidote? Creation requires destruction! Behold the future of humanity! Drones, purge the intruder!\"";
+        currentText = "\"Luna? She was the key. Her DNA stabilized the Genesis virus—the ultimate catalyst for human evolution!\"";
+        animHumanTalk.Reset();
     }
-    else if (dialogueStep >= 3) {
-        phase = L3_BOSS_HUMAN_ANGRY_DRONES;
-        introTimer = 0.0;
-        // Spawn opening drone assault
-        SpawnDrone(x - 200, y + 250);
-        SpawnDrone(x + 200, y + 250);
+    else if (dialogueStep == 3) {
+        currentSpeaker = "Arin";
+        currentText = "\"You monster! She's a person, not your experiment! Give her back and stop this madness!\"";
+    }
+    else if (dialogueStep == 4) {
+        currentSpeaker = "Dr. Kael";
+        currentText = "\"Stop? Never! Humanity is weak, Arin. I am its architect, and Project Genesis will reshape the world!\"";
+        animHumanTalk.Reset();
+    }
+    else if (dialogueStep == 5) {
+        currentSpeaker = "Arin";
+        currentText = "\"I won't let you hurt anyone else, Kael. Your twisted dream ends today!\"";
+    }
+    else if (dialogueStep == 6) {
+        currentSpeaker = "Dr. Kael";
+        currentText = "\"Insolent fool! You will be the first sacrifice for the new species!\"";
+        animHumanTalk.Reset();
+    }
+    else if (dialogueStep >= 7) {
+        phase = L3_BOSS_HUMAN_DIALOGUE_COMPLETE;
+        currentSpeaker = "";
+        currentText = "";
     }
 }
 
@@ -137,8 +179,230 @@ void Level3Boss::Update(Player& player, float dt) {
     // ------------------------------------------------------------------------
     // PHASE 1: Human Dialogue & Intro Sequence
     // ------------------------------------------------------------------------
+    if (phase == L3_BOSS_HUMAN_INTRO) {
+        introTimer += dt;
+        isFacingRight = (player.x > x);
+        
+        // Dr. Kael walks left towards his dialogue standing position
+        if (x > player.x + 300.0) {
+            x -= 120.0 * dt;
+            animHumanWalk.Update();
+        } else {
+            animHumanIdle.Update();
+        }
+
+        if (introTimer >= 2.0) {
+            phase = L3_BOSS_HUMAN_DIALOGUE_READY;
+            animHumanIdle.Reset();
+        }
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_DIALOGUE_READY) {
+        isFacingRight = (player.x > x);
+        animHumanIdle.Update();
+        return;
+    }
+
     if (phase == L3_BOSS_HUMAN_DIALOGUE) {
-        animHumanTalk.Update();
+        isFacingRight = (player.x > x);
+        if (currentSpeaker == "Dr. Kael" || currentSpeaker == "DR. KAEL" || currentSpeaker == "Dr Kael") {
+            animHumanTalk.Update();
+        } else {
+            animHumanIdle.Update();
+        }
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_DIALOGUE_COMPLETE) {
+        phase = L3_BOSS_HUMAN_IDLE;
+        stateTimer = 0.0;
+        isFacingRight = (player.x > x);
+        animHumanIdle.Update();
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_IDLE) {
+        stateTimer += dt;
+        isFacingRight = (player.x > x);
+        animHumanIdle.Update();
+        if (stateTimer >= 1.5) {
+            phase = L3_BOSS_HUMAN_ANGER;
+            stateTimer = 0.0;
+            animHumanWalk.Reset();
+        }
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_ANGER) {
+        stateTimer += dt;
+        isFacingRight = (player.x > x);
+
+        // Dr Kael walks back and forth / paces purposefully
+        x += (isFacingRight ? 90.0 : -90.0) * dt;
+        animHumanWalk.Update();
+
+        if (stateTimer >= 2.0) {
+            phase = L3_BOSS_HUMAN_SUMMON_DRONE;
+            stateTimer = 0.0;
+            animHumanSummon.Reset();
+        }
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_SUMMON_DRONE) {
+        isFacingRight = (player.x > x);
+        animHumanSummon.Update();
+        if (animHumanSummon.IsFinished()) {
+            phase = L3_BOSS_HUMAN_DRONE_SUMMON_COMPLETE;
+            stateTimer = 0.0;
+        }
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_DRONE_SUMMON_COMPLETE) {
+        phase = L3_BOSS_HUMAN_DRONE_ATTACK;
+        stateTimer = 0.0;
+        drones.clear();
+        droneProjectiles.clear();
+        SpawnDrone(x - 200, y + 220);
+        SpawnDrone(x + 200, y + 220);
+        isFacingRight = (player.x > x);
+        animHumanIdle.Update();
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_DRONE_ATTACK) {
+        stateTimer += dt;
+        isFacingRight = (player.x > x);
+        animHumanIdle.Update();
+
+        // Update active drones
+        for (auto& d : drones) {
+            if (!d.active) continue;
+            d.anim.Update();
+            d.timer += dt;
+
+            // Drone hovering AI targeting Arin
+            d.targetX = player.x + (d.x < player.x ? -180.0 : 180.0);
+            d.targetY = player.y + 160.0 + sin(d.timer * 3.0) * 30.0;
+            d.x += (d.targetX - d.x) * 0.05;
+            d.y += (d.targetY - d.y) * 0.05;
+
+            // Controlled projectile attack timing
+            d.attackCooldown += dt;
+            if (d.attackCooldown >= 2.2) {
+                d.attackCooldown = 0.0;
+                DroneProjectile p;
+                p.x = d.x;
+                p.y = d.y - 20;
+                double dx = player.x - d.x;
+                double dy = (player.y + 60) - d.y;
+                double dist = sqrt(dx*dx + dy*dy);
+                if (dist > 0.1) {
+                    p.vx = (dx / dist) * 400.0;
+                    p.vy = (dy / dist) * 400.0;
+                }
+                p.damage = 10;
+                p.active = true;
+                
+                std::vector<unsigned int> seq;
+                for (int i = 1; i <= 6; ++i) {
+                    char b[160];
+                    sprintf_s(b, sizeof(b), "Assets/Characters/Dr. Kael/Human/Drone Attack/Drone Energy Projectile/projectile_%02d.png", i);
+                    unsigned int tex = iLoadImage((char*)GetAssetPath(b).c_str());
+                    if (tex != 0) seq.push_back(tex);
+                }
+                p.anim.InitSequence(seq, 6, true);
+                droneProjectiles.push_back(p);
+            }
+        }
+
+        // Configurable cinematic attack duration (4.5 seconds)
+        if (stateTimer >= 4.5) {
+            // CLEANUP: stop firing, clear all active drones & projectiles
+            drones.clear();
+            droneProjectiles.clear();
+            phase = L3_BOSS_HUMAN_PREPARE_SERUM;
+            stateTimer = 0.0;
+        }
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_PREPARE_SERUM) {
+        stateTimer += dt;
+        isFacingRight = (player.x > x);
+        animHumanIdle.Update();
+        if (stateTimer >= 1.0) {
+            phase = L3_BOSS_HUMAN_INJECT_SERUM;
+            stateTimer = 0.0;
+            animHumanInject.Reset();
+        }
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_INJECT_SERUM) {
+        isFacingRight = (player.x > x);
+        animHumanInject.Update();
+        if (animHumanInject.IsFinished()) {
+            phase = L3_BOSS_HUMAN_SERUM_COMPLETE;
+            stateTimer = 0.0;
+        }
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_SERUM_COMPLETE) {
+        phase = L3_BOSS_TRANSFORMATION_PREPARE;
+        stateTimer = 0.0;
+        isFacingRight = (player.x > x);
+        animHumanIdle.Update();
+        return;
+    }
+
+    if (phase == L3_BOSS_TRANSFORMATION_PREPARE) {
+        phase = L3_BOSS_KAEL_TRANSFORMING;
+        stateTimer = 0.0;
+        animHumanTransform.Reset();
+        isFacingRight = (player.x > x);
+        return;
+    }
+
+    if (phase == L3_BOSS_KAEL_TRANSFORMING) {
+        stateTimer += dt;
+        isFacingRight = (player.x > x);
+        animHumanTransform.Update();
+        if (animHumanTransform.IsFinished() || stateTimer >= 2.5) {
+            phase = L3_BOSS_MONSTER_KAEL_INITIALIZE;
+            stateTimer = 0.0;
+        }
+        return;
+    }
+
+    if (phase == L3_BOSS_MONSTER_KAEL_INITIALIZE) {
+        phase = L3_BOSS_MONSTER_KAEL_IDLE;
+        width = 280;
+        height = 280;
+        hp = 1200;
+        maxHp = 1200;
+        monsterState = MONSTER_IDLE;
+        animMonsterIdle.Reset();
+        isFacingRight = (player.x > x);
+        return;
+    }
+
+    if (phase == L3_BOSS_MONSTER_KAEL_IDLE) {
+        isFacingRight = (player.x > x);
+        animMonsterIdle.Update();
+        return;
+    }
+
+    if (phase == L3_BOSS_HUMAN_DIALOGUE) {
+        isFacingRight = (player.x > x);
+        if (currentSpeaker == "Dr. Kael") {
+            animHumanTalk.Update();
+        } else {
+            animHumanIdle.Update();
+        }
         return;
     }
 
@@ -408,19 +672,33 @@ void Level3Boss::Render(double camX, double camY) {
     }
 
     // 4. Render Human Dr. Kael Forms
-    if (phase == L3_BOSS_HUMAN_DIALOGUE) {
-        animHumanTalk.Render(renderX - width/2, renderY, width, height, isFacingRight);
+    if (phase == L3_BOSS_HUMAN_INTRO || phase == L3_BOSS_HUMAN_ANGER) {
+        if (animHumanWalk.IsValid()) animHumanWalk.Render(renderX - width/2, renderY, width, height, isFacingRight);
+        else animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
     }
-    else if (phase == L3_BOSS_HUMAN_ANGRY_DRONES) {
-        animHumanSummon.Render(renderX - width/2, renderY, width, height, isFacingRight);
+    else if (phase == L3_BOSS_HUMAN_SUMMON_DRONE || phase == L3_BOSS_HUMAN_ANGRY_DRONES) {
+        if (animHumanSummon.IsValid()) animHumanSummon.Render(renderX - width/2, renderY, width, height, isFacingRight);
+        else animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
     }
     else if (phase == L3_BOSS_HUMAN_INJECT_SERUM) {
-        animHumanInject.Render(renderX - width/2, renderY, width, height, isFacingRight);
+        if (animHumanInject.IsValid()) animHumanInject.Render(renderX - width/2, renderY, width, height, isFacingRight);
+        else animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
     }
-    else if (phase == L3_BOSS_HUMAN_TRANSFORMING) {
-        animHumanTransform.Render(renderX - width/2, renderY, width + 40, height + 40, isFacingRight);
+    else if (phase == L3_BOSS_HUMAN_DIALOGUE) {
+        if ((currentSpeaker == "Dr. Kael" || currentSpeaker == "DR. KAEL" || currentSpeaker == "Dr Kael") && animHumanTalk.IsValid()) {
+            animHumanTalk.Render(renderX - width/2, renderY, width, height, isFacingRight);
+        } else {
+            animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
+        }
+    }
+    else if (phase == L3_BOSS_KAEL_TRANSFORMING || phase == L3_BOSS_HUMAN_TRANSFORMING) {
+        if (animHumanTransform.IsValid()) animHumanTransform.Render(renderX - width/2, renderY, width + 40, height + 40, isFacingRight);
+        else animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
     }
     // 5. Render Transformed Monster Kael Form
+    else if (phase == L3_BOSS_MONSTER_KAEL_INITIALIZE || phase == L3_BOSS_MONSTER_KAEL_IDLE) {
+        animMonsterIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
+    }
     else if (phase == L3_BOSS_MONSTER_ACTIVE || phase == L3_BOSS_DEFEATED) {
         switch (monsterState) {
         case MONSTER_IDLE:
@@ -444,6 +722,12 @@ void Level3Boss::Render(double camX, double camY) {
         default:
             animMonsterIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
             break;
+        }
+    }
+    else if (phase != L3_BOSS_INACTIVE) {
+        // Fail-safe render for all active Human Kael phases (Intro, Idle, Dialogue Ready/Complete, Anger, Prepare Serum)
+        if (animHumanIdle.IsValid()) {
+            animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
         }
     }
 }
