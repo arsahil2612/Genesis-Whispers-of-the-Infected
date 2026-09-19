@@ -148,6 +148,26 @@ static int g_pickupR = 255, g_pickupG = 255, g_pickupB = 255;
 // Constructor & Level Initialization
 // ============================================================================
 const char* GameManager::GetAreaName(int areaIdx) const {
+    if (currentLevel == 3) {
+        switch (areaIdx) {
+        case L3_AREA_CHECKPOINT:     return "Common Checkpoint";
+        case L3_AREA_ANTECHAMBER:    return "Facility Antechamber (Easy BG 1)";
+        case L3_AREA_RESEARCH_A:     return "Research Corridor A (Easy BG 2)";
+        case L3_AREA_DECON_SECTOR:   return "Decontamination Sector (Easy BG 3)";
+        case L3_AREA_CONTAINMENT:    return "Bio-Containment Vault (Easy BG 4)";
+        case L3_AREA_LAB_COMPLEX:    return "Sub-Level Lab Complex (Easy BG 5)";
+        case L3_HARD_AREA_CORRIDOR_1:return "Infected Corridor 1 (Hard BG 1)";
+        case L3_HARD_AREA_CORRIDOR_2:return "Infected Corridor 2 (Hard BG 2)";
+        case L3_HARD_AREA_CORRIDOR_3:return "Infected Corridor 3 (Hard BG 3)";
+        case L3_HARD_AREA_CORRIDOR_4:return "Infected Corridor 4 (Hard BG 4)";
+        case L3_HARD_AREA_CORRIDOR_5:return "Infected Corridor 5 (Hard BG 5)";
+        case L3_HARD_AREA_CORRIDOR_6:return "Infected Corridor 6 (Hard BG 6)";
+        case L3_AREA_BOSS_ARENA:     return "Final Boss Arena";
+        case L3_AREA_ESCAPE_DOOR:    return "Facility B Escape Hatch";
+        case L3_AREA_LEVEL_COMPLETE: return "Chapter Complete";
+        default:                     return "NovaGen Facility B";
+        }
+    }
     if (currentLevel == 2) {
         switch (areaIdx) {
         case L2_AREA_FOREST_ENTRANCE:  return "Forest Entrance";
@@ -183,6 +203,7 @@ const char* GameManager::GetAreaName(int areaIdx) const {
 }
 
 const char* GameManager::GetCurrentChapterName() const {
+    if (currentLevel == 3) return "NOVAGEN FACILITY B";
     return (currentLevel == 2) ? "BLACKWOOD FOREST" : "THE FALLEN VILLAGE";
 }
 
@@ -958,6 +979,14 @@ void GameManager::LoadLevel3NPCs() {
             char path[256];
             sprintf_s(path, sizeof(path), format, i);
             unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex == 0) {
+                // Lowercase fallback check
+                std::string alt = path;
+                for (size_t k = 0; k < alt.size(); ++k) {
+                    if (alt[k] >= 'A' && alt[k] <= 'Z') alt[k] += 32;
+                }
+                tex = iLoadImage((char*)GetAssetPath(alt).c_str());
+            }
             if (tex != 0) seq.push_back(tex);
         }
         return seq;
@@ -975,10 +1004,9 @@ void GameManager::LoadLevel3NPCs() {
     oldMan.isFacingRight = true;
     oldMan.name = "Old Commander";
     oldMan.dialogueText = "\"Arin! Beyond this checkpoint lies NovaGen Facility B. Dr. Kael has taken Subject Luna inside!\n"
-                          "You have two choices ahead:\n"
-                          "1. EASY ROUTE (Antechamber path - controlled encounters)\n"
-                          "2. HARD ROUTE (Main research corridors - heavy infected swarms!)\n"
-                          "Beware... infected are closing in! Select your path quickly!\"";
+                          "Select your infiltration route:\n"
+                          "  [1] EASY ROUTE (Controlled Antechamber Path)\n"
+                          "  [2] HARD ROUTE (High-Density Swarm Corridors)\"";
     level3NPCs.push_back(oldMan);
 
     NPC injWoman;
@@ -992,7 +1020,7 @@ void GameManager::LoadLevel3NPCs() {
     injWoman.isTalking = false;
     injWoman.isFacingRight = false;
     injWoman.name = "Injured Scientist";
-    injWoman.dialogueText = "\"Kael's serum transformation is almost complete... If you take too long, the infected will swarm this room!\"";
+    injWoman.dialogueText = "\"Kael's serum transformation is almost complete... You must reach the main facility before it's too late!\"";
     level3NPCs.push_back(injWoman);
 }
 
@@ -1005,6 +1033,7 @@ void GameManager::LoadLevel3() {
     m_l3NpcTimer = 0.0;
     m_l3SpawnTimer = 0.0;
     m_l3NpcHitCount = 0;
+    m_l3NpcWaveCount = 0;
 
     player.Initialize(200, 185);
     gameMap.SetL3Route(0);
@@ -1029,6 +1058,10 @@ void GameManager::LoadLevel3() {
     enemies.clear();
     collectibles.clear();
     worldProps.clear();
+
+    // Initial Level 3 Checkpoint Common Scene enemies
+    enemies.push_back(Enemy(550, 650, kLevel1GroundY, TYPE_SPITTER));
+    enemies.push_back(Enemy(750, 850, kLevel1GroundY, TYPE_RUNNER));
 
     // Collectibles in Level 3
     collectibles.push_back(Collectible(300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
@@ -1130,6 +1163,54 @@ void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
             npc.Update();
             npc.isFacingRight = (player.x > npc.x);
         }
+
+        // Keep player inside the conversation area during Level 3 Common Checkpoint
+        if (player.x < 0.0) {
+            player.x = 0.0;
+            if (player.vx < 0.0) player.vx = 0.0;
+        }
+        if (player.x > 850.0) {
+            player.x = 850.0;
+            if (player.vx > 0.0) player.vx = 0.0;
+        }
+
+        if (m_l3NpcDialogueActive) {
+            m_l3NpcTimer += dt;
+            m_l3SpawnTimer += dt;
+
+            // 1. Enemy Spawning Schedule (After initial delay kL3NpcSpawnDelay)
+            if (m_l3NpcTimer >= kL3NpcSpawnDelay && m_l3SpawnTimer >= kL3NpcSpawnInterval && m_l3NpcWaveCount < kL3NpcMaxWaves) {
+                m_l3SpawnTimer = 0.0;
+                if ((int)enemies.size() < kL3NpcMaxActiveEnemies) {
+                    m_l3NpcWaveCount++;
+                    double spawnX = (m_l3NpcWaveCount % 2 == 1) ? 50.0 : 800.0;
+                    EnemyType spawnType = (m_l3NpcWaveCount == 1) ? TYPE_SPITTER :
+                                          (m_l3NpcWaveCount == 2) ? TYPE_RUNNER :
+                                          (m_l3NpcWaveCount == 3) ? TYPE_RAIDER : TYPE_HUNTER;
+
+                    enemies.push_back(Enemy(spawnX, spawnX + 100.0, kLevel1GroundY, spawnType));
+                    UI::ShowNotification("WARNING: AMBUSH!", "INFECTED ATTACKING CHECKPOINT!", 2.0);
+                }
+            }
+
+            // 2. Check Interruption Conditions (Checkpoint hit limit OR elapsed timer limit)
+            bool hitLimitReached = (m_l3NpcHitCount >= kL3NpcInterruptionHitLimit);
+            bool timeLimitReached = (m_l3NpcTimer >= kL3NpcInterruptionTimeLimit);
+
+            if (hitLimitReached || timeLimitReached) {
+                for (auto& npc : level3NPCs) {
+                    npc.isTalking = false;
+                    npc.animTalk.Reset();
+                }
+                m_l3Interrupted = true;
+                m_l3NpcDialogueActive = false;
+                if (currentState == STATE_DIALOGUE) {
+                    currentState = STATE_PLAYING;
+                }
+                UI::ShowNotification("CHECKPOINT OVERRUN!", "DEFENSES BREACHED! FORCED INTO HARD ROUTE!", 3.0);
+                TriggerLevel3Route(2); // Deterministic transition to Hard Route (clears dialogue ambush enemies cleanly)
+            }
+        }
     }
 
     // Update temporary UI Notifications (Item Acquired / Mission Updates)
@@ -1185,7 +1266,7 @@ void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
         if (areaBannerAlpha < 0.0) areaBannerAlpha = 0.0;
     }
 
-    if (currentState == STATE_PLAYING) {
+    if (currentState == STATE_PLAYING || (currentState == STATE_DIALOGUE && m_l3NpcDialogueActive)) {
         UpdatePlaying(dt, keys, specialKeys);
     }
 }
@@ -1793,6 +1874,13 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                 bossMaxHp = enemies[i].maxHp;
             }
 
+            if (currentLevel == 3 && m_l3Route == 0 && m_l3NpcDialogueActive && enemies[i].hp > 0) {
+                if (enemies[i].state == ENEMY_ATTACK && !enemies[i].hasDealtDamage && std::abs(enemies[i].x - 525.0) < 120.0) {
+                    m_l3NpcHitCount++;
+                    enemies[i].hasDealtDamage = true;
+                }
+            }
+
             // Boss solid collision removed so Arin can pass to the right side of the map
 
             // Assume falling unless hit prop top
@@ -2269,13 +2357,25 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         }
     }
 
-    if (activePromptText.empty() && currentLevel == 2) {
-        for (auto& npc : level2NPCs) {
-            if (std::abs(player.x - npc.x) < 150.0) {
-                activePromptText = "[E] Talk";
-                activePromptX = (int)(npc.x - camX);
-                activePromptY = (int)(npc.y - camY + npc.height + 30.0);
-                break;
+    if (activePromptText.empty()) {
+        if (currentLevel == 2) {
+            for (auto& npc : level2NPCs) {
+                if (std::abs(player.x - npc.x) < 150.0) {
+                    activePromptText = "[E] Talk to " + npc.name;
+                    activePromptX = (int)(npc.x - camX);
+                    activePromptY = (int)(npc.y - camY + npc.height + 30.0);
+                    break;
+                }
+            }
+        }
+        else if (currentLevel == 3 && m_l3Route == 0) {
+            for (auto& npc : level3NPCs) {
+                if (std::abs(player.x - npc.x) < 150.0) {
+                    activePromptText = "[E] Talk to " + npc.name;
+                    activePromptX = (int)(npc.x - camX);
+                    activePromptY = (int)(npc.y - camY + npc.height + 30.0);
+                    break;
+                }
             }
         }
     }
@@ -2787,6 +2887,11 @@ void GameManager::RenderPlaying() {
     // ========================================================================
     // LAYER 3: CHARACTERS (Enemies & Player Arin - Factor 1.00)
     // ========================================================================
+    glEnable(GL_TEXTURE_2D);
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+
     for (size_t i = 0; i < enemies.size(); ++i) {
         if (isL2BossFight && enemies[i].type != TYPE_FOREST_ABOMINATION) continue;
         double screenEx = enemies[i].x - camX;
@@ -3237,7 +3342,7 @@ void GameManager::RenderDialogue() {
     }
     s_dialogueTimer += 0.016; // Approx delta time for 60FPS
 
-    bool isCharacter = (strcmp(g_dialogueSpeaker, "Arin") == 0 || strcmp(g_dialogueSpeaker, "Luna") == 0 || strcmp(g_dialogueSpeaker, "Dr. Kael") == 0);
+    bool isCharacter = (strcmp(g_dialogueSpeaker, "Arin") == 0 || strcmp(g_dialogueSpeaker, "Luna") == 0 || strcmp(g_dialogueSpeaker, "Dr. Kael") == 0 || strcmp(g_dialogueSpeaker, "Old Commander") == 0 || strcmp(g_dialogueSpeaker, "Injured Scientist") == 0);
 
     // Fade in animation
     double fadeAlpha = s_dialogueTimer * 2.0;
@@ -3326,7 +3431,37 @@ void GameManager::RenderDialogue() {
 
         // Footer prompt
         double promptBlink = (sin(s_dialogueTimer * 5.0) + 1.0) / 2.0;
-        UI::DrawAlphaText(panelX + panelW - 200, panelY + 15, "Press [ENTER] to Continue", GLUT_BITMAP_HELVETICA_12, 120, 120, 120, fadeAlpha * (0.5 + promptBlink * 0.5));
+        if (currentLevel == 3 && m_l3NpcDialogueActive) {
+            int cardW = 500;
+            int cardH = 90;
+            int cardX1 = 120;
+            int cardX2 = 660;
+            int cardY = 220;
+
+            // --- EASY ROUTE CARD ---
+            glColor4f(0.02f, 0.08f, 0.05f, 0.92f * fadeAlpha);
+            iFilledRectangle(cardX1, cardY, cardW, cardH);
+            glColor4f(0.0f, 0.85f, 0.45f, 0.85f * fadeAlpha);
+            iRectangle(cardX1, cardY, cardW, cardH);
+            iRectangle(cardX1 + 2, cardY + 2, cardW - 4, cardH - 4);
+
+            UI::DrawAlphaShadowText(cardX1 + 20, cardY + cardH - 30, "[1] EASY ROUTE", GLUT_BITMAP_HELVETICA_18, 0, 255, 180, fadeAlpha, 1);
+            UI::DrawAlphaText(cardX1 + 20, cardY + cardH - 58, "Antechamber Path - Controlled Encounters", GLUT_BITMAP_HELVETICA_12, 200, 235, 215, fadeAlpha);
+
+            // --- HARD ROUTE CARD ---
+            glColor4f(0.08f, 0.03f, 0.03f, 0.92f * fadeAlpha);
+            iFilledRectangle(cardX2, cardY, cardW, cardH);
+            glColor4f(1.0f, 0.35f, 0.15f, 0.85f * fadeAlpha);
+            iRectangle(cardX2, cardY, cardW, cardH);
+            iRectangle(cardX2 + 2, cardY + 2, cardW - 4, cardH - 4);
+
+            UI::DrawAlphaShadowText(cardX2 + 20, cardY + cardH - 30, "[2] HARD ROUTE", GLUT_BITMAP_HELVETICA_18, 255, 90, 60, fadeAlpha, 1);
+            UI::DrawAlphaText(cardX2 + 20, cardY + cardH - 58, "Main Corridors - High-Density Swarms!", GLUT_BITMAP_HELVETICA_12, 255, 200, 180, fadeAlpha);
+
+            UI::DrawAlphaShadowText(380, 180, "PRESS [1] FOR EASY ROUTE   |   PRESS [2] FOR HARD ROUTE", GLUT_BITMAP_HELVETICA_12, 255, 220, 0, fadeAlpha * (0.6 + promptBlink * 0.4), 1);
+        } else {
+            UI::DrawAlphaText(panelX + panelW - 200, panelY + 15, "Press [ENTER] to Continue", GLUT_BITMAP_HELVETICA_12, 120, 120, 120, fadeAlpha * (0.5 + promptBlink * 0.5));
+        }
     } else {
         // --- NOTE READING UI (Document/Item) with Area Banner Styling ---
         int panelW = 700;
@@ -3685,12 +3820,8 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             npc.isTalking = true;
                             currentState = STATE_DIALOGUE;
                             m_l3NpcDialogueActive = true;
-                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "Old Commander");
-                            sprintf_s(g_dialogueText, sizeof(g_dialogueText),
-                                "\"Arin! NovaGen Facility B lies ahead. Select your route:\n"
-                                "1. EASY ROUTE (Controlled Antechamber)\n"
-                                "2. HARD ROUTE (High-Density Infected Swarm!)\n"
-                                "Press [1] for Easy Route | Press [2] for Hard Route\"");
+                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", npc.name.c_str());
+                            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", npc.dialogueText.c_str());
                             itemInteracted = true;
                             break;
                         }
@@ -3808,20 +3939,43 @@ void GameManager::HandleKeyPress(unsigned char key) {
             }
         }
         else if (currentLevel == 3 && m_l3NpcDialogueActive) {
-            if (key == '1') {
-                TriggerLevel3Route(1);
+            if (key == 'j' || key == 'J') {
+                if (!showInventory) player.AttackMelee();
+            }
+            else if (key == 'k' || key == 'K') {
+                if (!showInventory) player.AttackRanged();
+            }
+            else if (key == 'h' || key == 'H') {
+                if (!showInventory) player.UseHeal();
+            }
+            else if (key == 'f' || key == 'F') {
+                if (!showInventory) player.UseFood();
+            }
+            else if (key == '1') {
+                for (auto& npc : level3NPCs) {
+                    npc.isTalking = false;
+                    npc.animTalk.Reset();
+                }
+                TriggerLevel3Route(1); // Easy Route
                 m_l3NpcDialogueActive = false;
                 currentState = STATE_PLAYING;
                 player.ResetInputState();
             }
             else if (key == '2') {
-                TriggerLevel3Route(2);
+                for (auto& npc : level3NPCs) {
+                    npc.isTalking = false;
+                    npc.animTalk.Reset();
+                }
+                TriggerLevel3Route(2); // Hard Route
                 m_l3NpcDialogueActive = false;
                 currentState = STATE_PLAYING;
                 player.ResetInputState();
             }
-            else if (key == 13 || key == 'e' || key == 'E' || key == 32 || key == 27) {
-                TriggerLevel3Route(1); // Default to Easy Route
+            else if (key == 27) { // ESC closes dialogue without selecting a route
+                for (auto& npc : level3NPCs) {
+                    npc.isTalking = false;
+                    npc.animTalk.Reset();
+                }
                 m_l3NpcDialogueActive = false;
                 currentState = STATE_PLAYING;
                 player.ResetInputState();
@@ -4100,6 +4254,29 @@ void GameManager::AddScore(int amount) {
 }
 
 int GameManager::GetAreaFromPosition(double px) const {
+    if (currentLevel == 3) {
+        if (m_l3Route == 0) return L3_AREA_CHECKPOINT;
+        if (m_l3Route == 1) { // Easy Route (5 BG Slices + Arena + Escape)
+            if (px < 1448.0)  return L3_AREA_ANTECHAMBER;  // Easy BG 1
+            if (px < 2896.0)  return L3_AREA_RESEARCH_A;   // Easy BG 2
+            if (px < 4344.0)  return L3_AREA_DECON_SECTOR; // Easy BG 3
+            if (px < 5792.0)  return L3_AREA_CONTAINMENT;  // Easy BG 4
+            if (px < 7240.0)  return L3_AREA_LAB_COMPLEX;  // Easy BG 5
+            if (px < 8688.0)  return L3_AREA_BOSS_ARENA;   // Final Boss Arena
+            if (px < 10136.0) return L3_AREA_ESCAPE_DOOR;  // Facility B Escape Hatch
+            return L3_AREA_LEVEL_COMPLETE;
+        } else { // Hard Route (6 BG Slices + Arena + Escape)
+            if (px < 1448.0)  return L3_HARD_AREA_CORRIDOR_1; // Hard BG 1
+            if (px < 2896.0)  return L3_HARD_AREA_CORRIDOR_2; // Hard BG 2
+            if (px < 4344.0)  return L3_HARD_AREA_CORRIDOR_3; // Hard BG 3
+            if (px < 5792.0)  return L3_HARD_AREA_CORRIDOR_4; // Hard BG 4
+            if (px < 7240.0)  return L3_HARD_AREA_CORRIDOR_5; // Hard BG 5
+            if (px < 8688.0)  return L3_HARD_AREA_CORRIDOR_6; // Hard BG 6
+            if (px < 10136.0) return L3_AREA_BOSS_ARENA;      // Final Boss Arena
+            if (px < 11584.0) return L3_AREA_ESCAPE_DOOR;     // Facility B Escape Hatch
+            return L3_AREA_LEVEL_COMPLETE;
+        }
+    }
     if (currentLevel == 2) {
         if (px < 1448.0)  return L2_AREA_FOREST_ENTRANCE;
         if (px < 2896.0)  return L2_AREA_ABANDONED_ROAD;

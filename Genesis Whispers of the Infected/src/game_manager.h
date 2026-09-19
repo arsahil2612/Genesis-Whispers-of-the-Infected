@@ -131,6 +131,27 @@ enum Level2Area {
     L2_AREA_LEVEL_COMPLETE
 };
 
+enum Level3Area {
+    L3_AREA_CHECKPOINT,
+    // Easy Route Areas
+    L3_AREA_ANTECHAMBER,
+    L3_AREA_RESEARCH_A,
+    L3_AREA_DECON_SECTOR,
+    L3_AREA_CONTAINMENT,
+    L3_AREA_LAB_COMPLEX,
+    // Hard Route Areas
+    L3_HARD_AREA_CORRIDOR_1,
+    L3_HARD_AREA_CORRIDOR_2,
+    L3_HARD_AREA_CORRIDOR_3,
+    L3_HARD_AREA_CORRIDOR_4,
+    L3_HARD_AREA_CORRIDOR_5,
+    L3_HARD_AREA_CORRIDOR_6,
+    // Shared Destinations
+    L3_AREA_BOSS_ARENA,
+    L3_AREA_ESCAPE_DOOR,
+    L3_AREA_LEVEL_COMPLETE
+};
+
 // Authoritative Level 1 Ground Baseline Coordinate
 const double kLevel1GroundY = 185.0;
 
@@ -139,6 +160,16 @@ const double kPropScaleSmall  = 1.1;  // Small: Posters, papers, notes, first ai
 const double kPropScaleMedium = 1.75; // Medium: Barrels, oil drums, crates, furniture, fences, sandbags, generator
 const double kPropScaleLarge  = 2.3;  // Large: Ambulance, pickup trucks, cars, military checkpoint, store
 const double kPropScaleTall   = 1.8;  // Tall: Trees, telephone poles, street lamps, watchtowers
+
+// ============================================================================
+// Level 3 Checkpoint Ambush & Interruption Configurable Constants
+// ============================================================================
+const double kL3NpcSpawnDelay = 2.5;             // Initial delay (sec) before ambush wave arrives
+const double kL3NpcSpawnInterval = 3.0;          // Spawn interval (sec) between enemy waves
+const int kL3NpcMaxActiveEnemies = 4;            // Maximum active ambush enemies allowed
+const int kL3NpcMaxWaves = 4;                    // Maximum total ambush waves during event
+const int kL3NpcInterruptionHitLimit = 3;        // Checkpoint/NPC hit limit before interruption
+const double kL3NpcInterruptionTimeLimit = 15.0; // Elapsed time limit (sec) before forced interruption
 
 // ============================================================================
 // NPC System
@@ -171,10 +202,16 @@ struct NPC {
     void Render(double camX, double camY) {
         double screenX = x - camX;
         double screenY = y - camY;
-        if (isTalking) {
-            animTalk.Render((int)screenX, (int)screenY, width, height, isFacingRight);
-        } else {
-            animIdle.Render((int)screenX, (int)screenY, width, height, isFacingRight);
+        if (screenX + width >= -100 && screenX <= 1380) {
+            glEnable(GL_TEXTURE_2D);
+            glEnable(GL_BLEND);
+            glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+            glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+            if (isTalking && animTalk.IsValid()) {
+                animTalk.Render((int)screenX, (int)screenY, width, height, isFacingRight);
+            } else if (animIdle.IsValid()) {
+                animIdle.Render((int)screenX, (int)screenY, width, height, isFacingRight);
+            }
         }
     }
 };
@@ -204,6 +241,7 @@ private:
     double m_l3NpcTimer;
     double m_l3SpawnTimer;
     int m_l3NpcHitCount;
+    int m_l3NpcWaveCount;
     unsigned int texPropsSheet;
 
     // Level Area Tracking

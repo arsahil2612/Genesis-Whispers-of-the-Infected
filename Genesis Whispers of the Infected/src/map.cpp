@@ -136,23 +136,12 @@ static unsigned int GetCurrentLevelBgTexture(int levelNumber, int sliceIndex, bo
 void Map::RenderFarBackground(double camX, bool bossDefeated) {
     double farCamX = camX * parallaxFarFactor;
 
-    if (currentLevelNumber == 3 && l3Route == 0) {
-        // Common background - renders fixed or tracking across ground
-        unsigned int tex = LoadLevel3BackgroundTexture(0, 0);
-        if (tex != 0) {
-            for (int i = 0; i < 3; ++i) {
-                double xPos = (i * kBgSliceWidth) - farCamX;
-                if (xPos + kBgSliceWidth >= -200 && xPos <= 1480) {
-                    iShowImage((int)floor(xPos), kBgDrawYOffset, kBgSliceWidth + 1, kBgSliceHeight, tex);
-                }
-            }
-        }
-        return;
-    }
+    // Determine background camera offset: Level 3 environment slices scroll 1:1 dynamically with gameplay camera
+    double bgCamX = (currentLevelNumber == 3) ? camX : farCamX;
 
     // Render distant backdrop slices contiguously without overlapping vertical seams
     for (int i = 0; i < 10; ++i) {
-        double xPos = (i * kBgSliceWidth) - farCamX;
+        double xPos = (i * kBgSliceWidth) - bgCamX;
 
         if (xPos + kBgSliceWidth >= -200 && xPos <= 1480) {
             unsigned int tex = GetCurrentLevelBgTexture(currentLevelNumber, i, bossDefeated, l3Route);
@@ -168,6 +157,9 @@ void Map::RenderFarBackground(double camX, bool bossDefeated) {
 // LAYER 2: MIDGROUND (Parallax Factor 0.45 - Medium-Distance Trees & Scenery)
 // ============================================================================
 void Map::RenderMidground(double camX, bool bossDefeated) {
+    // Trees removed in Level 3 facility background
+    if (currentLevelNumber == 3) return;
+
     double midCamX = camX * parallaxMidFactor;
 
     ResourceManager& rm = ResourceManager::GetInstance();
