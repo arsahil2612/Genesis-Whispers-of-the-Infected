@@ -925,26 +925,24 @@ void GameManager::LoadLevel2() {
     // AREA A — FOREST ENTRANCE / MILITARY CAMP (World X: 0 to 1448)
     AddWorldProp("Assets/Props/Level 2/Decorations/Evacuation_Route_Sign.png", 120.0, kLevel1GroundY, 36.0, 50.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Nature/Mossy_Fallen_Log_Asset.png", 350.0, kLevel1GroundY, 100.0, 40.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Military/Military_Field_Tent_.png", 700.0, kLevel1GroundY, 175.0, 115.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Supply_Crate_t.png", 770.0, kLevel1GroundY, 42.0, 42.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Survival_Water_Jerrycan.png", 830.0, kLevel1GroundY, 30.0, 36.0, PROP_LAYER_BACKGROUND, false);
-    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 1000.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_FOREGROUND, false);
-    AddWorldProp("Assets/Props/Level 2/Vehicles/Burning_Wrecked_Military_SUV.png", 1220.0, kLevel1GroundY, 140.0, 78.0, PROP_LAYER_BACKGROUND, true);
+    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 1000.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_BACKGROUND, true);
+    AddWorldProp("Assets/Props/Level 2/Vehicles/Burning_Wrecked_Military_SUV.png", 1220.0, kLevel1GroundY, 140.0, 78.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Supply_Crate_t.png", 1370.0, kLevel1GroundY, 42.0, 42.0, PROP_LAYER_BACKGROUND, true);
 
     // AREA B — MAIN FOREST ROAD (World X: 1448 to 5800)
     AddWorldProp("Assets/Props/Level 2/Nature/Mossy_Fallen_Log_Asset.png", 1650.0, kLevel1GroundY, 100.0, 40.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 2150.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_FOREGROUND, false);
+    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 2150.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Decorations/Evacuation_Route_Sign.png", 2750.0, kLevel1GroundY, 36.0, 50.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Nature/Broken_Bridge_Plank_1024_Transparent.png", 3400.0, kLevel1GroundY, 55.0, 20.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Nature/Mossy_Fallen_Log_Asset.png", 4100.0, kLevel1GroundY, 100.0, 40.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 4700.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_FOREGROUND, false);
+    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 4700.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Decorations/Evacuation_Route_Sign.png", 5350.0, kLevel1GroundY, 36.0, 50.0, PROP_LAYER_BACKGROUND, false);
 
     // AREA C — MILITARY TENT / ABANDONED CAMP (World X: 5800 to 8850)
     AddWorldProp("Assets/Props/Level 2/Military/Weathered_Military_Road_Barricade.png", 5900.0, kLevel1GroundY, 75.0, 45.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Vehicles/Military_Supply_Vehicle.png", 6350.0, kLevel1GroundY, 145.0, 80.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Military/Military_Field_Tent_.png", 6850.0, kLevel1GroundY, 175.0, 115.0, PROP_LAYER_BACKGROUND, false);
+    AddWorldProp("Assets/Props/Level 2/Vehicles/Military_Supply_Vehicle.png", 6350.0, kLevel1GroundY, 145.0, 80.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Items/Bagpack.png", 6920.0, kLevel1GroundY, 35.0, 38.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Weathered_Olive_Military_Folding_Table.png", 7120.0, kLevel1GroundY, 70.0, 40.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Military/Portable_Military_Radio_.png", 7120.0, kLevel1GroundY, 30.0, 30.0, PROP_LAYER_BACKGROUND, false);
@@ -952,11 +950,11 @@ void GameManager::LoadLevel2() {
     AddWorldProp("Assets/Props/Level 2/Military/Military_Supply_Crate_t.png", 7400.0, kLevel1GroundY, 42.0, 42.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Portable_Generator.png", 7950.0, kLevel1GroundY, 60.0, 50.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Military/Weathered_Military_Road_Barricade.png", 8400.0, kLevel1GroundY, 75.0, 45.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 8650.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_FOREGROUND, false);
+    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 8650.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_BACKGROUND, true);
 
     // AREA D — DEEP FOREST / RESEARCH FACILITY APPROACH (World X: 8850 to 11850)
     AddWorldProp("Assets/Props/Level 2/Decorations/Facility_Direction_Sign_Transparent.png", 9000.0, kLevel1GroundY, 36.0, 50.0, PROP_LAYER_BACKGROUND, false);
-    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 9400.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_FOREGROUND, false);
+    AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 9400.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Nature/Mossy_Fallen_Log_Asset.png", 9900.0, kLevel1GroundY, 100.0, 40.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Lab_Furniture/NovaGen_Emergency_Warning_Light_1024_Transparent.png", 10300.0, kLevel1GroundY, 32.0, 45.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Supply_Crate_t.png", 10600.0, kLevel1GroundY, 42.0, 42.0, PROP_LAYER_BACKGROUND, true);
@@ -970,7 +968,7 @@ void GameManager::LoadLevel2() {
     AddWorldProp("Assets/Props/Level 2/Lab_Furniture/NovaGen_Emergency_Warning_Light_1024_Transparent.png", 12500.0, kLevel1GroundY, 32.0, 45.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Supply_Crate_t.png", 12620.0, kLevel1GroundY, 42.0, 42.0, PROP_LAYER_BACKGROUND, true);
     // (Note: Boss Arena center X: 12700 to 14050 is kept COMPLETELY OPEN for fighting!)
-    AddWorldProp("Assets/Props/Level 2/Vehicles/Burning_Wrecked_Military_SUV.png", 14120.0, kLevel1GroundY, 140.0, 78.0, PROP_LAYER_BACKGROUND, true);
+    AddWorldProp("Assets/Props/Level 2/Vehicles/Burning_Wrecked_Military_SUV.png", 14120.0, kLevel1GroundY, 140.0, 78.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Weathered_Military_Road_Barricade.png", 14280.0, kLevel1GroundY, 75.0, 45.0, PROP_LAYER_BACKGROUND, true);
 
     props.clear();
@@ -1880,7 +1878,7 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             halfWidthFactor = 0.38;
             topHeightFactor = 0.55;
         }
-        else if (path.find("Log") != std::string::npos || path.find("log") != std::string::npos) {
+        else if (path.find("Log") != std::string::npos || path.find("log") != std::string::npos || path.find("Root") != std::string::npos || path.find("root") != std::string::npos) {
             halfWidthFactor = 0.40;
             topHeightFactor = 0.45;
         }
@@ -2427,7 +2425,7 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                     halfWidthFactor = 0.38;
                     topHeightFactor = 0.55;
                 }
-                else if (path.find("Log") != std::string::npos || path.find("log") != std::string::npos) {
+                else if (path.find("Log") != std::string::npos || path.find("log") != std::string::npos || path.find("Root") != std::string::npos || path.find("root") != std::string::npos) {
                     halfWidthFactor = 0.40;
                     topHeightFactor = 0.45;
                 }
@@ -3001,29 +2999,42 @@ void GameManager::AddWorldProp(const std::string& assetPath, double x, double y,
 double GameManager::GetPropWorldScale(const std::string& assetPath) const {
     // --- LEVEL 2 PROPS SPECIFIC SCALING (Checked first to avoid folder name overrides) ---
     if (assetPath.find("Level 2/") != std::string::npos || assetPath.find("Level 2\\") != std::string::npos) {
+        // Level 2 Military Props - Increased size
         if (assetPath.find("Jerrycan") != std::string::npos ||
             assetPath.find("Bagpack") != std::string::npos ||
             assetPath.find("Radio") != std::string::npos) {
-            return 1.2;
+            return 1.8; // Larger military gear (was 1.2)
         }
         if (assetPath.find("Crate") != std::string::npos) {
-            return 1.3;
-        }
-        if (assetPath.find("Plank") != std::string::npos ||
-            assetPath.find("Sign") != std::string::npos ||
-            assetPath.find("Warning_Light") != std::string::npos ||
-            assetPath.find("Light") != std::string::npos) {
-            return 1.3;
+            return 2.1; // Larger supply crate (was 1.3)
         }
         if (assetPath.find("Barricade") != std::string::npos ||
-            assetPath.find("Generator") != std::string::npos ||
-            assetPath.find("Root") != std::string::npos) {
-            return 1.4;
+            assetPath.find("Generator") != std::string::npos) {
+            return 2.2; // Larger barricade & generator (was 1.4)
         }
-        if (assetPath.find("Mossy_Fallen_Log") != std::string::npos ||
-            assetPath.find("Broken_Bridge") != std::string::npos ||
-            assetPath.find("Table") != std::string::npos ||
-            assetPath.find("Computer") != std::string::npos ||
+        if (assetPath.find("Table") != std::string::npos) {
+            return 2.2; // Larger field table (was 1.5)
+        }
+        // Level 2 Nature Props - Increased size
+        if (assetPath.find("Mossy_Fallen_Log") != std::string::npos) {
+            return 2.5; // Significantly larger fallen log (was 1.5)
+        }
+        if (assetPath.find("Infected_Root_Cluster") != std::string::npos || assetPath.find("Root") != std::string::npos) {
+            return 2.4; // Significantly larger overgrown infected root cluster (was 1.4)
+        }
+        if (assetPath.find("Broken_Bridge") != std::string::npos || assetPath.find("Plank") != std::string::npos) {
+            return 2.2; // Larger bridge plank detail (was 1.3)
+        }
+        // Level 2 Decoration Props - Increased size
+        if (assetPath.find("Sign") != std::string::npos ||
+            assetPath.find("Decorations/") != std::string::npos) {
+            return 2.2; // Significantly larger evacuation & facility direction signs (was 1.3)
+        }
+        if (assetPath.find("Warning_Light") != std::string::npos ||
+            assetPath.find("Light") != std::string::npos) {
+            return 1.8; // Larger warning lights (was 1.3)
+        }
+        if (assetPath.find("Computer") != std::string::npos ||
             assetPath.find("Specimen") != std::string::npos ||
             assetPath.find("Container") != std::string::npos) {
             return 1.5;
@@ -3038,7 +3049,7 @@ double GameManager::GetPropWorldScale(const std::string& assetPath) const {
             return 2.4;
         }
         if (assetPath.find("Military_Supply_Vehicle") != std::string::npos) {
-            return 2.5;
+            return 3.6;
         }
         return 1.4;
     }
@@ -3154,30 +3165,47 @@ double GameManager::GetPropGroundOffset(const std::string& assetPath) const {
     }
 
     // --- LEVEL 2 PROPS SPECIFIC OFFSETS ---
-    if (assetPath.find("Sign") != std::string::npos) {
-        return 14.0;
+    if (assetPath.find("Sign") != std::string::npos ||
+        assetPath.find("Decorations/") != std::string::npos) {
+        return 12.0;
     }
-    if (assetPath.find("Bagpack") != std::string::npos ||
-        assetPath.find("Crate") != std::string::npos ||
-        assetPath.find("Jerrycan") != std::string::npos ||
-        assetPath.find("Barricade") != std::string::npos ||
-        assetPath.find("Tent") != std::string::npos ||
-        assetPath.find("Generator") != std::string::npos ||
-        assetPath.find("Mossy_Fallen_Log") != std::string::npos ||
-        assetPath.find("Table") != std::string::npos ||
+    if (assetPath.find("Mossy_Fallen_Log") != std::string::npos) {
+        return -5.0;
+    }
+    if (assetPath.find("Infected_Root_Cluster") != std::string::npos || assetPath.find("Root") != std::string::npos) {
+        return 0.0;
+    }
+    if (assetPath.find("Broken_Bridge") != std::string::npos || assetPath.find("Plank") != std::string::npos) {
+        return -10.0;
+    }
+    if (assetPath.find("Barricade") != std::string::npos ||
+        assetPath.find("Crate") != std::string::npos) {
+        return 0.0;
+    }
+    if (assetPath.find("Table") != std::string::npos) {
+        return 5.0;
+    }
+    if (assetPath.find("Jerrycan") != std::string::npos ||
+        assetPath.find("Bagpack") != std::string::npos ||
+        assetPath.find("Generator") != std::string::npos) {
+        return 10.0;
+    }
+    if (assetPath.find("Radio") != std::string::npos) {
+        return 15.0;
+    }
+    if (assetPath.find("Tent") != std::string::npos ||
         assetPath.find("Computer") != std::string::npos ||
         assetPath.find("Containment") != std::string::npos ||
         assetPath.find("Machine") != std::string::npos ||
         assetPath.find("Specimen") != std::string::npos ||
-        assetPath.find("Root") != std::string::npos ||
-        assetPath.find("Plank") != std::string::npos ||
-        assetPath.find("Light") != std::string::npos ||
-        assetPath.find("Radio") != std::string::npos) {
+        assetPath.find("Light") != std::string::npos) {
         return 10.0;
     }
-    if (assetPath.find("Military_Supply_Vehicle") != std::string::npos ||
-        assetPath.find("Burning_Wrecked_Military_SUV") != std::string::npos) {
-        return 10.0;
+    if (assetPath.find("Military_Supply_Vehicle") != std::string::npos) {
+        return -35.0;
+    }
+    if (assetPath.find("Burning_Wrecked_Military_SUV") != std::string::npos) {
+        return -3.0;
     }
 
     // 6. Sandbags, Generators & Fences
