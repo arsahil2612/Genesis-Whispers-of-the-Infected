@@ -242,6 +242,43 @@ private:
     double m_l3SpawnTimer;
     int m_l3NpcHitCount;
     int m_l3NpcWaveCount;
+
+    // Level 3 Easy Route Controlled Wave System
+    struct EasySectionConfig {
+        int sectionIndex;       // 0..4 (Easy BG 1..5)
+        int totalWaves;         // Total waves in section
+        int currentWave;        // Active wave index (0..totalWaves-1)
+        int maxActiveEnemies;   // Maximum active enemies allowed simultaneously
+        float spawnInterval;    // Interval between enemy spawns in wave
+        float spawnTimer;       // Timer tracking spawn delay
+        bool triggered;         // Set true when section is triggered
+        bool completed;         // Set true when all waves in section cleared
+        int spawnedInWave;      // Count of enemies spawned in active wave
+        std::vector<std::vector<EnemyType>> waveCompositions;
+    };
+
+    EasySectionConfig m_l3EasySections[5];
+    void InitLevel3EasyWaveSystem();
+    void UpdateLevel3EasyWaves(float dt);
+
+    // Level 3 Hard Route High-Density Wave System
+    struct HardSectionConfig {
+        int sectionIndex;       // 0..5 (Hard BG 1..6)
+        int totalWaves;         // Total waves in section
+        int currentWave;        // Active wave index (0..totalWaves-1)
+        int maxActiveEnemies;   // Maximum active enemies allowed simultaneously
+        float spawnInterval;    // Interval between enemy spawns in wave
+        float spawnTimer;       // Timer tracking spawn delay
+        bool triggered;         // Set true when section is triggered
+        bool completed;         // Set true when all waves in section cleared
+        int spawnedInWave;      // Count of enemies spawned in active wave
+        std::vector<std::vector<EnemyType>> waveCompositions;
+    };
+
+    HardSectionConfig m_l3HardSections[6];
+    void InitLevel3HardWaveSystem();
+    void UpdateLevel3HardWaves(float dt);
+
     unsigned int texPropsSheet;
 
     // Level Area Tracking

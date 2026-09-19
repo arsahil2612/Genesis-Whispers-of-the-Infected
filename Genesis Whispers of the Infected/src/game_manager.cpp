@@ -1077,73 +1077,353 @@ void GameManager::LoadLevel3() {
     printf("[GENESIS Engine] Level 3: Novagen Facility B Loaded (Common Scene).\n");
 }
 
+void GameManager::InitLevel3EasyWaveSystem() {
+    for (int i = 0; i < 5; ++i) {
+        m_l3EasySections[i].sectionIndex = i;
+        m_l3EasySections[i].currentWave = 0;
+        m_l3EasySections[i].spawnTimer = 0.0f;
+        m_l3EasySections[i].triggered = false;
+        m_l3EasySections[i].completed = false;
+        m_l3EasySections[i].spawnedInWave = 0;
+        m_l3EasySections[i].waveCompositions.clear();
+    }
+
+    // Section 0: EASY BG 1 (x: 0 .. 1448) - Moderate mixed encounters
+    m_l3EasySections[0].totalWaves = 2;
+    m_l3EasySections[0].maxActiveEnemies = 3;
+    m_l3EasySections[0].spawnInterval = 3.0f;
+    m_l3EasySections[0].waveCompositions = {
+        { TYPE_SPITTER, TYPE_SPITTER, TYPE_RUNNER },
+        { TYPE_RUNNER, TYPE_SPITTER, TYPE_RUNNER }
+    };
+
+    // Section 1: EASY BG 2 (x: 1448 .. 2896) - Walker + Runner + Raider
+    m_l3EasySections[1].totalWaves = 2;
+    m_l3EasySections[1].maxActiveEnemies = 3;
+    m_l3EasySections[1].spawnInterval = 3.0f;
+    m_l3EasySections[1].waveCompositions = {
+        { TYPE_SPITTER, TYPE_SPITTER, TYPE_RAIDER },
+        { TYPE_RUNNER, TYPE_RAIDER, TYPE_SPITTER }
+    };
+
+    // Section 2: EASY BG 3 (x: 2896 .. 4344) - Raider + Heavy + Hunter
+    m_l3EasySections[2].totalWaves = 2;
+    m_l3EasySections[2].maxActiveEnemies = 4;
+    m_l3EasySections[2].spawnInterval = 2.5f;
+    m_l3EasySections[2].waveCompositions = {
+        { TYPE_HEAVY, TYPE_RAIDER, TYPE_SPITTER },
+        { TYPE_HEAVY, TYPE_HUNTER, TYPE_RAIDER }
+    };
+
+    // Section 3: EASY BG 4 (x: 4344 .. 5792) - Larger mixed waves
+    m_l3EasySections[3].totalWaves = 3;
+    m_l3EasySections[3].maxActiveEnemies = 4;
+    m_l3EasySections[3].spawnInterval = 2.5f;
+    m_l3EasySections[3].waveCompositions = {
+        { TYPE_RAIDER, TYPE_RAIDER, TYPE_HEAVY },
+        { TYPE_HUNTER, TYPE_HUNTER, TYPE_SPITTER, TYPE_RUNNER },
+        { TYPE_HEAVY, TYPE_HUNTER, TYPE_HUNTER, TYPE_RAIDER }
+    };
+
+    // Section 4: EASY BG 5 (x: 5792 .. 7240) - Pre-boss combat gauntlet
+    m_l3EasySections[4].totalWaves = 3;
+    m_l3EasySections[4].maxActiveEnemies = 5;
+    m_l3EasySections[4].spawnInterval = 2.0f;
+    m_l3EasySections[4].waveCompositions = {
+        { TYPE_ABOMINATION, TYPE_HEAVY },
+        { TYPE_HUNTER, TYPE_HUNTER, TYPE_RAIDER, TYPE_RAIDER, TYPE_SPITTER },
+        { TYPE_ABOMINATION, TYPE_HUNTER, TYPE_HUNTER, TYPE_HEAVY }
+    };
+}
+
+void GameManager::UpdateLevel3EasyWaves(float dt) {
+    if (currentLevel != 3 || m_l3Route != 1 || bossSpawned) return;
+
+    // Pre-Boss Arena Cleanup: clean all normal enemies & projectiles before Final Boss Arena (x >= 7200)
+    if (player.x >= 7200.0) {
+        if (!enemies.empty()) {
+            enemies.clear();
+        }
+        for (int p = 0; p < 4; ++p) {
+            g_bossProjectiles[p].active = false;
+        }
+        return;
+    }
+
+    // Identify active background section based on player.x
+    int secIdx = -1;
+    if (player.x < 1448.0)      secIdx = 0;
+    else if (player.x < 2896.0) secIdx = 1;
+    else if (player.x < 4344.0) secIdx = 2;
+    else if (player.x < 5792.0) secIdx = 3;
+    else if (player.x < 7240.0) secIdx = 4;
+
+    if (secIdx < 0 || secIdx >= 5) return;
+
+    EasySectionConfig& sec = m_l3EasySections[secIdx];
+
+    // Trigger section banner and initialize spawning when player enters section
+    if (!sec.triggered) {
+        sec.triggered = true;
+        char title[64];
+        sprintf_s(title, sizeof(title), "EASY ROUTE: SECTION %d", secIdx + 1);
+        const char* secNames[5] = {
+            "ANTECHAMBER RECON (BG 1)",
+            "RESEARCH CORRIDOR A (BG 2)",
+            "DECONTAMINATION SECTOR (BG 3)",
+            "BIO-CONTAINMENT VAULT (BG 4)",
+            "LAB COMPLEX GAUNTLET (BG 5)"
+        };
+        UI::ShowNotification(title, secNames[secIdx], 2.5);
+    }
+
+    if (sec.completed) return;
+
+    // Count alive enemies in current level
+    int aliveCount = 0;
+    for (size_t i = 0; i < enemies.size(); ++i) {
+        if (enemies[i].hp > 0) aliveCount++;
+    }
+
+    // Active wave management
+    if (sec.currentWave < sec.totalWaves) {
+        const auto& waveComp = sec.waveCompositions[sec.currentWave];
+
+        // Wave completion condition: all wave composition enemies spawned AND all active enemies defeated
+        if (sec.spawnedInWave >= (int)waveComp.size() && aliveCount == 0) {
+            sec.currentWave++;
+            sec.spawnedInWave = 0;
+            sec.spawnTimer = 0.0f;
+
+            if (sec.currentWave >= sec.totalWaves) {
+                sec.completed = true;
+                UI::ShowNotification("SECTION CLEARED", "PROCEED TO NEXT FACILITY SECTOR", 2.0);
+                return;
+            } else {
+                char waveMsg[64];
+                sprintf_s(waveMsg, sizeof(waveMsg), "INCOMING WAVE %d/%d!", sec.currentWave + 1, sec.totalWaves);
+                UI::ShowNotification("WARNING: INFECTED SWARM", waveMsg, 2.0);
+            }
+        }
+
+        // Spawn next enemy in wave if timer elapsed and under max active enemy cap
+        if (sec.spawnedInWave < (int)waveComp.size() && aliveCount < sec.maxActiveEnemies) {
+            sec.spawnTimer += dt;
+            if (sec.spawnTimer >= sec.spawnInterval) {
+                sec.spawnTimer = 0.0f;
+                EnemyType t = waveComp[sec.spawnedInWave];
+                sec.spawnedInWave++;
+
+                // Spawn location relative to player position (alternating front / rear)
+                double spawnDir = (sec.spawnedInWave % 2 == 1) ? 1.0 : -1.0;
+                double spawnX = player.x + (spawnDir * (400.0 + (rand() % 150)));
+
+                // Clamp spawn position inside section bounds
+                double secMinX = secIdx * 1448.0 + 100.0;
+                double secMaxX = (secIdx + 1) * 1448.0 - 100.0;
+                if (spawnX < secMinX) spawnX = secMinX;
+                if (spawnX > secMaxX) spawnX = secMaxX;
+
+                enemies.push_back(Enemy(spawnX, spawnX + 100.0, kLevel1GroundY, t));
+            }
+        }
+    }
+}
+
+void GameManager::InitLevel3HardWaveSystem() {
+    for (int i = 0; i < 6; ++i) {
+        m_l3HardSections[i].sectionIndex = i;
+        m_l3HardSections[i].currentWave = 0;
+        m_l3HardSections[i].spawnTimer = 0.0f;
+        m_l3HardSections[i].triggered = false;
+        m_l3HardSections[i].completed = false;
+        m_l3HardSections[i].spawnedInWave = 0;
+        m_l3HardSections[i].waveCompositions.clear();
+    }
+
+    // Section 0: HARD BG 1 (x: 0 .. 1448) - Large mixed groups
+    m_l3HardSections[0].totalWaves = 3;
+    m_l3HardSections[0].maxActiveEnemies = 5;
+    m_l3HardSections[0].spawnInterval = 2.0f;
+    m_l3HardSections[0].waveCompositions = {
+        { TYPE_SPITTER, TYPE_SPITTER, TYPE_RUNNER, TYPE_RUNNER },
+        { TYPE_RAIDER, TYPE_RAIDER, TYPE_RUNNER, TYPE_SPITTER, TYPE_RUNNER },
+        { TYPE_RUNNER, TYPE_RUNNER, TYPE_RAIDER, TYPE_RAIDER, TYPE_SPITTER }
+    };
+
+    // Section 1: HARD BG 2 (x: 1448 .. 2896) - Walker + Runner + Raider combinations
+    m_l3HardSections[1].totalWaves = 3;
+    m_l3HardSections[1].maxActiveEnemies = 5;
+    m_l3HardSections[1].spawnInterval = 1.8f;
+    m_l3HardSections[1].waveCompositions = {
+        { TYPE_RAIDER, TYPE_RAIDER, TYPE_SPITTER, TYPE_RUNNER },
+        { TYPE_HUNTER, TYPE_HUNTER, TYPE_RUNNER, TYPE_RAIDER },
+        { TYPE_RAIDER, TYPE_RAIDER, TYPE_HUNTER, TYPE_HUNTER, TYPE_SPITTER }
+    };
+
+    // Section 2: HARD BG 3 (x: 2896 .. 4344) - Heavy enemy introduction alongside normal enemies
+    m_l3HardSections[2].totalWaves = 3;
+    m_l3HardSections[2].maxActiveEnemies = 6;
+    m_l3HardSections[2].spawnInterval = 1.8f;
+    m_l3HardSections[2].waveCompositions = {
+        { TYPE_HEAVY, TYPE_HEAVY, TYPE_SPITTER, TYPE_RUNNER },
+        { TYPE_ABOMINATION, TYPE_HEAVY, TYPE_HEAVY, TYPE_RAIDER },
+        { TYPE_HEAVY, TYPE_HEAVY, TYPE_HUNTER, TYPE_HUNTER, TYPE_SPITTER }
+    };
+
+    // Section 3: HARD BG 4 (x: 4344 .. 5792) - Hunter/Heavy/mixed pressure
+    m_l3HardSections[3].totalWaves = 3;
+    m_l3HardSections[3].maxActiveEnemies = 6;
+    m_l3HardSections[3].spawnInterval = 1.5f;
+    m_l3HardSections[3].waveCompositions = {
+        { TYPE_HUNTER, TYPE_HUNTER, TYPE_HUNTER, TYPE_RUNNER, TYPE_HEAVY },
+        { TYPE_HEAVY, TYPE_HEAVY, TYPE_RAIDER, TYPE_RAIDER, TYPE_SPITTER },
+        { TYPE_HUNTER, TYPE_HUNTER, TYPE_HEAVY, TYPE_HEAVY, TYPE_RUNNER }
+    };
+
+    // Section 4: HARD BG 5 (x: 5792 .. 7240) - Large multi-type waves
+    m_l3HardSections[4].totalWaves = 4;
+    m_l3HardSections[4].maxActiveEnemies = 7;
+    m_l3HardSections[4].spawnInterval = 1.5f;
+    m_l3HardSections[4].waveCompositions = {
+        { TYPE_ABOMINATION, TYPE_HEAVY, TYPE_HEAVY, TYPE_HUNTER, TYPE_HUNTER },
+        { TYPE_RAIDER, TYPE_RAIDER, TYPE_RAIDER, TYPE_HUNTER, TYPE_HUNTER, TYPE_SPITTER },
+        { TYPE_ABOMINATION, TYPE_HEAVY, TYPE_HEAVY, TYPE_HEAVY, TYPE_RUNNER },
+        { TYPE_HUNTER, TYPE_HUNTER, TYPE_HUNTER, TYPE_RAIDER, TYPE_RAIDER, TYPE_HEAVY }
+    };
+
+    // Section 5: HARD BG 6 (x: 7240 .. 8688) - Major final pre-boss gauntlet
+    m_l3HardSections[5].totalWaves = 4;
+    m_l3HardSections[5].maxActiveEnemies = 8;
+    m_l3HardSections[5].spawnInterval = 1.2f;
+    m_l3HardSections[5].waveCompositions = {
+        { TYPE_ABOMINATION, TYPE_HEAVY, TYPE_HEAVY, TYPE_HEAVY, TYPE_HUNTER },
+        { TYPE_HUNTER, TYPE_HUNTER, TYPE_HUNTER, TYPE_HUNTER, TYPE_RAIDER, TYPE_RAIDER },
+        { TYPE_FOREST_ABOMINATION, TYPE_ABOMINATION, TYPE_HEAVY, TYPE_HEAVY, TYPE_HUNTER, TYPE_HUNTER },
+        { TYPE_FOREST_ABOMINATION, TYPE_ABOMINATION, TYPE_HUNTER, TYPE_HUNTER, TYPE_HUNTER, TYPE_HEAVY, TYPE_HEAVY }
+    };
+}
+
+void GameManager::UpdateLevel3HardWaves(float dt) {
+    if (currentLevel != 3 || m_l3Route != 2 || bossSpawned) return;
+
+    // Pre-Boss Arena Cleanup: clean all normal enemies & projectiles before Final Boss Arena (x >= 8600)
+    if (player.x >= 8600.0) {
+        if (!enemies.empty()) {
+            enemies.clear();
+        }
+        for (int p = 0; p < 4; ++p) {
+            g_bossProjectiles[p].active = false;
+        }
+        return;
+    }
+
+    // Identify active background section based on player.x
+    int secIdx = -1;
+    if (player.x < 1448.0)      secIdx = 0;
+    else if (player.x < 2896.0) secIdx = 1;
+    else if (player.x < 4344.0) secIdx = 2;
+    else if (player.x < 5792.0) secIdx = 3;
+    else if (player.x < 7240.0) secIdx = 4;
+    else if (player.x < 8688.0) secIdx = 5;
+
+    if (secIdx < 0 || secIdx >= 6) return;
+
+    HardSectionConfig& sec = m_l3HardSections[secIdx];
+
+    // Trigger section banner and initialize spawning when player enters section
+    if (!sec.triggered) {
+        sec.triggered = true;
+        char title[64];
+        sprintf_s(title, sizeof(title), "HARD ROUTE: SECTION %d", secIdx + 1);
+        const char* secNames[6] = {
+            "BREACH CORRIDOR 1 (BG 1)",
+            "HIGH DENSITY SECTOR 2 (BG 2)",
+            "HEAVY CONTAINMENT 3 (BG 3)",
+            "HUNTER VAULT 4 (BG 4)",
+            "MULTI-THREAT ZONE 5 (BG 5)",
+            "FINAL ASSAULT GAUNTLET 6 (BG 6)"
+        };
+        UI::ShowNotification(title, secNames[secIdx], 2.5);
+    }
+
+    if (sec.completed) return;
+
+    // Count alive enemies in current level
+    int aliveCount = 0;
+    for (size_t i = 0; i < enemies.size(); ++i) {
+        if (enemies[i].hp > 0) aliveCount++;
+    }
+
+    // Active wave management
+    if (sec.currentWave < sec.totalWaves) {
+        const auto& waveComp = sec.waveCompositions[sec.currentWave];
+
+        // Wave completion condition: all wave composition enemies spawned AND all active enemies defeated
+        if (sec.spawnedInWave >= (int)waveComp.size() && aliveCount == 0) {
+            sec.currentWave++;
+            sec.spawnedInWave = 0;
+            sec.spawnTimer = 0.0f;
+
+            if (sec.currentWave >= sec.totalWaves) {
+                sec.completed = true;
+                if (secIdx == 5) {
+                    UI::ShowNotification("HARD ROUTE CLEARED!", "FINAL BOSS ARENA AHEAD!", 3.0);
+                } else {
+                    UI::ShowNotification("CORRIDOR CLEARED", "PROCEED TO NEXT INFECTED SECTOR", 2.0);
+                }
+                return;
+            } else {
+                char waveMsg[64];
+                sprintf_s(waveMsg, sizeof(waveMsg), "HIGH INTENSITY WAVE %d/%d!", sec.currentWave + 1, sec.totalWaves);
+                UI::ShowNotification("WARNING: SWARM ASSAULT", waveMsg, 2.0);
+            }
+        }
+
+        // Spawn next enemy in wave if timer elapsed and under max active enemy cap
+        if (sec.spawnedInWave < (int)waveComp.size() && aliveCount < sec.maxActiveEnemies) {
+            sec.spawnTimer += dt;
+            if (sec.spawnTimer >= sec.spawnInterval) {
+                sec.spawnTimer = 0.0f;
+                EnemyType t = waveComp[sec.spawnedInWave];
+                sec.spawnedInWave++;
+
+                // Spawn location relative to player position (alternating front / rear)
+                double spawnDir = (sec.spawnedInWave % 2 == 1) ? 1.0 : -1.0;
+                double spawnX = player.x + (spawnDir * (350.0 + (rand() % 180)));
+
+                // Clamp spawn position inside section bounds
+                double secMinX = secIdx * 1448.0 + 80.0;
+                double secMaxX = (secIdx + 1) * 1448.0 - 80.0;
+                if (spawnX < secMinX) spawnX = secMinX;
+                if (spawnX > secMaxX) spawnX = secMaxX;
+
+                enemies.push_back(Enemy(spawnX, spawnX + 100.0, kLevel1GroundY, t));
+            }
+        }
+    }
+}
+
 void GameManager::TriggerLevel3Route(int route) {
     m_l3Route = route; // 1 = Easy Route, 2 = Hard Route
     gameMap.SetL3Route(route);
     enemies.clear();
+    for (int p = 0; p < 4; ++p) {
+        g_bossProjectiles[p].active = false;
+    }
+    bossSpawned = false;
+    bossDefeated = false;
+    m_l3Boss.phase = L3_BOSS_INACTIVE;
 
     if (route == 1) { // EASY ROUTE
         UI::ShowNotification("ROUTE SELECTED", "EASY ROUTE: CONTROLLED ANTECHAMBER", 2.5);
         gameMap.SetLevelWidth(10136);
-
-        // Escalating Easy Route enemies across dynamic backgrounds (easy_bg1 to easy_bg5)
-        // Slice 0 (easy_bg1): 2 Spitters/Walkers, 1 Runner
-        enemies.push_back(Enemy(600, 750, kLevel1GroundY, TYPE_SPITTER));
-        enemies.push_back(Enemy(1100, 1200, kLevel1GroundY, TYPE_RUNNER));
-
-        // Slice 1 (easy_bg2): 2 Walkers, 1 Raider
-        enemies.push_back(Enemy(1800, 1950, kLevel1GroundY, TYPE_SPITTER));
-        enemies.push_back(Enemy(2400, 2550, kLevel1GroundY, TYPE_RAIDER));
-
-        // Slice 2 (easy_bg3): 2 Walkers, 1 Heavy Infected, 1 Hunter
-        enemies.push_back(Enemy(3200, 3350, kLevel1GroundY, TYPE_SPITTER));
-        enemies.push_back(Enemy(3700, 3850, kLevel1GroundY, TYPE_HEAVY));
-        enemies.push_back(Enemy(4100, 4250, kLevel1GroundY, TYPE_HUNTER));
-
-        // Slice 3 (easy_bg4): 2 Raiders, 1 Heavy, 1 Hunter
-        enemies.push_back(Enemy(4800, 4950, kLevel1GroundY, TYPE_RAIDER));
-        enemies.push_back(Enemy(5300, 5450, kLevel1GroundY, TYPE_HEAVY));
-        enemies.push_back(Enemy(5700, 5850, kLevel1GroundY, TYPE_HUNTER));
-
-        // Slice 4 (easy_bg5): Culmination - Mutated Brute (Abomination) + 2 Hunters
-        enemies.push_back(Enemy(6400, 6550, kLevel1GroundY, TYPE_ABOMINATION));
-        enemies.push_back(Enemy(6800, 6950, kLevel1GroundY, TYPE_HUNTER));
+        InitLevel3EasyWaveSystem();
     }
     else { // HARD ROUTE (route == 2)
         UI::ShowNotification("ROUTE SELECTED", "HARD ROUTE: HIGH DENSITY INFECTED CORRIDORS", 2.5);
         gameMap.SetLevelWidth(11584);
-
-        // Larger enemy counts, faster combinations across hard_bg1 to hard_bg6
-        // Slice 0 (hard_bg1): 3 Walkers, 2 Runners
-        enemies.push_back(Enemy(500, 600, kLevel1GroundY, TYPE_RUNNER));
-        enemies.push_back(Enemy(800, 900, kLevel1GroundY, TYPE_SPITTER));
-        enemies.push_back(Enemy(1200, 1300, kLevel1GroundY, TYPE_RUNNER));
-
-        // Slice 1 (hard_bg2): 2 Raiders, 2 Hunters
-        enemies.push_back(Enemy(1800, 1900, kLevel1GroundY, TYPE_RAIDER));
-        enemies.push_back(Enemy(2200, 2300, kLevel1GroundY, TYPE_HUNTER));
-        enemies.push_back(Enemy(2600, 2700, kLevel1GroundY, TYPE_HUNTER));
-
-        // Slice 2 (hard_bg3): 2 Heavies, 2 Spitters, 1 Abomination
-        enemies.push_back(Enemy(3200, 3300, kLevel1GroundY, TYPE_HEAVY));
-        enemies.push_back(Enemy(3600, 3700, kLevel1GroundY, TYPE_SPITTER));
-        enemies.push_back(Enemy(4000, 4100, kLevel1GroundY, TYPE_ABOMINATION));
-
-        // Slice 3 (hard_bg4): Swarm wave (3 Runners, 2 Hunters, 1 Raider)
-        enemies.push_back(Enemy(4600, 4700, kLevel1GroundY, TYPE_RUNNER));
-        enemies.push_back(Enemy(5000, 5100, kLevel1GroundY, TYPE_HUNTER));
-        enemies.push_back(Enemy(5400, 5500, kLevel1GroundY, TYPE_RUNNER));
-        enemies.push_back(Enemy(5800, 5900, kLevel1GroundY, TYPE_RAIDER));
-
-        // Slice 4 (hard_bg5): Heavy Brutes + Hunters
-        enemies.push_back(Enemy(6300, 6400, kLevel1GroundY, TYPE_HEAVY));
-        enemies.push_back(Enemy(6700, 6800, kLevel1GroundY, TYPE_ABOMINATION));
-        enemies.push_back(Enemy(7100, 7200, kLevel1GroundY, TYPE_HUNTER));
-
-        // Slice 5 (hard_bg6): Final pre-boss assault wave
-        enemies.push_back(Enemy(7600, 7700, kLevel1GroundY, TYPE_HUNTER));
-        enemies.push_back(Enemy(8000, 8100, kLevel1GroundY, TYPE_HEAVY));
-        enemies.push_back(Enemy(8300, 8400, kLevel1GroundY, TYPE_ABOMINATION));
+        InitLevel3HardWaveSystem();
     }
 }
 
@@ -1211,6 +1491,10 @@ void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
                 TriggerLevel3Route(2); // Deterministic transition to Hard Route (clears dialogue ambush enemies cleanly)
             }
         }
+    } else if (currentLevel == 3 && m_l3Route == 1) {
+        UpdateLevel3EasyWaves(dt);
+    } else if (currentLevel == 3 && m_l3Route == 2) {
+        UpdateLevel3HardWaves(dt);
     }
 
     // Update temporary UI Notifications (Item Acquired / Mission Updates)
@@ -1586,35 +1870,76 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         double arenaTriggerX = (m_l3Route == 1) ? 7200.0 : 8600.0;
         if (player.x >= arenaTriggerX && !bossSpawned) {
             bossSpawned = true;
-            m_l3Boss.Initialize(arenaTriggerX + 600.0, 185.0);
-            UI::ShowNotification("WARNING: FINAL BOSS", "DR. KAEL - HUMAN FORM", 3.0);
+
+            // Position Arin on the left side of the arena facing right
+            player.x = arenaTriggerX + 150.0;
+            player.y = kLevel1GroundY;
+            player.vx = 0.0;
+            player.vy = 0.0;
+            player.isFacingRight = true;
+
+            // Lock camera in arena bounds
+            gameMap.SetCameraX(arenaTriggerX - 100.0);
+
+            // Initialize Human Dr. Kael using existing Level3Boss scaffold
+            m_l3Boss.Initialize(arenaTriggerX + 700.0, kLevel1GroundY);
+
+            // Clean up all normal enemies & enemy projectiles, stop route timers/events
+            enemies.clear();
+            for (int p = 0; p < 4; ++p) {
+                g_bossProjectiles[p].active = false;
+            }
+            m_l3NpcDialogueActive = false;
+
+            // Trigger controlled story/boss encounter dialogue sequence
+            currentState = STATE_DIALOGUE;
+            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
+            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
+
+            UI::ShowNotification("FINAL BOSS ARENA", "DR. KAEL - HUMAN FORM", 3.0);
+            printf("[GENESIS Engine] Level 3: Final Boss Arena Initialized (Route %d, Dr. Kael at %.1f).\n", m_l3Route, m_l3Boss.x);
         }
 
         if (bossSpawned && !bossDefeated) {
-            m_l3Boss.Update(player, dt);
-            bossHp = m_l3Boss.hp;
-            bossMaxHp = m_l3Boss.maxHp;
-            displayedBossHp = (double)m_l3Boss.hp;
-
-            // Player melee attack hitting Dr Kael / Monster Kael
-            if (player.state == STATE_ATTACK_MELEE && player.animAttack.GetCurrentFrame() == 2) {
-                if (m_l3Boss.CheckPlayerCollision(player.x, player.y, player.width, player.height, player)) {
-                    m_l3Boss.TakeDamage(50);
-                }
+            // Guarantee clean arena state: clear any remaining enemies or projectiles
+            if (!enemies.empty()) {
+                enemies.clear();
+            }
+            for (int p = 0; p < 4; ++p) {
+                g_bossProjectiles[p].active = false;
             }
 
-            // Player ranged attack hitting Dr Kael / Monster Kael
-            if (player.state == STATE_ATTACK_PISTOL && player.animPistol.GetCurrentFrame() == 2) {
-                if (abs((player.x + (player.isFacingRight ? 150.0 : -150.0)) - m_l3Boss.x) < 180.0) {
-                    m_l3Boss.TakeDamage(35);
-                }
-            }
+            if (m_l3Boss.phase != L3_BOSS_INACTIVE) {
+                m_l3Boss.Update(player, dt);
+                bossHp = m_l3Boss.hp;
+                bossMaxHp = m_l3Boss.maxHp;
+                displayedBossHp = (double)m_l3Boss.hp;
 
-            // Boss Dialogue Trigger
-            if (m_l3Boss.IsInDialogue() && currentState == STATE_PLAYING) {
-                currentState = STATE_DIALOGUE;
-                sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
-                sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
+                // Player melee attack hitting Dr Kael / Monster Kael
+                if (player.state == STATE_ATTACK_MELEE && player.animAttack.GetCurrentFrame() == 2) {
+                    if (m_l3Boss.CheckPlayerCollision(player.x, player.y, player.width, player.height, player)) {
+                        m_l3Boss.TakeDamage(50);
+                    }
+                }
+
+                // Player ranged attack hitting Dr Kael / Monster Kael
+                if (player.state == STATE_ATTACK_PISTOL && player.animPistol.GetCurrentFrame() == 2) {
+                    if (abs((player.x + (player.isFacingRight ? 150.0 : -150.0)) - m_l3Boss.x) < 180.0) {
+                        m_l3Boss.TakeDamage(35);
+                    }
+                }
+
+                // Boss Dialogue Trigger
+                if (m_l3Boss.IsInDialogue() && currentState == STATE_PLAYING) {
+                    currentState = STATE_DIALOGUE;
+                    sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
+                    sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
+                }
+
+                if (m_l3Boss.IsDefeated()) {
+                    bossDefeated = true;
+                    UI::ShowNotification("FINAL BOSS DEFEATED", "FACILITY ESCAPE DOOR UNLOCKED!", 3.0);
+                }
             }
 
             // Lock camera in arena bounds
@@ -1626,11 +1951,6 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             gameMap.SetCameraX(arenaTriggerX - 100.0);
             if (player.x < minPx) player.x = minPx;
             if (player.x > maxPx) player.x = maxPx;
-
-            if (m_l3Boss.IsDefeated()) {
-                bossDefeated = true;
-                UI::ShowNotification("FINAL BOSS DEFEATED", "FACILITY ESCAPE DOOR UNLOCKED!", 3.0);
-            }
         }
         else {
             gameMap.ApplyCameraTracking(player.x, player.y, 1280, 720);
