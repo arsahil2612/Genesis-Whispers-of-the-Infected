@@ -8,6 +8,7 @@
 #include "UI.h"
 #include "EncounterManager.h"
 #include "Level3Boss.h"
+#include "Level3Manager.h"
 #include <vector>
 #include <string>
 
@@ -235,6 +236,7 @@ private:
     std::vector<NPC> level2NPCs;
     std::vector<NPC> level3NPCs;
     Level3Boss m_l3Boss;
+    Level3Manager m_l3Manager;
     int m_l3Route; // 0 = Undecided/Common, 1 = Easy Route, 2 = Hard Route
     bool m_l3NpcDialogueActive;
     bool m_l3Interrupted;

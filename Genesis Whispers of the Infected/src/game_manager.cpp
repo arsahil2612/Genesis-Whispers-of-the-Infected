@@ -1088,20 +1088,6 @@ void GameManager::LoadLevel3NPCs() {
                           "  [1] EASY ROUTE (Controlled Antechamber Path)\n"
                           "  [2] HARD ROUTE (High-Density Swarm Corridors)\"";
     level3NPCs.push_back(oldMan);
-
-    NPC injWoman;
-    injWoman.type = NPC_INJURED_WOMAN;
-    injWoman.x = 600.0;
-    injWoman.y = 140.0;
-    injWoman.width = 82;
-    injWoman.height = 145;
-    injWoman.animIdle.InitSequence(loadSeq("Assets/Characters/Injured Women/idle/Injured_women_idle_%02d.png", 6), 10, true);
-    injWoman.animTalk.InitSequence(loadSeq("Assets/Characters/Injured Women/talk/Injured_women_talk_%02d.png", 6), 10, true);
-    injWoman.isTalking = false;
-    injWoman.isFacingRight = false;
-    injWoman.name = "Injured Scientist";
-    injWoman.dialogueText = "\"Kael's serum transformation is almost complete... You must reach the main facility before it's too late!\"";
-    level3NPCs.push_back(injWoman);
 }
 
 void GameManager::LoadLevel3() {
@@ -1980,16 +1966,25 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         }
     } else if (currentLevel == 3) {
         if (m_l3Route == 0) { // Common BG Scene
-            m_l3NpcTimer += dt;
-            m_l3SpawnTimer += dt;
+            // Pause spawn timer & timeout while talking to Old Commander or choosing route
+            bool isInteractingWithOldMan = (currentState == STATE_DIALOGUE || m_l3NpcDialogueActive || player.x >= 300.0);
+            if (!isInteractingWithOldMan) {
+                m_l3NpcTimer += dt;
+                m_l3SpawnTimer += dt;
 
-            // Periodic ambush enemy spawning in Common Scene
-            if (m_l3SpawnTimer >= 3.5) {
-                m_l3SpawnTimer = 0.0;
-                if (enemies.size() < 4) {
-                    double sx = (rand() % 2 == 0) ? 100.0 : 800.0;
-                    EnemyType t = (rand() % 2 == 0) ? TYPE_RUNNER : TYPE_SPITTER;
-                    enemies.push_back(Enemy(sx, sx + 100.0, kLevel1GroundY, t));
+                // Periodic ambush enemy spawning before reaching Old Commander
+                if (m_l3SpawnTimer >= 3.5) {
+                    m_l3SpawnTimer = 0.0;
+                    if (enemies.size() < 4) {
+                        double sx = (rand() % 2 == 0) ? 100.0 : 800.0;
+                        EnemyType t = (rand() % 2 == 0) ? TYPE_RUNNER : TYPE_SPITTER;
+                        enemies.push_back(Enemy(sx, sx + 100.0, kLevel1GroundY, t));
+                    }
+                }
+            } else {
+                // Clear all enemies so Arin is completely safe while talking to Old Commander or choosing route
+                if (!enemies.empty()) {
+                    enemies.clear();
                 }
             }
 
@@ -1997,33 +1992,15 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             if (player.x >= 900.0) {
                 TriggerLevel3Route(1);
             }
-            else if (!m_l3Interrupted && m_l3NpcTimer >= 16.0) {
-                m_l3Interrupted = true;
-                TriggerLevel3Route(2); // Forced HARD ROUTE!
-                UI::ShowNotification("INFECTED AMBUSH!", "DIALOGUE TIMEOUT - FORCED INTO HARD ROUTE!", 3.0);
-            }
         }
     }
 
     // Check boss spawning boundary trigger
     if (currentLevel == 3) {
         double arenaTriggerX = (m_l3Route == 2) ? 8600.0 : 7200.0;
-        if (player.x >= arenaTriggerX && !bossSpawned) {
+        if (player.x >= arenaTriggerX && !bossSpawned && !m_l3Manager.IsLoading()) {
             bossSpawned = true;
-            printf("[GENESIS Engine] FINAL BOSS ARENA ENTERED\n");
-
-            // Position Arin on the left side of the arena facing right
-            player.x = arenaTriggerX + 150.0;
-            player.y = kLevel1GroundY;
-            player.vx = 0.0;
-            player.vy = 0.0;
-            player.isFacingRight = true;
-
-            // Lock camera in arena bounds
-            gameMap.SetCameraX(arenaTriggerX - 100.0);
-
-            // Initialize Human Dr. Kael using existing Level3Boss scaffold
-            m_l3Boss.Initialize(arenaTriggerX, kLevel1GroundY);
+            printf("[GENESIS Engine] FINAL BOSS ARENA TRIGGERED - STARTING LOADING SCENE\n");
 
             // Clean up all normal enemies & enemy projectiles, stop route timers/events
             enemies.clear();
@@ -2032,12 +2009,23 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             }
             m_l3NpcDialogueActive = false;
 
-            UI::ShowNotification("FINAL BOSS ARENA", "DR. KAEL - HUMAN FORM", 3.0);
-            printf("[GENESIS Engine] Level 3: Final Boss Arena Initialized (Route %d, Dr. Kael at %.1f).\n", m_l3Route, m_l3Boss.x);
+            // Start Level 3 Boss Loading Screen transition
+            m_l3Manager.StartBossLoading(arenaTriggerX);
+            UI::ShowNotification("FINAL BOSS ARENA", "PREPARING FINAL ARENA...", 3.0);
+        }
+
+        if (m_l3Manager.IsLoading()) {
+            gameMap.SetCameraX(arenaTriggerX - 100.0);
+            enemies.clear();
+            for (int p = 0; p < 4; ++p) {
+                g_bossProjectiles[p].active = false;
+            }
+            m_l3Manager.Update(dt, player, m_l3Boss);
+            return;
         }
 
         if (bossSpawned && !bossDefeated) {
-            // Guarantee clean arena state: clear any remaining enemies or projectiles
+            // Guarantee clean arena state: clear any remaining ambient enemies or projectiles
             if (!enemies.empty()) {
                 enemies.clear();
             }
@@ -2045,33 +2033,46 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                 g_bossProjectiles[p].active = false;
             }
 
-            if (m_l3Boss.phase != L3_BOSS_INACTIVE) {
-                // Lock Arin's movement during Human Dr. Kael Intro, Dialogue & Transition Cinematic pauses
-                if (m_l3Boss.IsInIntro() || m_l3Boss.IsInDialogue() || m_l3Boss.IsDialogueComplete() || m_l3Boss.IsAngerPhase() || m_l3Boss.IsSummonDronePhase() || m_l3Boss.IsDroneSummonCompletePhase() || m_l3Boss.IsDroneAttackPhase() || m_l3Boss.IsPrepareSerumPhase() || m_l3Boss.IsInjectSerumPhase() || m_l3Boss.IsSerumCompletePhase() || m_l3Boss.IsTransformationPreparePhase() || m_l3Boss.IsKaelTransformingPhase() || m_l3Boss.IsMonsterKaelInitializePhase()) {
-                    player.vx = 0.0;
-                    player.vy = 0.0;
-                    player.isFacingRight = true;
-                    if (player.state == STATE_RUN || player.state == STATE_WALK) {
-                        player.SetState(STATE_IDLE);
-                    }
-                }
+            m_l3Manager.Update(dt, player, m_l3Boss);
 
-                m_l3Boss.Update(player, dt);
+            if (m_l3Boss.phase != L3_BOSS_INACTIVE) {
                 bossHp = m_l3Boss.hp;
                 bossMaxHp = m_l3Boss.maxHp;
                 displayedBossHp = (double)m_l3Boss.hp;
 
-                // Player melee attack hitting Dr Kael / Monster Kael
+                // Player melee attack hitting Dr Kael / Monster Kael & Drones
                 if (player.state == STATE_ATTACK_MELEE && player.animAttack.GetCurrentFrame() == 2) {
                     if (m_l3Boss.CheckPlayerCollision(player.x, player.y, player.width, player.height, player)) {
                         m_l3Boss.TakeDamage(50);
                     }
+                    for (auto& d : m_l3Boss.drones) {
+                        if (d.active && std::abs(player.x - d.x) < 220.0 && std::abs(player.y - d.y) < 180.0) {
+                            d.hp -= 35;
+                            if (d.hp <= 0) {
+                                d.active = false;
+                                score += 150;
+                                UI::ShowNotification("DRONE DESTROYED", "+150 PTS", 1.5);
+                            }
+                        }
+                    }
                 }
 
-                // Player ranged attack hitting Dr Kael / Monster Kael
+                // Player ranged attack hitting Dr Kael / Monster Kael & Drones
                 if (player.state == STATE_ATTACK_PISTOL && player.animPistol.GetCurrentFrame() == 2) {
-                    if (abs((player.x + (player.isFacingRight ? 150.0 : -150.0)) - m_l3Boss.x) < 180.0) {
+                    double bulletX = player.x + (player.isFacingRight ? 150.0 : -150.0);
+                    if (std::abs(bulletX - m_l3Boss.x) < 180.0) {
                         m_l3Boss.TakeDamage(35);
+                    }
+                    for (auto& d : m_l3Boss.drones) {
+                        if (d.active && std::abs(bulletX - d.x) < 150.0 && std::abs((player.y + 60.0) - d.y) < 150.0) {
+                            d.hp -= 35;
+                            if (d.hp <= 0) {
+                                d.active = false;
+                                score += 150;
+                                UI::ShowNotification("DRONE DESTROYED", "+150 PTS", 1.5);
+                            }
+                            break; // 1 bullet damages 1 drone
+                        }
                     }
                 }
 
@@ -2880,7 +2881,7 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                 }
             }
         }
-        else if (currentLevel == 3 && bossSpawned && !bossDefeated) {
+        else if (currentLevel == 3 && bossSpawned && !bossDefeated && !m_l3Boss.IsDialogueComplete() && m_l3Boss.phase < L3_BOSS_HUMAN_DIALOGUE_COMPLETE) {
             if (std::abs(player.x - m_l3Boss.x) < 220.0) {
                 activePromptText = "[SPACE] / [ENTER] / [E] Talk with Dr. Kael";
                 activePromptX = (int)(m_l3Boss.x - camX);
@@ -3265,6 +3266,11 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
 }
 
 void GameManager::RenderPlaying() {
+    if (currentLevel == 3 && m_l3Manager.IsLoading()) {
+        m_l3Manager.Draw();
+        return;
+    }
+
     double camX = gameMap.GetCameraX();
     double camY = gameMap.GetCameraY();
 
@@ -4253,6 +4259,32 @@ void GameManager::RenderLeaderboard() {
 // Input Event Handlers
 // ============================================================================
 void GameManager::HandleKeyPress(unsigned char key) {
+    // Shortcut Key '&': Instantly warp from anywhere directly to Level 3 Final Boss Loading Scene
+    if (key == '&' || key == 38) {
+        printf("[GENESIS Engine] Shortcut Key '&' Triggered! Warping directly to Level 3 Final Boss Loading Scene.\n");
+        LoadLevel3();
+        m_l3Route = 1;
+        gameMap.SetL3Route(1);
+        double arenaTriggerX = 7200.0;
+        player.x = arenaTriggerX - 50.0;
+        player.y = kLevel1GroundY;
+        player.vx = 0.0;
+        player.vy = 0.0;
+        player.isFacingRight = true;
+        gameMap.SetCameraX(arenaTriggerX - 100.0);
+        bossSpawned = true;
+        bossDefeated = false;
+        m_l3NpcDialogueActive = false;
+        enemies.clear();
+        for (int p = 0; p < 4; ++p) {
+            g_bossProjectiles[p].active = false;
+        }
+        currentState = STATE_PLAYING;
+        m_l3Manager.StartBossLoading(arenaTriggerX);
+        UI::ShowNotification("DIRECT WARP (&)", "PREPARING FINAL ARENA...", 3.0);
+        return;
+    }
+
     if (currentState == STATE_MENU) {
         if (key == 13 || key == '1') { // Enter or 1 = Start Survival
             Initialize(); // Fresh start
@@ -4406,8 +4438,8 @@ void GameManager::HandleKeyPress(unsigned char key) {
                     }
                 }
 
-                // Check Level 3 Dr. Kael interaction
-                if (!itemInteracted && currentLevel == 3 && bossSpawned && !bossDefeated) {
+                // Check Level 3 Dr. Kael interaction (only before dialogue is completed)
+                if (!itemInteracted && currentLevel == 3 && bossSpawned && !bossDefeated && !m_l3Boss.IsDialogueComplete() && m_l3Boss.phase < L3_BOSS_HUMAN_DIALOGUE_COMPLETE) {
                     if (std::abs(player.x - m_l3Boss.x) < 220.0) {
                         m_l3Boss.dialogueStep = 0;
                         m_l3Boss.currentSpeaker = "Dr. Kael";

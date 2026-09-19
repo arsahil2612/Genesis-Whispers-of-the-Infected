@@ -51,7 +51,7 @@ struct Drone {
     double attackCooldown;
     Animation anim;
     
-    Drone() : x(0), y(0), vx(0), vy(0), targetX(0), targetY(0), hp(30), active(false), timer(0), attackCooldown(0) {}
+    Drone() : x(0), y(0), vx(0), vy(0), targetX(0), targetY(0), hp(160), active(false), timer(0), attackCooldown(0) {}
 };
 
 struct DroneProjectile {
@@ -116,6 +116,10 @@ public:
     Animation animMonsterWarning;
     Animation animMonsterSpike;
     Animation animMonsterCharge;
+
+    // Drone & Projectile Cached Textures
+    std::vector<unsigned int> texDroneIdle;
+    std::vector<unsigned int> texDroneProj;
 
     // AI Timers
     double attackCooldownTimer;

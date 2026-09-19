@@ -68,6 +68,10 @@ void Level3Boss::PreloadAssets() {
     animMonsterSpike.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Monster/spike attack/ground spikes/monster_ground_spike_attack_%02d.png", 8), 6, false);
     animMonsterCharge.InitSequence(loadSeq("Assets/Characters/Dr. Kael/Monster/spike attack/monster charge animation/monster_charge_animation_%02d.png", 8), 6, true);
 
+    // 3. Preload Drone & Projectile Textures
+    texDroneIdle = loadSeq("Assets/Characters/Dr. Kael/Human/Drone Attack/Combat Drone/Idle/drone_idle_%02d.png", 4);
+    texDroneProj = loadSeq("Assets/Characters/Dr. Kael/Human/Drone Attack/Drone Energy Projectile/projectile_%02d.png", 6);
+
     assetsLoaded = true;
     printf("[GENESIS Engine] Dr. Kael Assets Preloaded. Idle frames: %d, Talk frames: %d (Valid: %s, TexID: %u)\n",
            animHumanIdle.GetFrameCount(), animHumanTalk.GetFrameCount(), animHumanIdle.IsValid() ? "YES" : "NO", animHumanIdle.GetTextureID());
@@ -77,8 +81,8 @@ void Level3Boss::Initialize(double arenaX, double arenaY) {
     printf("[GENESIS Engine] HUMAN KAEL INITIALIZATION STARTED\n");
     x = arenaX + 750.0;
     y = arenaY;
-    width = 180;
-    height = 200;
+    width = 135;
+    height = 150;
     hp = 1200;
     maxHp = 1200;
     isFacingRight = false;
@@ -150,16 +154,20 @@ void Level3Boss::SpawnDrone(double spawnX, double spawnY) {
     d.x = spawnX;
     d.y = spawnY;
     d.active = true;
-    d.hp = 35;
+    d.hp = 160;
     
-    std::vector<unsigned int> seq;
-    for (int i = 1; i <= 4; ++i) {
-        char p[160];
-        sprintf_s(p, sizeof(p), "Assets/Characters/Dr. Kael/Human/Drone Attack/Combat Drone/Idle/drone_idle_%02d.png", i);
-        unsigned int tex = iLoadImage((char*)GetAssetPath(p).c_str());
-        if (tex != 0) seq.push_back(tex);
+    if (!texDroneIdle.empty()) {
+        d.anim.InitSequence(texDroneIdle, 8, true);
+    } else {
+        std::vector<unsigned int> seq;
+        for (int i = 1; i <= 4; ++i) {
+            char p[160];
+            sprintf_s(p, sizeof(p), "Assets/Characters/Dr. Kael/Human/Drone Attack/Combat Drone/Idle/drone_idle_%02d.png", i);
+            unsigned int tex = iLoadImage((char*)GetAssetPath(p).c_str());
+            if (tex != 0) seq.push_back(tex);
+        }
+        d.anim.InitSequence(seq, 8, true);
     }
-    d.anim.InitSequence(seq, 8, true);
     drones.push_back(d);
 }
 
@@ -176,14 +184,16 @@ void Level3Boss::TriggerSpikeAttack(double targetX, double targetY) {
 }
 
 void Level3Boss::Update(Player& player, float dt) {
+    if (phase == L3_BOSS_INACTIVE) return;
+
     // ------------------------------------------------------------------------
-    // PHASE 1: Human Dialogue & Intro Sequence
+    // PHASE 1: Human Intro, Dialogue & Tactical Drone Attack
     // ------------------------------------------------------------------------
     if (phase == L3_BOSS_HUMAN_INTRO) {
         introTimer += dt;
         isFacingRight = (player.x > x);
         
-        // Dr. Kael walks left towards his dialogue standing position
+        // Dr. Kael walks left towards dialogue standing position
         if (x > player.x + 300.0) {
             x -= 120.0 * dt;
             animHumanWalk.Update();
@@ -218,7 +228,7 @@ void Level3Boss::Update(Player& player, float dt) {
         phase = L3_BOSS_HUMAN_IDLE;
         stateTimer = 0.0;
         isFacingRight = (player.x > x);
-        animHumanIdle.Update();
+        animHumanIdle.Reset();
         return;
     }
 
@@ -238,11 +248,11 @@ void Level3Boss::Update(Player& player, float dt) {
         stateTimer += dt;
         isFacingRight = (player.x > x);
 
-        // Dr Kael walks back and forth / paces purposefully
+        // Dr Kael walks towards player position
         x += (isFacingRight ? 90.0 : -90.0) * dt;
         animHumanWalk.Update();
 
-        if (stateTimer >= 2.0) {
+        if (stateTimer >= 2.5) {
             phase = L3_BOSS_HUMAN_SUMMON_DRONE;
             stateTimer = 0.0;
             animHumanSummon.Reset();
@@ -251,9 +261,10 @@ void Level3Boss::Update(Player& player, float dt) {
     }
 
     if (phase == L3_BOSS_HUMAN_SUMMON_DRONE) {
+        stateTimer += dt;
         isFacingRight = (player.x > x);
         animHumanSummon.Update();
-        if (animHumanSummon.IsFinished()) {
+        if (animHumanSummon.IsFinished() || stateTimer >= 1.2) {
             phase = L3_BOSS_HUMAN_DRONE_SUMMON_COMPLETE;
             stateTimer = 0.0;
         }
@@ -265,16 +276,17 @@ void Level3Boss::Update(Player& player, float dt) {
         stateTimer = 0.0;
         drones.clear();
         droneProjectiles.clear();
-        SpawnDrone(x - 200, y + 220);
-        SpawnDrone(x + 200, y + 220);
+        SpawnDrone(x - 200, y + 120);
+        SpawnDrone(x + 200, y + 120);
         isFacingRight = (player.x > x);
-        animHumanIdle.Update();
+        animHumanIdle.Reset();
         return;
     }
 
     if (phase == L3_BOSS_HUMAN_DRONE_ATTACK) {
         stateTimer += dt;
         isFacingRight = (player.x > x);
+        x += (isFacingRight ? 30.0 : -30.0) * dt;
         animHumanIdle.Update();
 
         // Update active drones
@@ -283,44 +295,49 @@ void Level3Boss::Update(Player& player, float dt) {
             d.anim.Update();
             d.timer += dt;
 
-            // Drone hovering AI targeting Arin
-            d.targetX = player.x + (d.x < player.x ? -180.0 : 180.0);
-            d.targetY = player.y + 160.0 + sin(d.timer * 3.0) * 30.0;
+            // Drone hovering AI targeting Arin at chest/head level
+            d.targetX = player.x + (d.x < player.x ? -160.0 : 160.0);
+            d.targetY = player.y + 65.0 + sin(d.timer * 3.0) * 20.0;
             d.x += (d.targetX - d.x) * 0.05;
             d.y += (d.targetY - d.y) * 0.05;
 
             // Controlled projectile attack timing
             d.attackCooldown += dt;
-            if (d.attackCooldown >= 2.2) {
+            if (d.attackCooldown >= 1.8) {
                 d.attackCooldown = 0.0;
                 DroneProjectile p;
                 p.x = d.x;
-                p.y = d.y - 20;
-                double dx = player.x - d.x;
-                double dy = (player.y + 60) - d.y;
+                p.y = d.y - 10;
+                double targetX = player.x + 30.0;
+                double targetY = player.y + 80.0;
+                double dx = targetX - d.x;
+                double dy = targetY - d.y;
                 double dist = sqrt(dx*dx + dy*dy);
                 if (dist > 0.1) {
-                    p.vx = (dx / dist) * 400.0;
-                    p.vy = (dy / dist) * 400.0;
+                    p.vx = (dx / dist) * 450.0;
+                    p.vy = (dy / dist) * 450.0;
                 }
                 p.damage = 10;
                 p.active = true;
                 
-                std::vector<unsigned int> seq;
-                for (int i = 1; i <= 6; ++i) {
-                    char b[160];
-                    sprintf_s(b, sizeof(b), "Assets/Characters/Dr. Kael/Human/Drone Attack/Drone Energy Projectile/projectile_%02d.png", i);
-                    unsigned int tex = iLoadImage((char*)GetAssetPath(b).c_str());
-                    if (tex != 0) seq.push_back(tex);
+                if (!texDroneProj.empty()) {
+                    p.anim.InitSequence(texDroneProj, 2, true);
+                } else {
+                    std::vector<unsigned int> seq;
+                    for (int i = 1; i <= 6; ++i) {
+                        char b[160];
+                        sprintf_s(b, sizeof(b), "Assets/Characters/Dr. Kael/Human/Drone Attack/Drone Energy Projectile/projectile_%02d.png", i);
+                        unsigned int tex = iLoadImage((char*)GetAssetPath(b).c_str());
+                        if (tex != 0) seq.push_back(tex);
+                    }
+                    p.anim.InitSequence(seq, 2, true);
                 }
-                p.anim.InitSequence(seq, 6, true);
                 droneProjectiles.push_back(p);
             }
         }
 
-        // Configurable cinematic attack duration (4.5 seconds)
-        if (stateTimer >= 4.5) {
-            // CLEANUP: stop firing, clear all active drones & projectiles
+        // Drone attack phase duration (7.0 seconds)
+        if (stateTimer >= 7.0) {
             drones.clear();
             droneProjectiles.clear();
             phase = L3_BOSS_HUMAN_PREPARE_SERUM;
@@ -342,9 +359,10 @@ void Level3Boss::Update(Player& player, float dt) {
     }
 
     if (phase == L3_BOSS_HUMAN_INJECT_SERUM) {
+        stateTimer += dt;
         isFacingRight = (player.x > x);
         animHumanInject.Update();
-        if (animHumanInject.IsFinished()) {
+        if (animHumanInject.IsFinished() || stateTimer >= 1.8) {
             phase = L3_BOSS_HUMAN_SERUM_COMPLETE;
             stateTimer = 0.0;
         }
@@ -355,7 +373,6 @@ void Level3Boss::Update(Player& player, float dt) {
         phase = L3_BOSS_TRANSFORMATION_PREPARE;
         stateTimer = 0.0;
         isFacingRight = (player.x > x);
-        animHumanIdle.Update();
         return;
     }
 
@@ -367,7 +384,7 @@ void Level3Boss::Update(Player& player, float dt) {
         return;
     }
 
-    if (phase == L3_BOSS_KAEL_TRANSFORMING) {
+    if (phase == L3_BOSS_KAEL_TRANSFORMING || phase == L3_BOSS_HUMAN_TRANSFORMING) {
         stateTimer += dt;
         isFacingRight = (player.x > x);
         animHumanTransform.Update();
@@ -380,125 +397,50 @@ void Level3Boss::Update(Player& player, float dt) {
 
     if (phase == L3_BOSS_MONSTER_KAEL_INITIALIZE) {
         phase = L3_BOSS_MONSTER_KAEL_IDLE;
-        width = 280;
-        height = 280;
+        width = 220;
+        height = 230;
         hp = 1200;
         maxHp = 1200;
         monsterState = MONSTER_IDLE;
+        stateTimer = 0.0;
         animMonsterIdle.Reset();
         isFacingRight = (player.x > x);
         return;
     }
 
     if (phase == L3_BOSS_MONSTER_KAEL_IDLE) {
+        stateTimer += dt;
         isFacingRight = (player.x > x);
         animMonsterIdle.Update();
-        return;
-    }
-
-    if (phase == L3_BOSS_HUMAN_DIALOGUE) {
-        isFacingRight = (player.x > x);
-        if (currentSpeaker == "Dr. Kael") {
-            animHumanTalk.Update();
-        } else {
-            animHumanIdle.Update();
-        }
-        return;
-    }
-
-    if (phase == L3_BOSS_HUMAN_ANGRY_DRONES) {
-        introTimer += dt;
-        animHumanSummon.Update();
-
-        // Update drones
-        for (auto& d : drones) {
-            if (!d.active) continue;
-            d.anim.Update();
-            d.timer += dt;
-
-            // Drone hovering AI
-            d.targetX = player.x + (d.x < player.x ? -180.0 : 180.0);
-            d.targetY = player.y + 160.0 + sin(d.timer * 3.0) * 30.0;
-            d.x += (d.targetX - d.x) * 0.05;
-            d.y += (d.targetY - d.y) * 0.05;
-
-            d.attackCooldown += dt;
-            if (d.attackCooldown >= 2.0) {
-                d.attackCooldown = 0.0;
-                // Fire projectile at Arin
-                DroneProjectile p;
-                p.x = d.x;
-                p.y = d.y - 20;
-                double dx = player.x - d.x;
-                double dy = (player.y + 60) - d.y;
-                double dist = sqrt(dx*dx + dy*dy);
-                if (dist > 0.1) {
-                    p.vx = (dx / dist) * 450.0;
-                    p.vy = (dy / dist) * 450.0;
-                }
-                p.active = true;
-                
-                std::vector<unsigned int> seq;
-                for (int i = 1; i <= 6; ++i) {
-                    char b[160];
-                    sprintf_s(b, sizeof(b), "Assets/Characters/Dr. Kael/Human/Drone Attack/Drone Energy Projectile/projectile_%02d.png", i);
-                    unsigned int tex = iLoadImage((char*)GetAssetPath(b).c_str());
-                    if (tex != 0) seq.push_back(tex);
-                }
-                p.anim.InitSequence(seq, 6, true);
-                droneProjectiles.push_back(p);
-            }
-        }
-
-        // After 4.0s of drone attack, transition to serum injection
-        if (introTimer >= 4.0) {
-            phase = L3_BOSS_HUMAN_INJECT_SERUM;
-            transformTimer = 0.0;
-            animHumanInject.Reset();
-        }
-    }
-    else if (phase == L3_BOSS_HUMAN_INJECT_SERUM) {
-        transformTimer += dt;
-        animHumanInject.Update();
-        if (transformTimer >= 2.0) {
-            phase = L3_BOSS_HUMAN_TRANSFORMING;
-            transformTimer = 0.0;
-            animHumanTransform.Reset();
-        }
-    }
-    else if (phase == L3_BOSS_HUMAN_TRANSFORMING) {
-        transformTimer += dt;
-        animHumanTransform.Update();
-        if (transformTimer >= 3.0) {
+        if (stateTimer >= 1.5) {
             phase = L3_BOSS_MONSTER_ACTIVE;
-            width = 280;
-            height = 280;
             monsterState = MONSTER_IDLE;
-            attackCooldownTimer = 1.5;
+            attackCooldownTimer = 1.0;
+            stateTimer = 0.0;
         }
+        return;
     }
 
-    // Update Drone Projectiles
+    // ------------------------------------------------------------------------
+    // Projectiles & Ground Spikes Sub-System Updates
+    // ------------------------------------------------------------------------
     for (auto& p : droneProjectiles) {
         if (!p.active) continue;
         p.x += p.vx * dt;
         p.y += p.vy * dt;
         p.anim.Update();
 
-        // Player collision
         if (abs(p.x - (player.x + player.width / 2.0)) < 40.0 &&
             abs(p.y - (player.y + player.height / 2.0)) < 50.0) {
             player.TakeDamage(p.damage);
             p.active = false;
         }
 
-        // Out of bounds cleanup
         if (p.x < player.x - 1000 || p.x > player.x + 1000 || p.y < 0 || p.y > 800) {
             p.active = false;
         }
     }
 
-    // Update Ground Spikes
     for (auto& sp : spikes) {
         sp.timer += dt;
         if (sp.isWarning) {
@@ -528,17 +470,21 @@ void Level3Boss::Update(Player& player, float dt) {
             animMonsterIdle.Update();
             if (attackCooldownTimer <= 0.0) {
                 double dist = abs(player.x - x);
-                if (dist < 180.0) {
+                if (dist < 190.0) {
                     monsterState = MONSTER_ATTACK_CLAW;
                     animMonsterClaw.Reset();
                     clawDamageDealt = false;
                     stateTimer = 0.0;
-                } else if (dist > 350.0 && (hp < maxHp * 0.66)) {
+                } else if (dist > 350.0 && (hp < maxHp * 0.75)) {
                     monsterState = MONSTER_ATTACK_CHARGE;
                     animMonsterCharge.Reset();
                     chargeStartX = x;
                     chargeTargetX = player.x;
                     chargeDamageDealt = false;
+                    stateTimer = 0.0;
+                } else if (rand() % 2 == 0) {
+                    monsterState = MONSTER_CHASE;
+                    animMonsterWalk.Reset();
                     stateTimer = 0.0;
                 } else {
                     monsterState = MONSTER_ATTACK_SPIKES;
@@ -550,10 +496,9 @@ void Level3Boss::Update(Player& player, float dt) {
 
         case MONSTER_CHASE:
             animMonsterWalk.Update();
-            if (isFacingRight) x += 140.0 * dt;
-            else x -= 140.0 * dt;
+            x += (isFacingRight ? 160.0 : -160.0) * dt;
 
-            if (abs(player.x - x) < 180.0) {
+            if (abs(player.x - x) < 190.0) {
                 monsterState = MONSTER_ATTACK_CLAW;
                 animMonsterClaw.Reset();
                 clawDamageDealt = false;
@@ -564,15 +509,15 @@ void Level3Boss::Update(Player& player, float dt) {
         case MONSTER_ATTACK_CLAW:
             animMonsterClaw.Update();
             stateTimer += dt;
-            if (!clawDamageDealt && stateTimer >= 0.4) {
-                if (abs(player.x - x) < 210.0 && abs(player.y - y) < 150.0) {
+            if (!clawDamageDealt && stateTimer >= 0.35) {
+                if (abs(player.x - x) < 220.0 && abs(player.y - y) < 150.0) {
                     player.TakeDamage(40);
                     clawDamageDealt = true;
                 }
             }
-            if (stateTimer >= 1.0) {
+            if (stateTimer >= 1.0 || animMonsterClaw.IsFinished()) {
                 monsterState = MONSTER_IDLE;
-                attackCooldownTimer = (hp < 400) ? 0.8 : 1.5;
+                attackCooldownTimer = (hp < 400) ? 0.6 : 1.2;
             }
             break;
 
@@ -581,31 +526,31 @@ void Level3Boss::Update(Player& player, float dt) {
             stateTimer += dt;
             if (stateTimer >= 1.2) {
                 monsterState = MONSTER_IDLE;
-                attackCooldownTimer = (hp < 400) ? 1.0 : 2.0;
+                attackCooldownTimer = (hp < 400) ? 0.8 : 1.5;
             }
             break;
 
         case MONSTER_ATTACK_CHARGE:
             animMonsterCharge.Update();
             stateTimer += dt;
-            if (isFacingRight) x += 380.0 * dt;
-            else x -= 380.0 * dt;
+            x += (isFacingRight ? 420.0 : -420.0) * dt;
 
-            if (!chargeDamageDealt && abs(player.x - x) < 160.0 && abs(player.y - y) < 150.0) {
+            if (!chargeDamageDealt && abs(player.x - x) < 180.0 && abs(player.y - y) < 150.0) {
                 player.TakeDamage(50);
                 chargeDamageDealt = true;
             }
-            if (stateTimer >= 1.2 || abs(x - chargeStartX) > 600.0) {
+            if (stateTimer >= 1.2 || abs(x - chargeStartX) > 650.0) {
                 monsterState = MONSTER_IDLE;
-                attackCooldownTimer = 2.0;
+                attackCooldownTimer = 1.8;
             }
             break;
 
         case MONSTER_STAGGER:
             animMonsterStagger.Update();
             stateTimer += dt;
-            if (stateTimer >= 0.8) {
+            if (stateTimer >= 0.7) {
                 monsterState = MONSTER_IDLE;
+                attackCooldownTimer = 0.5;
             }
             break;
 
@@ -658,7 +603,7 @@ void Level3Boss::Render(double camX, double camY) {
         if (p.active) {
             int px = (int)(p.x - camX);
             int py = (int)(p.y - camY);
-            p.anim.Render(px - 25, py - 25, 50, 50, true);
+            p.anim.Render(px - 25, py - 25, 50, 50, (p.vx >= 0));
         }
     }
 

@@ -134,7 +134,7 @@ static unsigned int GetCurrentLevelBgTexture(int levelNumber, int sliceIndex, bo
 // LAYER 1: FAR BACKGROUND (Parallax Factor 0.25 - Sky & Distant Horizon)
 // ============================================================================
 void Map::RenderFarBackground(double camX, bool bossDefeated) {
-    double farCamX = camX * parallaxFarFactor;
+    double farCamX = (currentLevelNumber == 3) ? camX : (camX * parallaxFarFactor);
 
     // Determine background camera offset with parallax scrolling across all levels
     double bgCamX = farCamX;
