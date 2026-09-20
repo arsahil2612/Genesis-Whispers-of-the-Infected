@@ -104,6 +104,7 @@ struct PlayerProjectile {
     PlayerProjectile() : active(false) {}
 };
 static PlayerProjectile g_playerProjectiles[10];
+static ShotgunPellet g_shotgunPellets[18];
 
 static unsigned int g_texBulletProjectile = 0;
 
@@ -162,6 +163,8 @@ static unsigned int g_texItemGrenade = 0;
 
 static unsigned int g_texItemAmmo = 0;
 static unsigned int g_texItemSMG = 0;
+static unsigned int g_texItemShotgun = 0;
+static unsigned int g_texItemShotgunAmmo = 0;
 static unsigned int g_texBioFlame = 0;
 
 // Instant Floating Item Pickup Notification Data
@@ -493,6 +496,13 @@ void GameManager::UseInventorySlot(int slotIndex) {
             UI::ShowNotification("WEAPON EQUIPPED", "GRENADE (TACTICAL)", 1.5);
         }
     }
+    else if (id == "shotgun_weapon") {
+        if (player.hasShotgun) {
+            player.SwitchWeapon(WEAPON_SHOTGUN);
+            showInventory = false;
+            UI::ShowNotification("WEAPON EQUIPPED", "SHOTGUN (12 GAUGE)", 1.5);
+        }
+    }
 
     if (item.count <= 0) {
         item = InventoryItem();
@@ -591,7 +601,9 @@ void GameManager::AddInventoryItem(const std::string& itemId, int count) {
             } else if (itemId == "smg_weapon") {
                 inventory[i] = InventoryItem("smg_weapon", "SMG", "Automatic Submachine Gun (28 DMG) [Select: 3]", count, "Assets/Characters/Arin/Weapon/SMG.png");
             } else if (itemId == "grenade_weapon") {
-                inventory[i] = InventoryItem("grenade_weapon", "GRENADE", "Tactical Explosive (100 DMG) [Select: 5]", count, "Assets/Characters/Arin/Weapon/Grenade.png");
+                inventory[i] = InventoryItem("grenade_weapon", "GRENADE", "Tactical Explosive (100 DMG) [Select: 4]", count, "Assets/Characters/Arin/Weapon/Grenade.png");
+            } else if (itemId == "shotgun_weapon") {
+                inventory[i] = InventoryItem("shotgun_weapon", "SHOTGUN", "12 Gauge Shotgun (120 DMG) [Select: 5]", count, "Assets/Characters/Arin/Weapon/Shotgun.png");
             } else {
                 inventory[i] = InventoryItem(itemId, "SURVIVAL ITEM", "Useful survival resource", count, "Assets/Items/KeyItems/Scrap_Metal.png");
             }
@@ -1099,6 +1111,8 @@ void GameManager::LoadLevel2() {
     collectibles.push_back(Collectible(6200, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
     collectibles.push_back(Collectible(7800, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));
     collectibles.push_back(Collectible(9100, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
+    collectibles.push_back(Collectible(9500, kLevel1GroundY, 48, 48, COL_SHOTGUN_WEAPON, true, 0)); // Shotgun Weapon Pickup (Later portion of Level 2)
+    collectibles.push_back(Collectible(9600, kLevel1GroundY, 32, 32, COL_SHOTGUN_AMMO, true, 0)); // Shotgun Shell Box Pickup
     collectibles.push_back(Collectible(10500, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
     collectibles.push_back(Collectible(12100, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
 
@@ -2344,7 +2358,21 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                     AddInventoryItem("grenade_weapon", player.grenadeCount);
                     sprintf_s(g_pickupText, sizeof(g_pickupText), "GRENADE ACQUIRED");
                     g_pickupR = 255; g_pickupG = 150; g_pickupB = 0;
-                    UI::ShowNotification("WEAPON UNLOCKED", "GRENADE (TACTICAL) ACQUIRED [KEY 5]", 3.0);
+                    UI::ShowNotification("WEAPON UNLOCKED", "GRENADE (TACTICAL) ACQUIRED [KEY 4]", 3.0);
+                    break;
+                case COL_SHOTGUN_WEAPON:
+                    player.hasShotgun = true;
+                    player.SwitchWeapon(WEAPON_SHOTGUN);
+                    AddInventoryItem("shotgun_weapon", 1);
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "SHOTGUN ACQUIRED");
+                    g_pickupR = 255; g_pickupG = 165; g_pickupB = 0;
+                    UI::ShowNotification("WEAPON UNLOCKED", "SHOTGUN (12 GAUGE) ACQUIRED [KEY 5]", 3.0);
+                    break;
+                case COL_SHOTGUN_AMMO:
+                    player.shotgunReserve += 12;
+                    if (player.shotgunReserve > kShotgunMaxReserve) player.shotgunReserve = kShotgunMaxReserve;
+                    sprintf_s(g_pickupText, sizeof(g_pickupText), "+12 SHOTGUN AMMO");
+                    g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
                     break;
                 case COL_AMMO:
                     player.ammo += 15;
@@ -2866,6 +2894,27 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             }
         }
     }
+    else if (player.state == STATE_ATTACK_SHOTGUN && !player.hasDealtDamageThisAttack) {
+        player.hasDealtDamageThisAttack = true;
+        int pelletsSpawned = 0;
+        double spreadAngles[6] = { -75.0, -45.0, -15.0, 15.0, 45.0, 75.0 }; // Spread angle vertical velocities (px/sec)
+        for (int p = 0; p < 18 && pelletsSpawned < kShotgunPelletsPerShot; ++p) {
+            if (!g_shotgunPellets[p].active) {
+                g_shotgunPellets[p].isFacingRight = player.isFacingRight;
+                g_shotgunPellets[p].x = player.isFacingRight ? (player.x + player.width - 15.0) : (player.x - 15.0);
+                g_shotgunPellets[p].y = player.y + 68.0;
+                g_shotgunPellets[p].vx = player.isFacingRight ? 650.0 : -650.0;
+                g_shotgunPellets[p].vy = spreadAngles[pelletsSpawned];
+                g_shotgunPellets[p].width = 12.0;
+                g_shotgunPellets[p].height = 8.0;
+                g_shotgunPellets[p].damage = kShotgunPelletDamage; // 20 DMG per pellet
+                g_shotgunPellets[p].distanceTraveled = 0.0;
+                g_shotgunPellets[p].maxRange = 450.0; // Short range
+                g_shotgunPellets[p].active = true;
+                pelletsSpawned++;
+            }
+        }
+    }
 
     // Spawn Thrown Grenade Projectile
     if (player.state == STATE_ATTACK_GRENADE && player.animGrenadeThrow.GetCurrentFrame() >= 0 && !player.grenadeSpawnedThisThrow) {
@@ -2970,6 +3019,66 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             }
             if (hitSomething) {
                 g_playerProjectiles[p].active = false;
+            }
+        }
+    }
+
+    // Update Shotgun Pellets & Collision
+    for (int p = 0; p < 18; ++p) {
+        if (g_shotgunPellets[p].active) {
+            double stepX = g_shotgunPellets[p].vx * dt;
+            double stepY = g_shotgunPellets[p].vy * dt;
+            g_shotgunPellets[p].x += stepX;
+            g_shotgunPellets[p].y += stepY;
+            g_shotgunPellets[p].distanceTraveled += std::sqrt(stepX * stepX + stepY * stepY);
+
+            // Deactivate if exceeded max range or off camera
+            double projCamX = gameMap.GetCameraX();
+            if (g_shotgunPellets[p].distanceTraveled >= g_shotgunPellets[p].maxRange ||
+                g_shotgunPellets[p].x < projCamX - 100.0 || g_shotgunPellets[p].x > projCamX + 1280.0 + 100.0) {
+                g_shotgunPellets[p].active = false;
+                continue;
+            }
+
+            // Check collision with regular enemies
+            bool hitSomething = false;
+            for (size_t i = 0; i < enemies.size(); ++i) {
+                if (enemies[i].hp > 0 && enemies[i].state != ENEMY_DEAD) {
+                    bool hitX = (g_shotgunPellets[p].x + g_shotgunPellets[p].width >= enemies[i].x) && 
+                                (g_shotgunPellets[p].x <= enemies[i].x + enemies[i].width);
+                    bool hitY = (g_shotgunPellets[p].y + g_shotgunPellets[p].height >= enemies[i].y) && 
+                                (g_shotgunPellets[p].y <= enemies[i].y + enemies[i].height);
+                    
+                    if (hitX && hitY) {
+                        enemies[i].TakeDamage(g_shotgunPellets[p].damage);
+                        score += 20;
+                        hitSomething = true;
+                        
+                        if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                            bossHp = enemies[i].hp;
+                            bossMaxHp = enemies[i].maxHp;
+                            displayedBossHp = (double)bossHp;
+                        }
+                        break; // Deactivate this pellet on hit
+                    }
+                }
+            }
+
+            // Check collision with Level 3 Boss
+            if (!hitSomething && currentLevel == 3 && m_l3Boss.phase != L3_BOSS_INACTIVE && !m_l3Boss.IsDefeated()) {
+                bool hitX = (g_shotgunPellets[p].x + g_shotgunPellets[p].width >= m_l3Boss.x) &&
+                            (g_shotgunPellets[p].x <= m_l3Boss.x + m_l3Boss.width);
+                bool hitY = (g_shotgunPellets[p].y + g_shotgunPellets[p].height >= m_l3Boss.y) &&
+                            (g_shotgunPellets[p].y <= m_l3Boss.y + m_l3Boss.height);
+                if (hitX && hitY) {
+                    m_l3Boss.TakeDamage(g_shotgunPellets[p].damage);
+                    score += 20;
+                    hitSomething = true;
+                }
+            }
+
+            if (hitSomething) {
+                g_shotgunPellets[p].active = false;
             }
         }
     }
@@ -3675,6 +3784,30 @@ void GameManager::RenderPlaying() {
                     lR = 255; lG = 150; lB = 0;
                     itemDrawW = 44; itemDrawH = 44;
                     break;
+                case COL_SHOTGUN_WEAPON:
+                    if (g_texItemShotgun == 0) {
+                        g_texItemShotgun = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/Shotgun.png").c_str());
+                        if (g_texItemShotgun == 0) {
+                            g_texItemShotgun = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Weapon/Shotgun.png");
+                        }
+                    }
+                    itemTex = g_texItemShotgun;
+                    itemLabel = "SHOTGUN";
+                    lR = 255; lG = 165; lB = 0;
+                    itemDrawW = 56; itemDrawH = 32;
+                    break;
+                case COL_SHOTGUN_AMMO:
+                    if (g_texItemShotgunAmmo == 0) {
+                        g_texItemShotgunAmmo = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/ShotGun Attack/Shotgun_ammo.png").c_str());
+                        if (g_texItemShotgunAmmo == 0) {
+                            g_texItemShotgunAmmo = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/ShotGun Attack/Shotgun_ammo.png");
+                        }
+                    }
+                    itemTex = g_texItemShotgunAmmo;
+                    itemLabel = "12GA SHELLS";
+                    lR = 255; lG = 215; lB = 0;
+                    itemDrawW = 40; itemDrawH = 40;
+                    break;
                 default:
                     break;
                 }
@@ -3813,6 +3946,20 @@ void GameManager::RenderPlaying() {
             } else {
                 iSetColor(255, 200, 50);
                 iFilledRectangle(drawX, drawY, g_playerProjectiles[p].width, g_playerProjectiles[p].height);
+            }
+        }
+    }
+
+    // Render Shotgun Pellets (Golden / Yellow in-window rendering)
+    for (int p = 0; p < 18; ++p) {
+        if (g_shotgunPellets[p].active) {
+            double drawX = g_shotgunPellets[p].x - camX;
+            double drawY = g_shotgunPellets[p].y - camY;
+            if (drawX >= -50.0 && drawX <= 1330.0) {
+                iSetColor(255, 220, 40);
+                iFilledCircle((int)drawX, (int)drawY, 3);
+                iSetColor(255, 165, 0);
+                iCircle((int)drawX, (int)drawY, 3);
             }
         }
     }
@@ -4841,12 +4988,23 @@ void GameManager::HandleKeyPress(unsigned char key) {
                 }
             }
         }
+        else if (key == '5') {
+            if (!showInventory) {
+                if (player.hasShotgun) {
+                    player.SwitchWeapon(WEAPON_SHOTGUN);
+                    UI::ShowNotification("WEAPON EQUIPPED", "SHOTGUN (12 GAUGE)", 1.5);
+                } else {
+                    UI::ShowNotification("WEAPON LOCKED", "SHOTGUN NOT UNLOCKED YET", 1.5);
+                }
+            }
+        }
         else if (key == 'r' || key == 'R') {
             if (!showInventory) player.ReloadWeapon();
         }
         else if (key == 'j' || key == 'J') {
             if (!showInventory) {
-                if (player.currentWeapon == WEAPON_SMG) player.AttackSMG();
+                if (player.currentWeapon == WEAPON_SHOTGUN) player.AttackShotgun();
+                else if (player.currentWeapon == WEAPON_SMG) player.AttackSMG();
                 else if (player.currentWeapon == WEAPON_GRENADE) player.AttackGrenade();
                 else if (player.currentWeapon == WEAPON_PISTOL) player.AttackRanged();
                 else player.AttackMelee();
@@ -4854,7 +5012,8 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
         else if (key == 'k' || key == 'K') {
             if (!showInventory) {
-                if (player.currentWeapon == WEAPON_SMG) player.AttackSMG();
+                if (player.currentWeapon == WEAPON_SHOTGUN) player.AttackShotgun();
+                else if (player.currentWeapon == WEAPON_SMG) player.AttackSMG();
                 else if (player.currentWeapon == WEAPON_GRENADE) player.AttackGrenade();
                 else if (player.currentWeapon == WEAPON_PISTOL) player.AttackRanged();
                 else player.AttackMelee();
@@ -5249,7 +5408,9 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                             return;
                         }
                     } else {
-                        if (player.currentWeapon == WEAPON_SMG) {
+                        if (player.currentWeapon == WEAPON_SHOTGUN) {
+                            player.AttackShotgun();
+                        } else if (player.currentWeapon == WEAPON_SMG) {
                             player.AttackSMG();
                         } else if (player.currentWeapon == WEAPON_GRENADE) {
                             player.AttackGrenade();

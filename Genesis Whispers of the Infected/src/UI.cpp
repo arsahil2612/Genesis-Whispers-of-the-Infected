@@ -37,6 +37,8 @@ unsigned int UI::texIconScrap = 0;
 unsigned int UI::texIconKatana = 0;
 unsigned int UI::texIconSMG = 0;
 unsigned int UI::texIconGrenade = 0;
+unsigned int UI::texIconShotgun = 0;
+unsigned int UI::texIconShotgunAmmo = 0;
 
 NotificationData UI::currentNotification = { "", "", 0.0, 3.5, false };
 
@@ -582,7 +584,9 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
     DrawAreaBanner(areaName, areaBannerAlpha);
 
     // 7. Draw Active Weapon Display (Bottom Right)
-    if (player.currentWeapon == WEAPON_GRENADE) {
+    if (player.currentWeapon == WEAPON_SHOTGUN) {
+        DrawWeaponDisplay("SHOTGUN", player.shotgunMag, player.shotgunReserve, true);
+    } else if (player.currentWeapon == WEAPON_GRENADE) {
         DrawWeaponDisplay("GRENADE", player.grenadeCount, 0, true);
     } else if (player.currentWeapon == WEAPON_SMG) {
         DrawWeaponDisplay("SMG", player.smgMag, player.smgReserve, true);
@@ -593,8 +597,8 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
     }
 
     // On-screen Control Hint Bar above weapon panel
-    DrawAlphaShadowText(1030, 85, "1:Katana  2:Pistol  3:SMG  4:Grenade", GLUT_BITMAP_HELVETICA_10, 200, 210, 220, alpha, 1);
-    DrawAlphaShadowText(1030, 72, "Left Mouse / J = Attack / Throw", GLUT_BITMAP_HELVETICA_10, 255, 180, 50, alpha, 1);
+    DrawAlphaShadowText(980, 85, "1:Katana 2:Pistol 3:SMG 4:Grenade 5:Shotgun", GLUT_BITMAP_HELVETICA_10, 200, 210, 220, alpha, 1);
+    DrawAlphaShadowText(980, 72, "Left Mouse / J = Attack | R = Reload", GLUT_BITMAP_HELVETICA_10, 255, 180, 50, alpha, 1);
 }
 
 void UI::DrawAreaBanner(const char* areaName, double alpha, const char* chapterName) {
@@ -1168,6 +1172,22 @@ void UI::DrawWeaponDisplay(const char* weaponName, int ammo, int reserveAmmo, bo
         } else {
             DrawOutlinedText(wellX + 6, wellY + 18, "GREN", GLUT_BITMAP_HELVETICA_18, 255, 150, 0);
         }
+    } else if (nameStr == "SHOTGUN") {
+        if (texIconShotgun == 0) {
+            texIconShotgun = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/Shotgun.png").c_str());
+            if (texIconShotgun == 0) {
+                texIconShotgun = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Weapon/Shotgun.png");
+            }
+        }
+        if (texIconShotgun != 0) {
+            int imgW = 56;
+            int imgH = 32;
+            int imgX = wellX + (wellW - imgW) / 2;
+            int imgY = wellY + (wellH - imgH) / 2;
+            iShowImage(imgX, imgY, imgW, imgH, texIconShotgun);
+        } else {
+            DrawOutlinedText(wellX + 8, wellY + 18, "SHOT", GLUT_BITMAP_HELVETICA_18, 255, 165, 0);
+        }
     } else if (nameStr == "SMG") {
         if (texIconSMG == 0) {
             texIconSMG = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/SMG.png").c_str());
@@ -1216,20 +1236,36 @@ void UI::DrawWeaponDisplay(const char* weaponName, int ammo, int reserveAmmo, bo
     // 3. Text Presentation (Military / Survivor Equipment Style)
     int textX = boxX + 84;
 
-    // Weapon Name: KATANA / PISTOL / SMG / GRENADE
+    // Weapon Name: KATANA / PISTOL / SMG / GRENADE / SHOTGUN
     DrawOutlinedText(textX, boxY + boxH - 24, nameStr.c_str(), GLUT_BITMAP_HELVETICA_18, 235, 230, 220);
 
     // Sub-text: MELEE WEAPON [1] or AMMO counter
     if (usesAmmo) {
-        DrawAmmoCounter(ammo, reserveAmmo);
+        DrawAmmoCounter(ammo, reserveAmmo, nameStr.c_str());
     } else {
         DrawShadowText(textX, boxY + 16, "MELEE WEAPON [1]", GLUT_BITMAP_HELVETICA_10, 215, 120, 45);
     }
 }
 
-void UI::DrawAmmoCounter(int ammo, int reserveAmmo) {
+void UI::DrawAmmoCounter(int ammo, int reserveAmmo, const char* weaponName) {
     int boxX = 1040;
     int boxY = 20;
+
+    int textOffsetX = 84;
+    std::string nameStr = weaponName ? weaponName : "";
+    if (nameStr == "SHOTGUN") {
+        if (texIconShotgunAmmo == 0) {
+            texIconShotgunAmmo = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/ShotGun Attack/Shotgun_ammo.png").c_str());
+            if (texIconShotgunAmmo == 0) {
+                texIconShotgunAmmo = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/ShotGun Attack/Shotgun_ammo.png");
+            }
+        }
+        if (texIconShotgunAmmo != 0) {
+            // Render small scaled Shotgun Ammo Icon next to text (22x22px)
+            iShowImage(boxX + 84, boxY + 12, 22, 22, texIconShotgunAmmo);
+            textOffsetX = 112; // Shift text right after ammo icon
+        }
+    }
 
     char ammoStr[32];
     if (reserveAmmo == 0) {
@@ -1237,7 +1273,7 @@ void UI::DrawAmmoCounter(int ammo, int reserveAmmo) {
     } else {
         sprintf_s(ammoStr, sizeof(ammoStr), "%d / %d", ammo, reserveAmmo);
     }
-    DrawShadowText(boxX + 84, boxY + 16, ammoStr, GLUT_BITMAP_HELVETICA_12, 215, 120, 45);
+    DrawShadowText(boxX + textOffsetX, boxY + 16, ammoStr, GLUT_BITMAP_HELVETICA_12, 215, 120, 45);
 }
 
 void UI::DrawInteractionPrompt(const char* promptText, int screenX, int screenY) {

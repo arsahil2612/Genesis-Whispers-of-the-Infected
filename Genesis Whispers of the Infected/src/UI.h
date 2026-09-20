@@ -47,6 +47,8 @@ private:
     static unsigned int texIconKatana;
     static unsigned int texIconSMG;
     static unsigned int texIconGrenade;
+    static unsigned int texIconShotgun;
+    static unsigned int texIconShotgunAmmo;
 
     // Notification state
     static NotificationData currentNotification;
@@ -74,7 +76,7 @@ public:
     static void DrawInventoryHUD(const Player& player, bool hasKeycard, bool ribbonCollected);
     static void DrawInventoryIndicator(const Player& player, bool hasKeycard, bool ribbonCollected);
     static void DrawWeaponDisplay(const char* weaponName, int ammo, int reserveAmmo = 0, bool usesAmmo = false);
-    static void DrawAmmoCounter(int ammo, int reserveAmmo);
+    static void DrawAmmoCounter(int ammo, int reserveAmmo, const char* weaponName = NULL);
     static void DrawInteractionPrompt(const char* promptText, int screenX, int screenY);
     static void DrawBossHealthBar(const char* bossName, int bossHp, int bossMaxHp, double displayedHp = -1.0);
     

@@ -75,7 +75,22 @@ enum CollectibleType {
     COL_RUSTY_KEY,
     COL_COIN,
     COL_SMG_WEAPON,
-    COL_GRENADE_WEAPON
+    COL_GRENADE_WEAPON,
+    COL_SHOTGUN_WEAPON,
+    COL_SHOTGUN_AMMO
+};
+
+struct ShotgunPellet {
+    double x, y;
+    double vx, vy;
+    double width, height;
+    int damage;
+    double distanceTraveled;
+    double maxRange;
+    bool active;
+    bool isFacingRight;
+
+    ShotgunPellet() : x(0), y(0), vx(0), vy(0), width(12), height(8), damage(20), distanceTraveled(0), maxRange(450.0), active(false), isFacingRight(true) {}
 };
 
 struct Collectible {

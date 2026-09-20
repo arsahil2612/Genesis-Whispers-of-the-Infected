@@ -11,12 +11,20 @@ const double kSmgFireInterval = 0.12; // Cooldown interval in seconds (0.10 - 0.
 const int kSmgMaxMag = 30;
 const int kSmgMaxReserve = 120;
 
+// Shotgun Configurable Weapon Parameters
+const int kShotgunMaxMag = 6;
+const int kShotgunMaxReserve = 24;
+const int kShotgunPelletsPerShot = 6;
+const int kShotgunPelletDamage = 20;
+const double kShotgunFireCooldown = 0.8;
+
 // Weapon Selection Taxonomy
 enum WeaponType {
     WEAPON_KATANA = 1,
     WEAPON_PISTOL = 2,
     WEAPON_SMG = 3,
-    WEAPON_GRENADE = 4
+    WEAPON_GRENADE = 4,
+    WEAPON_SHOTGUN = 5
 };
 
 // ============================================================================
@@ -32,6 +40,8 @@ enum PlayerState {
     STATE_ATTACK_SMG,
     STATE_RELOAD_SMG,
     STATE_ATTACK_GRENADE,
+    STATE_ATTACK_SHOTGUN,
+    STATE_RELOAD_SHOTGUN,
     STATE_HURT,
     STATE_DEAD
 };
@@ -63,7 +73,7 @@ public:
     double staminaRegenDelayTimer;
     bool isExhausted;
 
-    // Weapon & SMG & Grenade System Attributes
+    // Weapon & SMG & Grenade & Shotgun System Attributes
     WeaponType currentWeapon;
     bool hasSMG;
     int smgMag;
@@ -73,6 +83,11 @@ public:
     bool hasGrenade;
     int grenadeCount;
     bool grenadeSpawnedThisThrow;
+    bool hasShotgun;
+    int shotgunMag;
+    int shotgunReserve;
+    double shotgunFireCooldownTimer;
+    double shotgunReloadTimer;
 
     // Grounding & Orientation Flags
     bool isGrounded;
@@ -104,6 +119,8 @@ public:
     Animation animSMG;
     Animation animSMGReload;
     Animation animGrenadeThrow;
+    Animation animShotgun;
+    Animation animShotgunReload;
     Animation animHurt;
     Animation animDeath;
 
@@ -119,7 +136,9 @@ public:
     void AttackRanged();
     void AttackSMG();
     void AttackGrenade();
+    void AttackShotgun();
     void ReloadWeapon();
+    void ReloadShotgun();
     void SwitchWeapon(WeaponType type);
     void UseHeal();
     void UseFood();

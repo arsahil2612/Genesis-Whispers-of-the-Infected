@@ -49,6 +49,11 @@ Player::Player() {
     hasGrenade = false;
     grenadeCount = 0;
     grenadeSpawnedThisThrow = false;
+    hasShotgun = false;
+    shotgunMag = kShotgunMaxMag;
+    shotgunReserve = kShotgunMaxReserve;
+    shotgunFireCooldownTimer = 0.0;
+    shotgunReloadTimer = 0.0;
     isGrounded = true;
     wasJumpPressed = false;
     isFacingRight = true;
@@ -111,7 +116,7 @@ void Player::Initialize(double startX, double startY) {
     footstepTimer = 0.0;
 
     // Load Arin full multi-frame animation sequences from asset directory statically once
-    static std::vector<unsigned int> seqIdle, seqWalk, seqRun, seqJump, seqAttack, seqPistol, seqSMG, seqSMGReload, seqGrenadeThrow, seqHurt, seqDeath;
+    static std::vector<unsigned int> seqIdle, seqWalk, seqRun, seqJump, seqAttack, seqPistol, seqSMG, seqSMGReload, seqGrenadeThrow, seqShotgun, seqHurt, seqDeath;
 
     bool needsLoading = seqIdle.empty() || (seqIdle.size() > 0 && seqIdle[0] == 0);
 
@@ -125,6 +130,7 @@ void Player::Initialize(double startX, double startY) {
         seqSMG.clear();
         seqSMGReload.clear();
         seqGrenadeThrow.clear();
+        seqShotgun.clear();
         seqHurt.clear();
         seqDeath.clear();
 
@@ -292,6 +298,18 @@ void Player::Initialize(double startX, double startY) {
             seqGrenadeThrow = seqAttack;
         }
 
+        for (int i = 1; i <= 5; ++i) {
+            char path[256];
+            sprintf_s(path, sizeof(path), "Assets/Characters/Arin/ShotGun Attack/Shotgun_attack_%d.png", i);
+            unsigned int tex = iLoadImage((char*)GetAssetPath(path).c_str());
+            if (tex != 0) {
+                seqShotgun.push_back(tex);
+            }
+        }
+        if (seqShotgun.empty()) {
+            seqShotgun = seqAttack;
+        }
+
         for (int i = 1; i <= 4; ++i) {
             char path[256];
             sprintf_s(path, sizeof(path), "Assets/Characters/Arin/Hurt/arin_hurt_sprite_%02d.png", i);
@@ -355,6 +373,8 @@ void Player::Initialize(double startX, double startY) {
     animSMG.InitSequence(seqSMG, 3, false);       // 3-tick rapid SMG fire
     animSMGReload.InitSequence(seqSMGReload, 6, false); // 6-tick reload
     animGrenadeThrow.InitSequence(seqGrenadeThrow, 5, false); // 5-tick grenade throw
+    animShotgun.InitSequence(seqShotgun, 5, false); // 5-tick shotgun blast
+    animShotgunReload.InitSequence(seqShotgun, 6, false); // 6-tick shotgun shell reload
     animHurt.InitSequence(seqHurt, 6, false);
     animDeath.InitSequence(seqDeath, 12, false);
 
@@ -387,6 +407,8 @@ void Player::SetState(PlayerState newState) {
     case STATE_ATTACK_SMG:    animSMG.Reset(); break;
     case STATE_RELOAD_SMG:    animSMGReload.Reset(); break;
     case STATE_ATTACK_GRENADE: animGrenadeThrow.Reset(); break;
+    case STATE_ATTACK_SHOTGUN: animShotgun.Reset(); break;
+    case STATE_RELOAD_SHOTGUN: animShotgunReload.Reset(); break;
     case STATE_HURT:          animHurt.Reset(); break;
     case STATE_DEAD:          animDeath.Reset(); break;
     }
@@ -425,6 +447,14 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
         }
     }
 
+    // Update Shotgun fire rate cooldown timer
+    if (shotgunFireCooldownTimer > 0.0) {
+        shotgunFireCooldownTimer -= dt;
+        if (shotgunFireCooldownTimer < 0.0) {
+            shotgunFireCooldownTimer = 0.0;
+        }
+    }
+
     // Update SMG reload timer logic
     if (state == STATE_RELOAD_SMG) {
         reloadTimer -= dt;
@@ -437,6 +467,21 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
                 smgReserve -= reloadAmount;
             }
             SetState(STATE_IDLE);
+        }
+    }
+
+    // Update Shotgun shell-by-shell reload timer logic
+    if (state == STATE_RELOAD_SHOTGUN) {
+        shotgunReloadTimer -= dt;
+        if (shotgunReloadTimer <= 0.0) {
+            if (shotgunMag < kShotgunMaxMag && shotgunReserve > 0) {
+                shotgunMag++;
+                shotgunReserve--;
+                shotgunReloadTimer = 0.35; // 0.35s delay per shell insert
+            }
+            if (shotgunMag >= kShotgunMaxMag || shotgunReserve <= 0) {
+                SetState(STATE_IDLE);
+            }
         }
     }
 
@@ -459,7 +504,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
         wasJumpPressed = false;
     }
 
-    if (jumpPressed && !wasJumpPressed && isGrounded && state != STATE_ATTACK_MELEE && state != STATE_ATTACK_PISTOL && state != STATE_ATTACK_SMG && state != STATE_RELOAD_SMG && state != STATE_DEAD && state != STATE_HURT) {
+    if (jumpPressed && !wasJumpPressed && isGrounded && state != STATE_ATTACK_MELEE && state != STATE_ATTACK_PISTOL && state != STATE_ATTACK_SMG && state != STATE_RELOAD_SMG && state != STATE_ATTACK_SHOTGUN && state != STATE_RELOAD_SHOTGUN && state != STATE_DEAD && state != STATE_HURT) {
         if (staminaDouble >= 5.0) {
             vy = 520.0; // Initial smooth upward launch velocity (px/sec)
             isGrounded = false;
@@ -486,7 +531,9 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
         }
     } else {
         if (attackPressed && !wasAttackPressed) {
-            if (currentWeapon == WEAPON_GRENADE) {
+            if (currentWeapon == WEAPON_SHOTGUN) {
+                AttackShotgun();
+            } else if (currentWeapon == WEAPON_GRENADE) {
                 AttackGrenade();
             } else if (currentWeapon == WEAPON_PISTOL) {
                 AttackRanged();
@@ -577,7 +624,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
     double targetVx = 0.0;
 
     // Temporarily stop horizontal movement while attacking, hurt, or dead
-    if (state == STATE_ATTACK_MELEE || state == STATE_ATTACK_PISTOL || state == STATE_ATTACK_SMG || state == STATE_RELOAD_SMG || state == STATE_DEAD || state == STATE_HURT) {
+    if (state == STATE_ATTACK_MELEE || state == STATE_ATTACK_PISTOL || state == STATE_ATTACK_SMG || state == STATE_RELOAD_SMG || state == STATE_ATTACK_SHOTGUN || state == STATE_RELOAD_SHOTGUN || state == STATE_DEAD || state == STATE_HURT) {
         targetVx = 0.0;
         vx = 0.0;
     }
@@ -720,6 +767,20 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
             }
         }
     }
+    else if (state == STATE_ATTACK_SHOTGUN) {
+        if (animShotgun.IsFinished() || shotgunFireCooldownTimer <= 0.0) {
+            if (!isGrounded) SetState(STATE_JUMP);
+            else if (std::abs(vx) > 5.0 || moveLeft || moveRight) SetState(isRunning ? STATE_RUN : STATE_WALK);
+            else SetState(STATE_IDLE);
+        }
+    }
+    else if (state == STATE_RELOAD_SHOTGUN) {
+        if (shotgunMag >= kShotgunMaxMag || shotgunReserve <= 0 || animShotgunReload.IsFinished()) {
+            if (!isGrounded) SetState(STATE_JUMP);
+            else if (std::abs(vx) > 5.0 || moveLeft || moveRight) SetState(isRunning ? STATE_RUN : STATE_WALK);
+            else SetState(STATE_IDLE);
+        }
+    }
     else if (!isGrounded) {
         SetState(STATE_JUMP);
     }
@@ -771,6 +832,8 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
     else if (state == STATE_ATTACK_SMG && animSMG.IsValid()) activeAnim = &animSMG;
     else if (state == STATE_RELOAD_SMG && animSMGReload.IsValid()) activeAnim = &animSMGReload;
     else if (state == STATE_ATTACK_GRENADE && animGrenadeThrow.IsValid()) activeAnim = &animGrenadeThrow;
+    else if (state == STATE_ATTACK_SHOTGUN && animShotgun.IsValid()) activeAnim = &animShotgun;
+    else if (state == STATE_RELOAD_SHOTGUN && animShotgunReload.IsValid()) activeAnim = &animShotgunReload;
     else if (state == STATE_HURT && animHurt.IsValid()) activeAnim = &animHurt;
     else if (state == STATE_DEAD && animDeath.IsValid()) activeAnim = &animDeath;
 
@@ -835,6 +898,8 @@ void Player::Render(double camX, double camY) {
     else if (state == STATE_ATTACK_SMG && animSMG.IsValid()) activeAnim = &animSMG;
     else if (state == STATE_RELOAD_SMG && animSMGReload.IsValid()) activeAnim = &animSMGReload;
     else if (state == STATE_ATTACK_GRENADE && animGrenadeThrow.IsValid()) activeAnim = &animGrenadeThrow;
+    else if (state == STATE_ATTACK_SHOTGUN && animShotgun.IsValid()) activeAnim = &animShotgun;
+    else if (state == STATE_RELOAD_SHOTGUN && animShotgunReload.IsValid()) activeAnim = &animShotgunReload;
     else if (state == STATE_HURT && animHurt.IsValid()) activeAnim = &animHurt;
     else if (state == STATE_DEAD && animDeath.IsValid()) activeAnim = &animDeath;
 
@@ -926,19 +991,45 @@ void Player::AttackSMG() {
     }
 }
 
+void Player::AttackShotgun() {
+    if (state == STATE_DEAD || state == STATE_HURT || state == STATE_RELOAD_SHOTGUN) return;
+    if (shotgunFireCooldownTimer > 0.0) return;
+
+    if (shotgunMag > 0) {
+        shotgunMag--;
+        currentAttackID++;
+        SetState(STATE_ATTACK_SHOTGUN);
+        hasDealtDamageThisAttack = false;
+        shotgunFireCooldownTimer = kShotgunFireCooldown; // 0.8s cooldown
+        PlayAudioFile("Sounds/Pistol/pistol_shot.wav");
+    } else {
+        ReloadShotgun();
+    }
+}
+
+void Player::ReloadShotgun() {
+    if (state == STATE_DEAD || state == STATE_HURT || state == STATE_RELOAD_SHOTGUN) return;
+    if (shotgunMag < kShotgunMaxMag && shotgunReserve > 0) {
+        SetState(STATE_RELOAD_SHOTGUN);
+        shotgunReloadTimer = 0.35; // 0.35s per shell
+    }
+}
+
 void Player::ReloadWeapon() {
-    if (state == STATE_DEAD || state == STATE_HURT || state == STATE_RELOAD_SMG) return;
+    if (state == STATE_DEAD || state == STATE_HURT || state == STATE_RELOAD_SMG || state == STATE_RELOAD_SHOTGUN) return;
 
     if (currentWeapon == WEAPON_SMG) {
         if (smgMag < kSmgMaxMag && smgReserve > 0) {
             SetState(STATE_RELOAD_SMG);
             reloadTimer = 0.6;
         }
+    } else if (currentWeapon == WEAPON_SHOTGUN) {
+        ReloadShotgun();
     }
 }
 
 void Player::AttackGrenade() {
-    if (state == STATE_DEAD || state == STATE_HURT || state == STATE_ATTACK_GRENADE || state == STATE_RELOAD_SMG) return;
+    if (state == STATE_DEAD || state == STATE_HURT || state == STATE_ATTACK_GRENADE || state == STATE_RELOAD_SMG || state == STATE_RELOAD_SHOTGUN) return;
     if (!hasGrenade || grenadeCount <= 0) return;
 
     SetState(STATE_ATTACK_GRENADE);
@@ -948,6 +1039,7 @@ void Player::AttackGrenade() {
 void Player::SwitchWeapon(WeaponType type) {
     if (type == WEAPON_SMG && !hasSMG) return;
     if (type == WEAPON_GRENADE && !hasGrenade) return;
+    if (type == WEAPON_SHOTGUN && !hasShotgun) return;
     currentWeapon = type;
 }
 
