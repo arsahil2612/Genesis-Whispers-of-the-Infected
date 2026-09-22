@@ -37,6 +37,7 @@ private:
     static unsigned int texSeparator;
     static unsigned int texHealLabel;
     static unsigned int texScoreHeal;
+    static unsigned int texControlsScreen;
 
     // Item & HUD Icon Handles
     static unsigned int texIconMedkit;
@@ -45,6 +46,7 @@ private:
     static unsigned int texIconWaterBottle;
     static unsigned int texIconScrap;
     static unsigned int texIconKatana;
+    static unsigned int texIconPistol;
     static unsigned int texIconSMG;
     static unsigned int texIconGrenade;
     static unsigned int texIconShotgun;
@@ -82,6 +84,8 @@ public:
     
     // Menu & State Overlays
     static void DrawPauseMenu(int mouseX, int mouseY, bool isMouseDown, double animTime, int pauseSubMenu);
+    static void DrawControlsScreen(float alpha = 1.0f);
+    static void ResetControlsTexture() { texControlsScreen = 0; }
     static void DrawGameOver(int mouseX, int mouseY, bool isMouseDown, double animTime);
     static void DrawLevelComplete(int mouseX, int mouseY, bool isMouseDown, double animTime);
     static void DrawNotification();

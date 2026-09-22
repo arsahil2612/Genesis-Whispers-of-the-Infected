@@ -59,14 +59,15 @@ void Level3Manager::Update(float dt, Player& player, Level3Boss& boss)
             player.SetState(STATE_IDLE);
         }
 
-        // Preload Dr. Kael boss assets in background
-        if (!assetsLoaded)
+        // Defer loading assets so the loading screen gets drawn first
+        if (!assetsLoaded && loadingTimer > 0.1f)
         {
             boss.PreloadAssets();
+            boss.Initialize(savedArenaX, 185.0); // 185.0 is kLevel1GroundY
             assetsLoaded = true;
         }
 
-        // Check if minimum loading display time elapsed (3.0 seconds) and assets finish preloading
+        // Check if minimum loading display time elapsed (3.0 seconds) and assets are ready
         if (loadingTimer >= minLoadingTime && assetsLoaded)
         {
             printf("[GENESIS Level3Manager] Loading Complete (%.2fs). Transitioning to LEVEL3_BOSS_INTRO\n", loadingTimer);
@@ -74,13 +75,12 @@ void Level3Manager::Update(float dt, Player& player, Level3Boss& boss)
 
             // Position Arin on the left side of arena facing right
             player.x = savedArenaX + 150.0;
-            player.y = 135.0; // kLevel1GroundY
+            player.y = 185.0; // kLevel1GroundY
             player.vx = 0.0;
             player.vy = 0.0;
             player.isFacingRight = true;
 
-            // Initialize Human Dr. Kael entrance animation & dialogue
-            boss.Initialize(savedArenaX, 135.0);
+            // Change phase to Intro
             boss.phase = L3_BOSS_HUMAN_INTRO;
         }
     }

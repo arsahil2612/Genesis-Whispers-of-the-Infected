@@ -82,6 +82,15 @@ public:
     int hp;
     int maxHp;
     bool isFacingRight;
+    
+    // Physics & Movement
+    double vx;
+    double vy;
+    double dashSpeed;
+    
+    // Damage tracking
+    double bodyDamageCooldown;
+
     Level3BossPhase phase;
     MonsterState monsterState;
 
@@ -123,6 +132,7 @@ public:
 
     // AI Timers
     double attackCooldownTimer;
+    double droneCooldown;
     double stateTimer;
     bool clawDamageDealt;
     bool chargeDamageDealt;
@@ -165,6 +175,9 @@ public:
     
     void SpawnDrone(double spawnX, double spawnY);
     void TriggerSpikeAttack(double targetX, double targetY);
+    void StartDroneAttack();
+    void UpdateDroneAttack(Player& player, float dt);
+    void UpdateDroneProjectiles(Player& player, float dt);
 };
 
 #endif // LEVEL3_BOSS_H

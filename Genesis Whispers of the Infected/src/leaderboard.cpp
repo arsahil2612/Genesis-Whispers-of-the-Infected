@@ -77,3 +77,12 @@ void Leaderboard::AddScore(const std::string& name, int score) {
     }
 }
 
+int Leaderboard::GetScoreForName(const std::string& name, int defaultVal) const {
+    for (size_t i = 0; i < entries.size(); ++i) {
+        if (strcmp(entries[i].name, name.c_str()) == 0) {
+            return entries[i].score;
+        }
+    }
+    return defaultVal;
+}
+

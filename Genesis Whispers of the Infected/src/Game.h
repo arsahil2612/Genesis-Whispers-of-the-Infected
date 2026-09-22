@@ -49,6 +49,9 @@ public:
     EngineState GetEngineState() const { return m_engineState; }
     void SetEngineState(EngineState state) { m_engineState = state; }
 
+    int GetTotalKills() const { return m_gameManager.GetTotalKills(); }
+    int GetTotalResourceCount() const { return m_gameManager.GetTotalResourceCount(); }
+
     // Screen Dimensions
     int GetScreenWidth() const { return m_screenWidth; }
     int GetScreenHeight() const { return m_screenHeight; }

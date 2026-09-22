@@ -2,6 +2,8 @@
 #include <windows.h>
 #include <GL/gl.h>
 #include "UI.h"
+#include "Game.h"
+#include "game_manager.h"
 #include "ResourceManager.h"
 #include "igraphics_declarations.h"
 #include <cstdio>
@@ -27,6 +29,7 @@ unsigned int UI::texScoreLabel = 0;
 unsigned int UI::texSeparator = 0;
 unsigned int UI::texHealLabel = 0;
 unsigned int UI::texScoreHeal = 0;
+unsigned int UI::texControlsScreen = 0;
 
 // Item & HUD Icon Handles
 unsigned int UI::texIconMedkit = 0;
@@ -35,6 +38,7 @@ unsigned int UI::texIconBattery = 0;
 unsigned int UI::texIconWaterBottle = 0;
 unsigned int UI::texIconScrap = 0;
 unsigned int UI::texIconKatana = 0;
+unsigned int UI::texIconPistol = 0;
 unsigned int UI::texIconSMG = 0;
 unsigned int UI::texIconGrenade = 0;
 unsigned int UI::texIconShotgun = 0;
@@ -373,33 +377,7 @@ void UI::DrawPauseMenu(int mouseX, int mouseY, bool isMouseDown, double animTime
         iText(msgX, msgY, (char*)msgText, GLUT_BITMAP_HELVETICA_12);
     }
     else if (pauseSubMenu == 1) {
-        int subW = 480, subH = 360;
-        int subX = (1280 - subW) / 2; // 400
-        int subY = 160;
-
-        iSetColor(14, 18, 24);
-        iFilledRectangle(subX, subY, subW, subH);
-        iSetColor(54, 62, 72);
-        iRectangle(subX, subY, subW, subH);
-
-        const char* headStr = "GAME CONTROLS";
-        int headW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_18, headStr);
-        int headX = 640 - headW / 2;
-        iSetColor(220, 225, 230);
-        iText(headX, 485, (char*)headStr, GLUT_BITMAP_HELVETICA_18);
-
-        DrawShadowText(430, 430, "A / D or LEFT / RIGHT  - Move Character", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
-        DrawShadowText(430, 390, "W / SPACE / UP         - Jump", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
-        DrawShadowText(430, 350, "J / LEFT CLICK         - Attack / Fire / Throw", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
-        DrawShadowText(430, 310, "1 / 2 / 3 / 4          - Katana / Pistol / SMG / Grenade", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
-        DrawShadowText(430, 270, "E                      - Interact / Pick Up", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
-        DrawShadowText(430, 230, "H                      - Use First Aid Kit", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
-        DrawShadowText(430, 190, "TAB / I                - Open Inventory", GLUT_BITMAP_HELVETICA_12, 220, 225, 230);
-
-        const char* retStr = "Press ESC or Click to Return";
-        int retW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_12, retStr);
-        int retX = 640 - retW / 2;
-        DrawShadowText(retX, 180, retStr, GLUT_BITMAP_HELVETICA_12, 220, 180, 50);
+        DrawControlsScreen(1.0f);
     }
     else if (pauseSubMenu == 2) {
         int subW = 480, subH = 360;
@@ -430,9 +408,77 @@ void UI::DrawPauseMenu(int mouseX, int mouseY, bool isMouseDown, double animTime
 }
 
 // ============================================================================
+// INVENTORY CONTROLS SCREEN OVERLAY
+// ============================================================================
+void UI::DrawControlsScreen(float alpha) {
+    if (alpha <= 0.001f) return;
+
+    if (texControlsScreen == 0) {
+        texControlsScreen = ResourceManager::GetInstance().GetTexture("Assets/UI/Inventory/controls.png");
+        if (texControlsScreen == 0) {
+            texControlsScreen = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/controls.png").c_str());
+        }
+        if (texControlsScreen == 0) {
+            printf("[UI Error] Failed to load controls texture: Assets/UI/Inventory/controls.png\n");
+        }
+    }
+
+    // 1. Darkened backdrop dimmer
+    iSetColor(0, 0, 0);
+    iFilledRectangle(0, 0, 1280, 720);
+
+    // 2. Full-screen Controls Overlay Image (Assets/UI/Inventory/controls.png)
+    if (texControlsScreen != 0) {
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, texControlsScreen);
+        glColor4f(1.0f, 1.0f, 1.0f, alpha);
+
+        glBegin(GL_QUADS);
+        glTexCoord2f(0.001f, 0.999f); glVertex2f(0.0f, 0.0f);
+        glTexCoord2f(0.999f, 0.999f); glVertex2f(1280.0f, 0.0f);
+        glTexCoord2f(0.999f, 0.001f); glVertex2f(1280.0f, 720.0f);
+        glTexCoord2f(0.001f, 0.001f); glVertex2f(0.0f, 720.0f);
+        glEnd();
+
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_BLEND);
+    }
+
+    // 3. Exit Instruction Prompt Overlay
+    const char* exitPrompt = "Press [ESC] to Return to Inventory";
+    int promptW = GetGlutStringWidth(GLUT_BITMAP_HELVETICA_12, exitPrompt);
+    int promptX = 640 - promptW / 2;
+    int promptY = 25;
+
+    // Dark backing bar
+    iSetColor(10, 12, 16);
+    iFilledRectangle(promptX - 16, promptY - 6, promptW + 32, 28);
+    iSetColor(0, 200, 240);
+    iRectangle(promptX - 16, promptY - 6, promptW + 32, 28);
+
+    iSetColor(0, 0, 0);
+    iText(promptX + 1, promptY - 1, (char*)exitPrompt, GLUT_BITMAP_HELVETICA_12);
+    iSetColor(0, 220, 255);
+    iText(promptX, promptY, (char*)exitPrompt, GLUT_BITMAP_HELVETICA_12);
+}
+
+// ============================================================================
 // INITIALIZATION & ASSET LOADING
 // ============================================================================
 void UI::Initialize() {
+    if (texControlsScreen == 0) {
+        texControlsScreen = ResourceManager::GetInstance().GetTexture("Assets/UI/Inventory/controls.png");
+        if (texControlsScreen == 0) {
+            texControlsScreen = iLoadImage((char*)GetAssetPath("Assets/UI/Inventory/controls.png").c_str());
+        }
+        if (texControlsScreen == 0) {
+            printf("[UI Error] Failed to load controls texture: Assets/UI/Inventory/controls.png\n");
+        } else {
+            printf("[UI] Successfully loaded Controls Screen texture (ID: %u)\n", texControlsScreen);
+        }
+    }
     if (texHealthFrame == 0) {
         texHealthFrame = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/Health_Bar_Frame.png").c_str());
         if (texHealthFrame == 0) texHealthFrame = iLoadImage((char*)GetAssetPath("Assets/UI/HUD/ui_health_frame.png").c_str());
@@ -492,7 +538,8 @@ void UI::Initialize() {
         if (texLevelCompleteBg == 0) texLevelCompleteBg = iLoadImage((char*)GetAssetPath("Assets/UI/Level Complete/ui_level_complete_screen.png").c_str());
     }
     if (texMainMenuBg == 0) {
-        texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/new_main_menu.png").c_str());
+        texMainMenuBg = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/new_main_menu.png");
+        if (texMainMenuBg == 0) texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/new_main_menu.png").c_str());
         if (texMainMenuBg == 0) texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/main_menu_bg.png").c_str());
     }
     if (texBossFrame == 0) {
@@ -521,6 +568,8 @@ void UI::Initialize() {
 }
 
 // ============================================================================
+extern Game g_game;
+
 // HUD DRAWING ROUTINES (PHASE 1 VISUAL UPGRADE)
 // ============================================================================
 void UI::DrawHUD(const Player& player, int score, const char* objectiveText, const char* areaName, double notifyTimer, double areaBannerAlpha, const char* chapterName) {
@@ -564,12 +613,13 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
     DrawAlphaShadowText(rightBound - scoreW, hudY + hudH - 55, scoreNumStr, GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
     
     // ENEMIES DEFEATED (Row 2)
-    const char* enemiesStr = "00";
+    char enemiesStr[16];
+    sprintf_s(enemiesStr, sizeof(enemiesStr), "%02d", g_game.GetTotalKills());
     int enemiesW = GetTextWidth(enemiesStr, GLUT_BITMAP_HELVETICA_18);
     DrawAlphaShadowText(rightBound - enemiesW, hudY + hudH - 80, enemiesStr, GLUT_BITMAP_HELVETICA_18, 240, 245, 250, alpha, 1);
     
     // RESOURCES (Row 3)
-    int resources = player.scrapCount + player.foodCount + player.batteryCount;
+    int resources = g_game.GetTotalResourceCount();
     
     // Muted orange warning if no resources
     int resR = 240, resG = 245, resB = 250;
@@ -591,14 +641,12 @@ void UI::DrawHUD(const Player& player, int score, const char* objectiveText, con
     } else if (player.currentWeapon == WEAPON_SMG) {
         DrawWeaponDisplay("SMG", player.smgMag, player.smgReserve, true);
     } else if (player.currentWeapon == WEAPON_PISTOL) {
-        DrawWeaponDisplay("PISTOL", player.ammo, 48, true);
+        DrawWeaponDisplay("PISTOL", player.ammo, player.pistolReserve, true);
     } else {
         DrawWeaponDisplay("KATANA", 0, 0, false);
     }
 
-    // On-screen Control Hint Bar above weapon panel
-    DrawAlphaShadowText(980, 85, "1:Katana 2:Pistol 3:SMG 4:Grenade 5:Shotgun", GLUT_BITMAP_HELVETICA_10, 200, 210, 220, alpha, 1);
-    DrawAlphaShadowText(980, 72, "Left Mouse / J = Attack | R = Reload", GLUT_BITMAP_HELVETICA_10, 255, 180, 50, alpha, 1);
+
 }
 
 void UI::DrawAreaBanner(const char* areaName, double alpha, const char* chapterName) {
@@ -1156,7 +1204,23 @@ void UI::DrawWeaponDisplay(const char* weaponName, int ammo, int reserveAmmo, bo
     iRectangle(wellX + 1, wellY + 1, wellW - 2, wellH - 2);
 
     std::string nameStr = weaponName ? weaponName : "KATANA";
-    if (nameStr == "GRENADE") {
+    if (nameStr == "PISTOL") {
+        if (texIconPistol == 0) {
+            texIconPistol = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/pistol.png").c_str());
+            if (texIconPistol == 0) {
+                texIconPistol = ResourceManager::GetInstance().GetTexture("Assets/Characters/Arin/Weapon/pistol.png");
+            }
+        }
+        if (texIconPistol != 0) {
+            int imgW = 54;
+            int imgH = 36;
+            int imgX = wellX + (wellW - imgW) / 2;
+            int imgY = wellY + (wellH - imgH) / 2;
+            iShowImage(imgX, imgY, imgW, imgH, texIconPistol);
+        } else {
+            DrawOutlinedText(wellX + 8, wellY + 18, "PIST", GLUT_BITMAP_HELVETICA_18, 255, 165, 0);
+        }
+    } else if (nameStr == "GRENADE") {
         if (texIconGrenade == 0) {
             texIconGrenade = iLoadImage((char*)GetAssetPath("Assets/Characters/Arin/Weapon/Grenade.png").c_str());
             if (texIconGrenade == 0) {
@@ -1519,11 +1583,26 @@ void UI::DrawLevelComplete(int mouseX, int mouseY, bool isMouseDown, double anim
         iFilledRectangle(0, 0, 1280, 720);
     }
 
-    DrawOutlinedText(515, 545, "LEVEL COMPLETE", GLUT_BITMAP_TIMES_ROMAN_24, 0, 255, 120);
-    DrawShadowText(525, 505, "THE FALLEN VILLAGE", GLUT_BITMAP_HELVETICA_18, 200, 200, 200);
-    DrawOutlinedText(485, 475, "Mission Updated: REACH BLACKWOOD FOREST", GLUT_BITMAP_HELVETICA_12, 0, 230, 255);
+    int lvl = g_currentLevel;
+    const char* levelTitle = "THE FALLEN VILLAGE";
+    const char* missionMsg = "Mission Updated: REACH BLACKWOOD FOREST";
+    const char* continueMsg = "1. CONTINUE TO LEVEL 3 [ENTER]";
 
-    DrawButtonSlot(1, 515, 412, "1. CONTINUE [ENTER]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
+    if (lvl == 2) {
+        levelTitle = "BLACKWOOD FOREST";
+        missionMsg = "Mission Updated: ENTER NOVAGEN FACILITY B";
+        continueMsg = "1. CONTINUE TO LEVEL 3 [ENTER]";
+    } else if (lvl == 3) {
+        levelTitle = "NOVAGEN FACILITY B";
+        missionMsg = "Mission Accomplished: VIRUS CONTAINED";
+        continueMsg = "1. MAIN MENU [ENTER]";
+    }
+
+    DrawOutlinedText(515, 545, "LEVEL COMPLETE", GLUT_BITMAP_TIMES_ROMAN_24, 0, 255, 120);
+    DrawShadowText(525, 505, levelTitle, GLUT_BITMAP_HELVETICA_18, 200, 200, 200);
+    DrawOutlinedText(485, 475, missionMsg, GLUT_BITMAP_HELVETICA_12, 0, 230, 255);
+
+    DrawButtonSlot(1, 515, 412, continueMsg, GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
     DrawButtonSlot(2, 530, 357, "2. MAIN MENU [M]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
     DrawButtonSlot(3, 535, 302, "3. EXIT GAME [ESC]", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, animTime);
 

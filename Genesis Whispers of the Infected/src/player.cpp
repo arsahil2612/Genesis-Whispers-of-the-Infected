@@ -29,7 +29,8 @@ Player::Player() {
     height = 96;
     hp = maxHp = 100;
     displayedHp = 100.0;
-    ammo = 30;
+    ammo = 8;
+    pistolReserve = 48;
     medkits = 2;
     foodCount = 1;
     batteryCount = 1;
@@ -81,7 +82,8 @@ void Player::Initialize(double startX, double startY) {
     vy = 0;
     hp = maxHp;
     displayedHp = (double)hp;
-    ammo = 15;
+    ammo = 8;
+    pistolReserve = 48;
     medkits = 2;
     foodCount = 1;
     batteryCount = 1;
@@ -478,6 +480,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
                 shotgunMag++;
                 shotgunReserve--;
                 shotgunReloadTimer = 0.35; // 0.35s delay per shell insert
+                animShotgunReload.Reset();
             }
             if (shotgunMag >= kShotgunMaxMag || shotgunReserve <= 0) {
                 SetState(STATE_IDLE);
@@ -524,7 +527,8 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
 
     // 3b. Weapon Attack System: Single key/mouse attack & automatic hold-to-fire for SMG
     bool physLButtonDown = ((GetAsyncKeyState(VK_LBUTTON) & 0x8000) != 0);
-    bool attackPressed = ((keys != NULL) && (keys['j'] || keys['J'])) || physLButtonDown;
+    bool physJDown = ((GetAsyncKeyState('J') & 0x8000) != 0);
+    bool attackPressed = (((keys != NULL) && (keys['j'] || keys['J'])) || physLButtonDown || physJDown) && (physJDown || physLButtonDown);
     if (currentWeapon == WEAPON_SMG) {
         if (attackPressed && smgFireCooldownTimer <= 0.0 && state != STATE_RELOAD_SMG && state != STATE_HURT && state != STATE_DEAD) {
             AttackSMG();
@@ -775,7 +779,7 @@ void Player::Update(double dt, bool keys[], bool specialKeys[]) {
         }
     }
     else if (state == STATE_RELOAD_SHOTGUN) {
-        if (shotgunMag >= kShotgunMaxMag || shotgunReserve <= 0 || animShotgunReload.IsFinished()) {
+        if (shotgunMag >= kShotgunMaxMag || shotgunReserve <= 0) {
             if (!isGrounded) SetState(STATE_JUMP);
             else if (std::abs(vx) > 5.0 || moveLeft || moveRight) SetState(isRunning ? STATE_RUN : STATE_WALK);
             else SetState(STATE_IDLE);
@@ -1025,6 +1029,13 @@ void Player::ReloadWeapon() {
         }
     } else if (currentWeapon == WEAPON_SHOTGUN) {
         ReloadShotgun();
+    } else if (currentWeapon == WEAPON_PISTOL) {
+        if (ammo < 8 && pistolReserve > 0) {
+            int needed = 8 - ammo;
+            int reloadAmount = (pistolReserve >= needed) ? needed : pistolReserve;
+            ammo += reloadAmount;
+            pistolReserve -= reloadAmount;
+        }
     }
 }
 

@@ -26,6 +26,7 @@ public:
     void SaveScores();
     void AddScore(const std::string& name, int score);
     const std::vector<ScoreEntry>& GetEntries() const { return entries; }
+    int GetScoreForName(const std::string& name, int defaultVal = 0) const;
 };
 
 #endif // LEADERBOARD_H

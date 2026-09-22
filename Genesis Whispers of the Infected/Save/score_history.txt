@@ -10,3 +10,129 @@ Route: Standard
 Completed: No
 ---
 
+Score: 400
+Kills: 1
+Route: Standard
+Completed: No
+---
+
+Score: 4050
+Kills: 12
+Route: Standard
+Completed: No
+---
+
+Score: 3150
+Kills: 1
+Route: Easy
+Completed: No
+---
+
+Score: 0
+Kills: 0
+Route: Standard
+Completed: No
+---
+
+Score: 1400
+Kills: 0
+Route: Easy
+Completed: No
+---
+
+Score: 0
+Kills: 0
+Route: Standard
+Completed: No
+---
+
+Score: 6800
+Kills: 25
+Route: Standard
+Completed: No
+---
+
+Score: 400
+Kills: 1
+Route: Standard
+Completed: No
+---
+
+Score: 6830
+Kills: 21
+Route: Standard
+Completed: No
+---
+
+Score: 28150
+Kills: 65
+Route: Hard
+Completed: No
+---
+
+Score: 0
+Kills: 0
+Route: Standard
+Completed: No
+---
+
+Score: 7190
+Kills: 14
+Route: Easy
+Completed: No
+---
+
+Score: 4970
+Kills: 3
+Route: Hard
+Completed: No
+---
+
+Score: 300
+Kills: 0
+Route: Easy
+Completed: No
+---
+
+Score: 3800
+Kills: 2
+Route: Easy
+Completed: No
+---
+
+Score: 6060
+Kills: 11
+Route: Easy
+Completed: No
+---
+
+Score: 19050
+Kills: 42
+Route: Easy
+Completed: No
+---
+
+Score: 11700
+Kills: 9
+Route: Easy
+Completed: Yes
+---
+
+Score: 5090
+Kills: 11
+Route: Hard
+Completed: No
+---
+
+Score: 4310
+Kills: 1
+Route: Easy
+Completed: No
+---
+
+Score: 1050
+Kills: 1
+Route: Easy
+Completed: No
+---
+

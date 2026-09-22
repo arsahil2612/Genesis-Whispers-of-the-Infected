@@ -9,8 +9,12 @@
 #include "EncounterManager.h"
 #include "Level3Boss.h"
 #include "Level3Manager.h"
+#include "Button.h"
+#include "Inventory.h"
 #include <vector>
 #include <string>
+
+extern int g_currentLevel;
 
 // ============================================================================
 // Game State Taxonomy & Data Structs
@@ -23,6 +27,7 @@ enum GameState {
     STATE_PAUSED,
     STATE_GAMEOVER,
     STATE_VICTORY,
+    STATE_ENDING_SCENE,
     STATE_LEADERBOARD
 };
 
@@ -354,6 +359,9 @@ private:
     bool ribbonCollected;
     bool hasKeycard;
     bool showInventory;
+    bool hasActiveGameRun;
+    InventoryState inventoryState;
+    float controlsFadeAlpha;
     double hudAlpha;
 
     // Mouse Cursor state & coordinates
@@ -363,12 +371,19 @@ private:
 
     // UI Animation & Smooth Transition States
     double menuTransitionAlpha;
+    double menuEntranceTimer;
+    double m_menuEntranceTimer;
     double missionNotifyAlpha;
     double missionNotifyTimer;
     int lastObjectiveID;
     double uiAnimTime;
     double deathTimer;
     int pauseSubMenu; // 0 = Pause Main, 1 = Controls, 2 = Settings
+
+    // Interactive Image Main Menu Buttons
+    Button m_btnStartSurvival;
+    Button m_btnLeaderboard;
+    Button m_btnExit;
 
     // Contextual Interaction Prompt
     std::string activePromptText;
@@ -405,8 +420,7 @@ private:
     void UseInventorySlot(int slotIndex);
     void AddInventoryItem(const std::string& itemId, int count = 1);
     void UseHealHotkey();
-
-    // Helper functions for localized state updates/rendering
+    // Localized state updates and rendering helpers
     void UpdatePlaying(float dt = 0.016f, bool keys[] = NULL, bool specialKeys[] = NULL);
     void RenderPlaying();
     void RenderMenu();
@@ -414,10 +428,20 @@ private:
     void RenderDialogue();
     void RenderGameOver();
     void RenderVictory();
+    void RenderEndingScene();
     void RenderCursor();
 
 public:
     GameManager();
+    int GetTotalResourceCount() const {
+        int total = 0;
+        for (int i = 0; i < 12; ++i) {
+            if (inventory[i].isOccupied) {
+                total += inventory[i].count;
+            }
+        }
+        return total;
+    }
     
     void Initialize();
     void LoadLevel1();
@@ -427,14 +451,19 @@ public:
     void LoadLevel3();
     void LoadLevel3NPCs();
     void TriggerLevel3Route(int route);
+    void StartBossFightTransition(double arenaTriggerX);
+    void ClearCurrentLevelObjects();
+    void RestartCurrentLevel();
     void Update(float dt = 0.016f, bool keys[] = NULL, bool specialKeys[] = NULL);
     void Render();
 
     // Independent Environment Prop System Methods
+    void LoadLevel3Props();
     void AddWorldProp(const std::string& assetPath, double x, double y, double width, double height, PropLayer layer = PROP_LAYER_BACKGROUND, bool isObstacle = false);
     void RenderWorldProps(PropLayer layer, double camX, double camY);
     double GetPropWorldScale(const std::string& assetPath) const;
     double GetPropGroundOffset(const std::string& assetPath) const;
+    bool m_debugPropsEnabled;
 
     // Input hooks from iGraphics
     void HandleKeyPress(unsigned char key);
@@ -453,6 +482,8 @@ public:
     void RecordLevelCompletion(int level);
     void RecordGameCompletion();
     void ResetScoreAndStats();
+    void LoadMainMenuAssets();
+    static void ResetStaticUITextures();
     void SaveScoreToFile();
     void LoadScoreFromFile();
     void AppendScoreHistory();

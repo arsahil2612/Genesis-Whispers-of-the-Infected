@@ -61,6 +61,7 @@ public:
     int maxHp;
     double displayedHp;
     int ammo;
+    int pistolReserve;
     int medkits;
     int foodCount;
     int batteryCount;

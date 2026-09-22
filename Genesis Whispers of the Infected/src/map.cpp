@@ -116,6 +116,9 @@ void Map::LoadLevel(int levelNumber) {
 
         // Level 3 Continuous Ground
         platforms.push_back(Platform(0, 165, 14480, 20));
+
+        // Level 3 Final Boss Arena Elevated Platforms (Removed)
+        // (User requested removal of the 3 elevated platforms that Arin jumps over)
     }
 }
 
@@ -190,27 +193,13 @@ void Map::RenderMidground(double camX, bool bossDefeated) {
 void Map::RenderGroundSurface(double camX) {
     ResourceManager& rm = ResourceManager::GetInstance();
 
-    std::string groundTilePath;
+    unsigned int texGround = 0;
     if (currentLevelNumber == 3) {
-        groundTilePath = "Assets/Tiles/Ground/level3tile/level3tile.png";
+        texGround = rm.GetLevel3Tile();
     } else if (currentLevelNumber == 2) {
-        groundTilePath = "Assets/Tiles/Ground/village_grass_tile.png";
+        texGround = rm.GetVillageGrassTile();
     } else {
-        groundTilePath = "Assets/Tiles/Ground/dirt_tile.png";
-    }
-
-    unsigned int texGround = rm.GetTexture(groundTilePath);
-    if (texGround == 0) {
-        std::string resolved = GetAssetPath(groundTilePath);
-        texGround = iLoadImage((char*)resolved.c_str());
-    }
-
-    // Fallback check for root level3tile.png if subfolder path load returns 0
-    if (texGround == 0 && currentLevelNumber == 3) {
-        texGround = rm.GetTexture("Assets/Tiles/Ground/level3tile.png");
-        if (texGround == 0) {
-            texGround = iLoadImage((char*)GetAssetPath("Assets/Tiles/Ground/level3tile.png").c_str());
-        }
+        texGround = rm.GetDirtTile();
     }
 
     if (texGround == 0) return;
@@ -223,7 +212,7 @@ void Map::RenderGroundSurface(double camX) {
     for (size_t pIdx = 0; pIdx < platforms.size(); ++pIdx) {
         const Platform& plat = platforms[pIdx];
 
-        // Draw ground tiles only on main walkable terrain platforms
+        // 1. Draw main ground floor tiles (level3tile.png)
         if (plat.y <= 170 && plat.width > 50) {
             for (double wx = plat.x; wx < plat.x + plat.width; wx += tileSize) {
                 double screenX = wx - camX;
@@ -233,26 +222,49 @@ void Map::RenderGroundSurface(double camX) {
                         drawW = (int)(plat.x + plat.width - wx);
                     }
 
-                    // Level 3 Final Boss Arena Atmosphere Enhancement (Darker lighting & blue/purple reflections)
-                    if (currentLevelNumber == 3 && wx >= 6800.0) {
-                        glColor4f(0.70f, 0.60f, 0.90f, 1.0f); // Darker tone with purple/blue reflection accent
+                    // Level 3 Final Boss Arena Atmospheric Ground Surface (level3tile.png)
+                    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+                    if (drawW == tileSize) {
                         iShowImage((int)screenX, 0, drawW, tileSize, texGround);
-                        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+                    } else {
+                        double uRatio = (double)drawW / (double)tileSize;
+                        iShowImageSub((int)screenX, 0, drawW, tileSize, texGround, 0.0, 0.0, uRatio, 1.0);
+                    }
 
-                        // Blue/purple wet reflective overlay for Dr. Kael Monster boss arena mood
+                    if (currentLevelNumber == 3 && wx >= 6800.0) {
+                        // Subtle high-tech cyan/purple sheen overlay for Dr. Kael boss arena mood
+                        glEnable(GL_BLEND);
+                        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
                         glDisable(GL_TEXTURE_2D);
                         glBegin(GL_QUADS);
-                        glColor4f(0.08f, 0.04f, 0.25f, 0.18f);
+                        glColor4f(0.08f, 0.12f, 0.35f, 0.10f);
                         glVertex2f((float)screenX, 0.0f);
                         glVertex2f((float)(screenX + drawW), 0.0f);
-                        glColor4f(0.18f, 0.08f, 0.40f, 0.28f);
+                        glColor4f(0.18f, 0.08f, 0.40f, 0.15f);
                         glVertex2f((float)(screenX + drawW), (float)tileSize);
                         glVertex2f((float)screenX, (float)tileSize);
                         glEnd();
                         glEnable(GL_TEXTURE_2D);
-                    } else {
                         glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-                        iShowImage((int)screenX, 0, drawW, tileSize, texGround);
+                    }
+                }
+            }
+        }
+        // 2. Draw elevated arena combat platforms using level3tile.png
+        else if (currentLevelNumber == 3 && plat.y > 170) {
+            for (double wx = plat.x; wx < plat.x + plat.width; wx += tileSize) {
+                double screenX = wx - camX;
+                if (screenX + tileSize >= -100 && screenX <= 1380) {
+                    int drawW = tileSize;
+                    if (wx + drawW > plat.x + plat.width) {
+                        drawW = (int)(plat.x + plat.width - wx);
+                    }
+                    glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
+                    if (drawW == tileSize) {
+                        iShowImage((int)screenX, (int)(plat.y - 15), drawW, 35, texGround);
+                    } else {
+                        double uRatio = (double)drawW / (double)tileSize;
+                        iShowImageSub((int)screenX, (int)(plat.y - 15), drawW, 35, texGround, 0.0, 0.0, uRatio, 1.0);
                     }
                 }
             }

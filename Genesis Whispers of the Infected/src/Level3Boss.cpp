@@ -17,6 +17,11 @@ Level3Boss::Level3Boss() {
     phase = L3_BOSS_INACTIVE;
     monsterState = MONSTER_IDLE;
     assetsLoaded = false;
+    
+    vx = 0.0;
+    vy = 0.0;
+    dashSpeed = 0.0;
+    bodyDamageCooldown = 0.0;
 
     dialogueStep = 0;
     dialogueTimer = 0.0;
@@ -24,6 +29,7 @@ Level3Boss::Level3Boss() {
     transformTimer = 0.0;
 
     attackCooldownTimer = 2.0;
+    droneCooldown = 0.0;
     stateTimer = 0.0;
     clawDamageDealt = false;
     chargeDamageDealt = false;
@@ -88,12 +94,18 @@ void Level3Boss::Initialize(double arenaX, double arenaY) {
     isFacingRight = false;
     phase = L3_BOSS_HUMAN_INTRO;
     monsterState = MONSTER_IDLE;
+    
+    vx = 0.0;
+    vy = 0.0;
+    dashSpeed = 0.0;
+    bodyDamageCooldown = 0.0;
 
     dialogueStep = 0;
     dialogueTimer = 0.0;
     introTimer = 0.0;
     transformTimer = 0.0;
     attackCooldownTimer = 2.0;
+    droneCooldown = 15.0;
 
     drones.clear();
     droneProjectiles.clear();
@@ -115,6 +127,7 @@ void Level3Boss::Initialize(double arenaX, double arenaY) {
 
 void Level3Boss::AdvanceDialogue() {
     dialogueStep++;
+    dialogueTimer = 0.0;
     if (dialogueStep == 1) {
         currentSpeaker = "Arin";
         currentText = "\"Kael! I know who you are. What have you done with Subject Luna? Where is she?!\"";
@@ -169,6 +182,7 @@ void Level3Boss::SpawnDrone(double spawnX, double spawnY) {
         d.anim.InitSequence(seq, 8, true);
     }
     drones.push_back(d);
+    printf("DRONE SPAWNED\n");
 }
 
 void Level3Boss::TriggerSpikeAttack(double targetX, double targetY) {
@@ -183,8 +197,87 @@ void Level3Boss::TriggerSpikeAttack(double targetX, double targetY) {
     spikes.push_back(sp);
 }
 
+void Level3Boss::StartDroneAttack() {
+    printf("DRONE ATTACK STARTED\n");
+    drones.clear();
+    droneProjectiles.clear();
+    SpawnDrone(x - 200, y + 120);
+    SpawnDrone(x + 200, y + 120);
+}
+
+void Level3Boss::UpdateDroneAttack(Player& player, float dt) {
+    for (auto& d : drones) {
+        if (!d.active) continue;
+        d.anim.Update();
+        d.timer += dt;
+
+        // Drone hovering AI targeting Arin at chest/head level
+        d.targetX = player.x + (d.x < player.x ? -160.0 : 160.0);
+        d.targetY = player.y + 65.0 + sin(d.timer * 3.0) * 20.0;
+        d.x += (d.targetX - d.x) * 0.05;
+        d.y += (d.targetY - d.y) * 0.05;
+
+        // Controlled projectile attack timing
+        d.attackCooldown += dt;
+        if (d.attackCooldown >= 1.8) {
+            d.attackCooldown = 0.0;
+            DroneProjectile p;
+            p.x = d.x;
+            p.y = d.y - 10;
+            double targetX = player.x + 30.0;
+            double targetY = player.y + 80.0;
+            double dx = targetX - d.x;
+            double dy = targetY - d.y;
+            double dist = sqrt(dx*dx + dy*dy);
+            if (dist > 0.1) {
+                p.vx = (dx / dist) * 450.0;
+                p.vy = (dy / dist) * 450.0;
+            }
+            p.damage = 10;
+            p.active = true;
+            
+            if (!texDroneProj.empty()) {
+                p.anim.InitSequence(texDroneProj, 2, true);
+            } else {
+                std::vector<unsigned int> seq;
+                for (int i = 1; i <= 6; ++i) {
+                    char b[160];
+                    sprintf_s(b, sizeof(b), "Assets/Characters/Dr. Kael/Human/Drone Attack/Drone Energy Projectile/projectile_%02d.png", i);
+                    unsigned int tex = iLoadImage((char*)GetAssetPath(b).c_str());
+                    if (tex != 0) seq.push_back(tex);
+                }
+                p.anim.InitSequence(seq, 2, true);
+            }
+            droneProjectiles.push_back(p);
+            printf("DRONE PROJECTILE FIRED\n");
+        }
+    }
+}
+
+void Level3Boss::UpdateDroneProjectiles(Player& player, float dt) {
+    for (auto& p : droneProjectiles) {
+        if (!p.active) continue;
+        p.x += p.vx * dt;
+        p.y += p.vy * dt;
+        p.anim.Update();
+
+        if (abs(p.x - (player.x + player.width / 2.0)) < 40.0 &&
+            abs(p.y - (player.y + player.height / 2.0)) < 50.0) {
+            player.TakeDamage(p.damage);
+            p.active = false;
+        }
+
+        if (p.x < player.x - 1000 || p.x > player.x + 1000 || p.y < 0 || p.y > 800) {
+            p.active = false;
+        }
+    }
+}
+
 void Level3Boss::Update(Player& player, float dt) {
     if (phase == L3_BOSS_INACTIVE) return;
+
+    UpdateDroneAttack(player, dt);
+    UpdateDroneProjectiles(player, dt);
 
     // ------------------------------------------------------------------------
     // PHASE 1: Human Intro, Dialogue & Tactical Drone Attack
@@ -220,6 +313,12 @@ void Level3Boss::Update(Player& player, float dt) {
             animHumanTalk.Update();
         } else {
             animHumanIdle.Update();
+        }
+
+        // Auto-advance dialogue step after 4 seconds per line if player does not press buttons
+        dialogueTimer += dt;
+        if (dialogueTimer >= 4.0) {
+            AdvanceDialogue();
         }
         return;
     }
@@ -274,10 +373,7 @@ void Level3Boss::Update(Player& player, float dt) {
     if (phase == L3_BOSS_HUMAN_DRONE_SUMMON_COMPLETE) {
         phase = L3_BOSS_HUMAN_DRONE_ATTACK;
         stateTimer = 0.0;
-        drones.clear();
-        droneProjectiles.clear();
-        SpawnDrone(x - 200, y + 120);
-        SpawnDrone(x + 200, y + 120);
+        StartDroneAttack();
         isFacingRight = (player.x > x);
         animHumanIdle.Reset();
         return;
@@ -288,53 +384,6 @@ void Level3Boss::Update(Player& player, float dt) {
         isFacingRight = (player.x > x);
         x += (isFacingRight ? 30.0 : -30.0) * dt;
         animHumanIdle.Update();
-
-        // Update active drones
-        for (auto& d : drones) {
-            if (!d.active) continue;
-            d.anim.Update();
-            d.timer += dt;
-
-            // Drone hovering AI targeting Arin at chest/head level
-            d.targetX = player.x + (d.x < player.x ? -160.0 : 160.0);
-            d.targetY = player.y + 65.0 + sin(d.timer * 3.0) * 20.0;
-            d.x += (d.targetX - d.x) * 0.05;
-            d.y += (d.targetY - d.y) * 0.05;
-
-            // Controlled projectile attack timing
-            d.attackCooldown += dt;
-            if (d.attackCooldown >= 1.8) {
-                d.attackCooldown = 0.0;
-                DroneProjectile p;
-                p.x = d.x;
-                p.y = d.y - 10;
-                double targetX = player.x + 30.0;
-                double targetY = player.y + 80.0;
-                double dx = targetX - d.x;
-                double dy = targetY - d.y;
-                double dist = sqrt(dx*dx + dy*dy);
-                if (dist > 0.1) {
-                    p.vx = (dx / dist) * 450.0;
-                    p.vy = (dy / dist) * 450.0;
-                }
-                p.damage = 10;
-                p.active = true;
-                
-                if (!texDroneProj.empty()) {
-                    p.anim.InitSequence(texDroneProj, 2, true);
-                } else {
-                    std::vector<unsigned int> seq;
-                    for (int i = 1; i <= 6; ++i) {
-                        char b[160];
-                        sprintf_s(b, sizeof(b), "Assets/Characters/Dr. Kael/Human/Drone Attack/Drone Energy Projectile/projectile_%02d.png", i);
-                        unsigned int tex = iLoadImage((char*)GetAssetPath(b).c_str());
-                        if (tex != 0) seq.push_back(tex);
-                    }
-                    p.anim.InitSequence(seq, 2, true);
-                }
-                droneProjectiles.push_back(p);
-            }
-        }
 
         // Drone attack phase duration (7.0 seconds)
         if (stateTimer >= 7.0) {
@@ -417,29 +466,15 @@ void Level3Boss::Update(Player& player, float dt) {
             monsterState = MONSTER_IDLE;
             attackCooldownTimer = 1.0;
             stateTimer = 0.0;
+            vx = 0.0;
+            dashSpeed = 0.0;
         }
         return;
     }
 
     // ------------------------------------------------------------------------
-    // Projectiles & Ground Spikes Sub-System Updates
+    // Ground Spikes Sub-System Updates
     // ------------------------------------------------------------------------
-    for (auto& p : droneProjectiles) {
-        if (!p.active) continue;
-        p.x += p.vx * dt;
-        p.y += p.vy * dt;
-        p.anim.Update();
-
-        if (abs(p.x - (player.x + player.width / 2.0)) < 40.0 &&
-            abs(p.y - (player.y + player.height / 2.0)) < 50.0) {
-            player.TakeDamage(p.damage);
-            p.active = false;
-        }
-
-        if (p.x < player.x - 1000 || p.x > player.x + 1000 || p.y < 0 || p.y > 800) {
-            p.active = false;
-        }
-    }
 
     for (auto& sp : spikes) {
         sp.timer += dt;
@@ -464,11 +499,24 @@ void Level3Boss::Update(Player& player, float dt) {
     if (phase == L3_BOSS_MONSTER_ACTIVE) {
         isFacingRight = (player.x > x);
         attackCooldownTimer -= dt;
+        
+        x += vx * dt;
+        y += vy * dt;
+        
+        if (bodyDamageCooldown > 0) bodyDamageCooldown -= dt;
 
         switch (monsterState) {
         case MONSTER_IDLE:
             animMonsterIdle.Update();
-            if (attackCooldownTimer <= 0.0) {
+            vx = 0.0;
+            if (droneCooldown > 0) droneCooldown -= dt;
+            
+            if (droneCooldown <= 0.0) {
+                monsterState = MONSTER_SUMMON_DRONES;
+                StartDroneAttack();
+                droneCooldown = 15.0; // Reset cooldown
+                stateTimer = 0.0;
+            } else if (attackCooldownTimer <= 0.0) {
                 double dist = abs(player.x - x);
                 if (dist < 190.0) {
                     monsterState = MONSTER_ATTACK_CLAW;
@@ -482,6 +530,8 @@ void Level3Boss::Update(Player& player, float dt) {
                     chargeTargetX = player.x;
                     chargeDamageDealt = false;
                     stateTimer = 0.0;
+                    dashSpeed = 420.0;
+                    printf("DASH START\n");
                 } else if (rand() % 2 == 0) {
                     monsterState = MONSTER_CHASE;
                     animMonsterWalk.Reset();
@@ -494,11 +544,22 @@ void Level3Boss::Update(Player& player, float dt) {
             }
             break;
 
+        case MONSTER_SUMMON_DRONES:
+            animMonsterIdle.Update();
+            vx = 0.0;
+            stateTimer += dt;
+            if (stateTimer >= 1.0) {
+                monsterState = MONSTER_IDLE;
+                attackCooldownTimer = 1.0;
+            }
+            break;
+
         case MONSTER_CHASE:
             animMonsterWalk.Update();
-            x += (isFacingRight ? 160.0 : -160.0) * dt;
+            vx = isFacingRight ? 160.0 : -160.0;
 
             if (abs(player.x - x) < 190.0) {
+                vx = 0.0;
                 monsterState = MONSTER_ATTACK_CLAW;
                 animMonsterClaw.Reset();
                 clawDamageDealt = false;
@@ -508,11 +569,13 @@ void Level3Boss::Update(Player& player, float dt) {
 
         case MONSTER_ATTACK_CLAW:
             animMonsterClaw.Update();
+            vx = 0.0;
             stateTimer += dt;
             if (!clawDamageDealt && stateTimer >= 0.35) {
                 if (abs(player.x - x) < 220.0 && abs(player.y - y) < 150.0) {
                     player.TakeDamage(40);
                     clawDamageDealt = true;
+                    printf("DAMAGE APPLIED\n");
                 }
             }
             if (stateTimer >= 1.0 || animMonsterClaw.IsFinished()) {
@@ -523,6 +586,7 @@ void Level3Boss::Update(Player& player, float dt) {
 
         case MONSTER_ATTACK_SPIKES:
             animMonsterIdle.Update();
+            vx = 0.0;
             stateTimer += dt;
             if (stateTimer >= 1.2) {
                 monsterState = MONSTER_IDLE;
@@ -533,13 +597,17 @@ void Level3Boss::Update(Player& player, float dt) {
         case MONSTER_ATTACK_CHARGE:
             animMonsterCharge.Update();
             stateTimer += dt;
-            x += (isFacingRight ? 420.0 : -420.0) * dt;
+            vx = isFacingRight ? dashSpeed : -dashSpeed;
 
             if (!chargeDamageDealt && abs(player.x - x) < 180.0 && abs(player.y - y) < 150.0) {
                 player.TakeDamage(50);
                 chargeDamageDealt = true;
+                printf("DAMAGE APPLIED\n");
             }
             if (stateTimer >= 1.2 || abs(x - chargeStartX) > 650.0) {
+                printf("DASH END\n");
+                vx = 0.0;
+                dashSpeed = 0.0;
                 monsterState = MONSTER_IDLE;
                 attackCooldownTimer = 1.8;
             }
@@ -547,6 +615,8 @@ void Level3Boss::Update(Player& player, float dt) {
 
         case MONSTER_STAGGER:
             animMonsterStagger.Update();
+            vx = 0.0;
+            dashSpeed = 0.0;
             stateTimer += dt;
             if (stateTimer >= 0.7) {
                 monsterState = MONSTER_IDLE;
@@ -555,6 +625,8 @@ void Level3Boss::Update(Player& player, float dt) {
             break;
 
         case MONSTER_DEAD:
+            vx = 0.0;
+            dashSpeed = 0.0;
             animMonsterHurt.Update();
             break;
         }
@@ -578,7 +650,33 @@ void Level3Boss::TakeDamage(int damage) {
 
 bool Level3Boss::CheckPlayerCollision(double px, double py, int pw, int ph, Player& player) {
     if (phase != L3_BOSS_MONSTER_ACTIVE) return false;
-    return (abs(px - x) < (pw + width) / 2.0 && abs(py - y) < (ph + height) / 2.0);
+    
+    // Check general bounding box collision
+    if (abs(px - x) < (pw + width) / 2.0 && abs(py - y) < (ph + height) / 2.0) {
+        // Prevent continuous body damage during normal movement, only damage during attacks
+        if (monsterState == MONSTER_ATTACK_CLAW || monsterState == MONSTER_ATTACK_CHARGE) {
+            if (bodyDamageCooldown <= 0.0) {
+                bodyDamageCooldown = 1.0;
+                printf("DAMAGE APPLIED\n");
+                return true;
+            }
+        } else {
+            // Apply a small pushback or generic contact logic if we want,
+            // but we must not apply massive damage every frame.
+            if (bodyDamageCooldown <= 0.0) {
+                // If they just bump into him, we can choose to apply minor contact damage or none.
+                // According to instructions: "damage should happen once per attack".
+                // We'll just return true to let game_manager register the hit if it's the player attacking him,
+                // Wait, CheckPlayerCollision in game_manager is used for: 
+                // 1) Player melee hitting Boss -> returns true so Boss takes damage!
+                // So if we return false, player can't melee him!
+                // So we MUST return true here for the bounding box check!
+                return true; 
+            }
+        }
+        return true;
+    }
+    return false;
 }
 
 void Level3Boss::Render(double camX, double camY) {
@@ -621,24 +719,27 @@ void Level3Boss::Render(double camX, double camY) {
         if (animHumanWalk.IsValid()) animHumanWalk.Render(renderX - width/2, renderY, width, height, isFacingRight);
         else animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
     }
-    else if (phase == L3_BOSS_HUMAN_SUMMON_DRONE || phase == L3_BOSS_HUMAN_ANGRY_DRONES) {
+    else if (phase == L3_BOSS_HUMAN_SUMMON_DRONE || phase == L3_BOSS_HUMAN_ANGRY_DRONES || phase == L3_BOSS_HUMAN_DRONE_SUMMON_COMPLETE) {
         if (animHumanSummon.IsValid()) animHumanSummon.Render(renderX - width/2, renderY, width, height, isFacingRight);
         else animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
     }
-    else if (phase == L3_BOSS_HUMAN_INJECT_SERUM) {
+    else if (phase == L3_BOSS_HUMAN_INJECT_SERUM || phase == L3_BOSS_HUMAN_SERUM_COMPLETE) {
         if (animHumanInject.IsValid()) animHumanInject.Render(renderX - width/2, renderY, width, height, isFacingRight);
         else animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
     }
-    else if (phase == L3_BOSS_HUMAN_DIALOGUE) {
+    else if (phase == L3_BOSS_HUMAN_DIALOGUE || phase == L3_BOSS_HUMAN_DIALOGUE_READY) {
         if ((currentSpeaker == "Dr. Kael" || currentSpeaker == "DR. KAEL" || currentSpeaker == "Dr Kael") && animHumanTalk.IsValid()) {
             animHumanTalk.Render(renderX - width/2, renderY, width, height, isFacingRight);
         } else {
             animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
         }
     }
-    else if (phase == L3_BOSS_KAEL_TRANSFORMING || phase == L3_BOSS_HUMAN_TRANSFORMING) {
+    else if (phase == L3_BOSS_KAEL_TRANSFORMING || phase == L3_BOSS_HUMAN_TRANSFORMING || phase == L3_BOSS_TRANSFORMATION_PREPARE) {
         if (animHumanTransform.IsValid()) animHumanTransform.Render(renderX - width/2, renderY, width + 40, height + 40, isFacingRight);
         else animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
+    }
+    else if (phase == L3_BOSS_HUMAN_DRONE_ATTACK || phase == L3_BOSS_HUMAN_PREPARE_SERUM || phase == L3_BOSS_HUMAN_IDLE || phase == L3_BOSS_HUMAN_DIALOGUE_COMPLETE) {
+        if (animHumanIdle.IsValid()) animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
     }
     // 5. Render Transformed Monster Kael Form
     else if (phase == L3_BOSS_MONSTER_KAEL_INITIALIZE || phase == L3_BOSS_MONSTER_KAEL_IDLE) {
@@ -670,7 +771,7 @@ void Level3Boss::Render(double camX, double camY) {
         }
     }
     else if (phase != L3_BOSS_INACTIVE) {
-        // Fail-safe render for all active Human Kael phases (Intro, Idle, Dialogue Ready/Complete, Anger, Prepare Serum)
+        // Fail-safe render for all active Human Kael phases
         if (animHumanIdle.IsValid()) {
             animHumanIdle.Render(renderX - width/2, renderY, width, height, isFacingRight);
         }

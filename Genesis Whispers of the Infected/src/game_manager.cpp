@@ -1,6 +1,10 @@
 #define _CRT_SECURE_NO_WARNINGS
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
 #include <windows.h>
 #include <GL/gl.h>
+#include <algorithm>
 #include "game_manager.h"
 #include "asset_loader.h"
 #include "ResourceManager.h"
@@ -16,6 +20,8 @@
 // Active Dialogue Text buffer
 static char g_dialogueSpeaker[64] = "";
 static char g_dialogueText[512] = "";
+
+int g_currentLevel = 1;
 
 // ============================================================================
 // Typography & Text Shadow / Outline Helpers
@@ -121,8 +127,14 @@ static unsigned int g_texInventorySlot = 0;
 static unsigned int g_texBackpackIcon = 0;
 static unsigned int g_texPauseOverlay = 0;
 static unsigned int g_texMainMenuBg = 0;
+static unsigned int g_texGameName = 0;
+static unsigned int g_texStartSurvivalBtn = 0;
+static unsigned int g_texLeaderboardBtn = 0;
+static unsigned int g_texExitBtn = 0;
 static unsigned int g_texGameOverBg = 0;
 static unsigned int g_texLevelCompleteBg = 0;
+static unsigned int g_texLeaderboardBg = 0;
+static unsigned int g_texEndingScene = 0;
 
 // Item PNG Asset Texture Handles (Assets/Items & Assets/Collectibles)
 static unsigned int g_texItemBread = 0;
@@ -260,6 +272,9 @@ GameManager::GameManager() {
     ribbonCollected = false;
     hasKeycard = false;
     showInventory = false;
+    hasActiveGameRun = false;
+    inventoryState = INVENTORY_MAIN;
+    controlsFadeAlpha = 0.0f;
     hudAlpha = 0.0;
     mouseX = 640;
     mouseY = 360;
@@ -275,6 +290,7 @@ GameManager::GameManager() {
     activePromptText = "";
     activePromptX = 0;
     activePromptY = 0;
+    m_debugPropsEnabled = false;
 
     InitInventory();
 }
@@ -643,7 +659,8 @@ void GameManager::Initialize() {
 }
 
 void GameManager::LoadLevel1() {
-    currentLevel = 1;
+    g_currentLevel = 1;
+    hasActiveGameRun = true;
     player.Initialize(200, 185); // Arin starting location inside destroyed house (x=200, groundY=185)
     gameMap.LoadLevel(currentLevel);
     m_encounterManager.Initialize(1);
@@ -812,21 +829,6 @@ void GameManager::LoadLevel1() {
         if (g_texPauseOverlay == 0) g_texPauseOverlay = iLoadImage((char*)GetAssetPath("Assets/UI/Pause/ui_pause_overlay.png").c_str());
         if (g_texPauseOverlay == 0) g_texPauseOverlay = iLoadImage((char*)GetAssetPath("Assets/UI/Pause/ui_pause_menu.png").c_str());
     }
-    if (g_texMainMenuBg == 0) {
-        g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/new_main_menu.png").c_str());
-        if (g_texMainMenuBg == 0) g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/main_menu_bg.png").c_str());
-        if (g_texMainMenuBg == 0) g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/ui_main_menu.png").c_str());
-    }
-    if (g_texGameOverBg == 0) {
-        g_texGameOverBg = iLoadImage((char*)GetAssetPath("Assets/UI/Game Over/game_over_screen.png").c_str());
-        if (g_texGameOverBg == 0) g_texGameOverBg = iLoadImage((char*)GetAssetPath("Assets/UI/Game Over/ui_game_over_background.png").c_str());
-        if (g_texGameOverBg == 0) g_texGameOverBg = iLoadImage((char*)GetAssetPath("Assets/UI/Game Over/ui_game_over_screen.png").c_str());
-    }
-    if (g_texLevelCompleteBg == 0) {
-        g_texLevelCompleteBg = iLoadImage((char*)GetAssetPath("Assets/UI/Level Complete/level_complete_screen.png").c_str());
-        if (g_texLevelCompleteBg == 0) g_texLevelCompleteBg = iLoadImage((char*)GetAssetPath("Assets/UI/Level Complete/ui_level_complete_background.png").c_str());
-        if (g_texLevelCompleteBg == 0) g_texLevelCompleteBg = iLoadImage((char*)GetAssetPath("Assets/UI/Level Complete/ui_level_complete_screen.png").c_str());
-    }
 
     // Load static item textures once
     if (g_texItemFirstAid == 0) {
@@ -870,11 +872,9 @@ void GameManager::LoadLevel1() {
 
     // Populate Collectibles aligned with ground baseline
     collectibles.clear();
-    collectibles.push_back(Collectible(350, kLevel1GroundY, 32, 32, COL_SCRAP, true, 0));      // Scrap Metal
     collectibles.push_back(Collectible(2400, kLevel1GroundY, 32, 32, COL_WATER, true, 0));     // Water Bottle
     collectibles.push_back(Collectible(3500, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));      // Food (Bread)
     collectibles.push_back(Collectible(4200, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));      // Ammo
-    collectibles.push_back(Collectible(4900, kLevel1GroundY, 32, 32, COL_BATTERY, true, 0));   // Battery
     collectibles.push_back(Collectible(6925, kLevel1GroundY, 32, 32, COL_NOTE, true, 0));       // Mission Note
     collectibles.push_back(Collectible(7300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));     // Medkit (First Aid)
     collectibles.push_back(Collectible(9250, kLevel1GroundY, 32, 32, COL_KEYCARD, true, 0));    // NovaGen Keycard
@@ -891,6 +891,64 @@ void GameManager::LoadLevel1() {
     }
 }
 
+void GameManager::ResetStaticUITextures() {
+    g_texMainMenuBg = 0;
+    g_texGameName = 0;
+    g_texStartSurvivalBtn = 0;
+    g_texLeaderboardBtn = 0;
+    g_texExitBtn = 0;
+    g_texLeaderboardBg = 0;
+    g_texPauseOverlay = 0;
+    g_texGameOverBg = 0;
+    g_texLevelCompleteBg = 0;
+    UI::ResetControlsTexture();
+}
+
+void GameManager::LoadMainMenuAssets() {
+    ResetStaticUITextures();
+
+    g_texMainMenuBg = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/new_main_menu.png");
+    if (g_texMainMenuBg == 0) {
+        g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/new_main_menu.png").c_str());
+    }
+    if (g_texMainMenuBg == 0) {
+        g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/new_main_menu.jpg").c_str());
+    }
+    if (g_texMainMenuBg == 0) {
+        g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/main_menu_bg.png").c_str());
+    }
+    printf("[GENESIS Engine] Loaded Main Menu Background Texture: %s (ID: %u)\n", "new_main_menu.png", g_texMainMenuBg);
+
+    g_texGameName = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/game_name.png");
+    if (g_texGameName == 0) g_texGameName = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/game_name.png").c_str());
+
+    g_texStartSurvivalBtn = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/start_survival_button.png");
+    if (g_texStartSurvivalBtn == 0) g_texStartSurvivalBtn = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/start_survival_button.png").c_str());
+
+    g_texLeaderboardBtn = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/leaderboard_button.png");
+    if (g_texLeaderboardBtn == 0) g_texLeaderboardBtn = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/leaderboard_button.png").c_str());
+
+    g_texExitBtn = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/exit_button.png");
+    if (g_texExitBtn == 0) g_texExitBtn = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/exit_button.png").c_str());
+
+    m_btnStartSurvival.Initialize(470.0f, 340.0f, 340.0f, 70.0f, g_texStartSurvivalBtn, [this]() {
+        Initialize();
+        currentState = STATE_PLAYING;
+        menuTransitionAlpha = 1.0;
+    });
+    m_btnLeaderboard.Initialize(470.0f, 250.0f, 340.0f, 70.0f, g_texLeaderboardBtn, [this]() {
+        currentState = STATE_LEADERBOARD;
+        menuTransitionAlpha = 1.0;
+    });
+    m_btnExit.Initialize(470.0f, 160.0f, 340.0f, 70.0f, g_texExitBtn, []() {
+        exit(0);
+    });
+
+    currentState = STATE_MENU;
+    menuTransitionAlpha = 1.0;
+    m_menuEntranceTimer = 0.4;
+}
+
 void GameManager::LoadLevel2NPCs() {
     level2NPCs.clear();
 
@@ -905,19 +963,7 @@ void GameManager::LoadLevel2NPCs() {
         return seq;
     };
 
-    NPC oldMan;
-    oldMan.type = NPC_OLD_MAN;
-    oldMan.x = 12600.0;
-    oldMan.y = 140.0;
-    oldMan.width = 82;
-    oldMan.height = 145;
-    oldMan.animIdle.InitSequence(loadSeq("Assets/Characters/Old Man/idle/Old_man_idle_%02d.png", 6), 10, true);
-    oldMan.animTalk.InitSequence(loadSeq("Assets/Characters/Old Man/talk/Old_man_talk_%02d.png", 6), 10, true);
-    oldMan.isTalking = false;
-    oldMan.isFacingRight = false;
-    oldMan.name = "Old Man";
-    oldMan.dialogueText = "\"Luna reached the abandoned military checkpoint.\nShe discovered clues about NovaGen.\nFollow the emergency signs beyond the forest.\nThat path leads to Facility B.\"";
-    level2NPCs.push_back(oldMan);
+
 
     NPC injWoman;
     injWoman.type = NPC_INJURED_WOMAN;
@@ -955,6 +1001,7 @@ void GameManager::LoadLevel2() {
     WeaponType savedWeapon = player.currentWeapon;
 
     ResourceManager::GetInstance().ClearCache();
+    ResetStaticUITextures();
     currentLevel = 2;
     player.Initialize(200, 185); // Arin starting location in Blackwood Forest Entrance
     if (savedHasSMG) {
@@ -1005,7 +1052,7 @@ void GameManager::LoadLevel2() {
     AddWorldProp("Assets/Props/Level 2/Military/Military_Supply_Crate_t.png", 770.0, kLevel1GroundY, 42.0, 42.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Survival_Water_Jerrycan.png", 830.0, kLevel1GroundY, 30.0, 36.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Nature/Infected_Root_Cluster_1024_Transparent.png", 1000.0, kLevel1GroundY, 70.0, 35.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Vehicles/Burning_Wrecked_Military_SUV.png", 1220.0, kLevel1GroundY, 140.0, 78.0, PROP_LAYER_BACKGROUND, false);
+    AddWorldProp("Assets/Props/Level 2/Vehicles/Burning_Wrecked_Military_SUV.png", 1220.0, kLevel1GroundY, 150.0, 80.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Supply_Crate_t.png", 1370.0, kLevel1GroundY, 42.0, 42.0, PROP_LAYER_BACKGROUND, true);
 
     // AREA B — MAIN FOREST ROAD (World X: 1448 to 5800)
@@ -1019,7 +1066,7 @@ void GameManager::LoadLevel2() {
 
     // AREA C — MILITARY TENT / ABANDONED CAMP (World X: 5800 to 8850)
     AddWorldProp("Assets/Props/Level 2/Military/Weathered_Military_Road_Barricade.png", 5900.0, kLevel1GroundY, 75.0, 45.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Vehicles/Military_Supply_Vehicle.png", 6350.0, kLevel1GroundY, 145.0, 80.0, PROP_LAYER_BACKGROUND, false);
+    AddWorldProp("Assets/Props/Level 2/Vehicles/Military_Supply_Vehicle.png", 6350.0, kLevel1GroundY, 170.0, 95.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Items/Bagpack.png", 6920.0, kLevel1GroundY, 35.0, 38.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Weathered_Olive_Military_Folding_Table.png", 7120.0, kLevel1GroundY, 70.0, 40.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Military/Portable_Military_Radio_.png", 7120.0, kLevel1GroundY, 30.0, 30.0, PROP_LAYER_BACKGROUND, false);
@@ -1035,9 +1082,7 @@ void GameManager::LoadLevel2() {
     AddWorldProp("Assets/Props/Level 2/Nature/Mossy_Fallen_Log_Asset.png", 9900.0, kLevel1GroundY, 100.0, 40.0, PROP_LAYER_BACKGROUND, true);
     AddWorldProp("Assets/Props/Level 2/Lab_Furniture/NovaGen_Emergency_Warning_Light_1024_Transparent.png", 10300.0, kLevel1GroundY, 32.0, 45.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Supply_Crate_t.png", 10600.0, kLevel1GroundY, 42.0, 42.0, PROP_LAYER_BACKGROUND, true);
-    AddWorldProp("Assets/Props/Level 2/Lab_Furniture/Genesis_Specimen_Container.png", 11000.0, kLevel1GroundY, 50.0, 75.0, PROP_LAYER_BACKGROUND, false);
-    AddWorldProp("Assets/Props/Level 2/Lab_Furniture/NovaGen_Laboratory_Computer_Terminal.png", 11350.0, kLevel1GroundY, 65.0, 55.0, PROP_LAYER_BACKGROUND, false);
-    AddWorldProp("Assets/Props/Level 2/Lab_Furniture/Abandoned_Medical_Examination_Machine.png", 11650.0, kLevel1GroundY, 70.0, 60.0, PROP_LAYER_BACKGROUND, false);
+
 
     // AREA E — RESEARCH FACILITY / MILITARY CHECKPOINT (World X: 11850 to 14480)
     AddWorldProp("Assets/Props/Level 2/Decorations/Facility_Direction_Sign_Transparent.png", 11950.0, kLevel1GroundY, 36.0, 50.0, PROP_LAYER_BACKGROUND, false);
@@ -1045,7 +1090,7 @@ void GameManager::LoadLevel2() {
     AddWorldProp("Assets/Props/Level 2/Lab_Furniture/NovaGen_Emergency_Warning_Light_1024_Transparent.png", 12500.0, kLevel1GroundY, 32.0, 45.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Military_Supply_Crate_t.png", 12620.0, kLevel1GroundY, 42.0, 42.0, PROP_LAYER_BACKGROUND, true);
     // (Note: Boss Arena center X: 12700 to 14050 is kept COMPLETELY OPEN for fighting!)
-    AddWorldProp("Assets/Props/Level 2/Vehicles/Burning_Wrecked_Military_SUV.png", 14120.0, kLevel1GroundY, 140.0, 78.0, PROP_LAYER_BACKGROUND, false);
+    AddWorldProp("Assets/Props/Level 2/Vehicles/Burning_Wrecked_Military_SUV.png", 14120.0, kLevel1GroundY, 150.0, 80.0, PROP_LAYER_BACKGROUND, false);
     AddWorldProp("Assets/Props/Level 2/Military/Weathered_Military_Road_Barricade.png", 14280.0, kLevel1GroundY, 75.0, 45.0, PROP_LAYER_BACKGROUND, true);
 
     props.clear();
@@ -1093,16 +1138,11 @@ void GameManager::LoadLevel2() {
     // Area 9: Boss Arena (1 Forest Abomination Boss)
     enemies.push_back(Enemy(13750, 14100, kLevel1GroundY, TYPE_FOREST_ABOMINATION));
 
-    // Area 10: Facility B Road (2 Walkers)
-    enemies.push_back(Enemy(14150, 14250, kLevel1GroundY, TYPE_SPITTER));
-    enemies.push_back(Enemy(14300, 14400, kLevel1GroundY, TYPE_SPITTER));
-
     m_encounterManager.Initialize(2);
 
     collectibles.clear();
     collectibles.push_back(Collectible(450, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
     collectibles.push_back(Collectible(600, kLevel1GroundY, 48, 48, COL_GRENADE_WEAPON, true, 0)); // Grenade Weapon Pickup (Near spawn)
-    collectibles.push_back(Collectible(750, kLevel1GroundY, 48, 48, COL_SMG_WEAPON, true, 0)); // SMG Weapon Pickup
     collectibles.push_back(Collectible(1200, kLevel1GroundY, 48, 48, COL_GRENADE_WEAPON, true, 0)); // Secondary Grenade Pickup
     collectibles.push_back(Collectible(1300, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
     collectibles.push_back(Collectible(2400, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));
@@ -1111,8 +1151,6 @@ void GameManager::LoadLevel2() {
     collectibles.push_back(Collectible(6200, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
     collectibles.push_back(Collectible(7800, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));
     collectibles.push_back(Collectible(9100, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
-    collectibles.push_back(Collectible(9500, kLevel1GroundY, 48, 48, COL_SHOTGUN_WEAPON, true, 0)); // Shotgun Weapon Pickup (Later portion of Level 2)
-    collectibles.push_back(Collectible(9600, kLevel1GroundY, 32, 32, COL_SHOTGUN_AMMO, true, 0)); // Shotgun Shell Box Pickup
     collectibles.push_back(Collectible(10500, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
     collectibles.push_back(Collectible(12100, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
 
@@ -1179,7 +1217,9 @@ void GameManager::LoadLevel3() {
     WeaponType savedWeapon = player.currentWeapon;
 
     ResourceManager::GetInstance().ClearCache();
+    ResetStaticUITextures();
     currentLevel = 3;
+    g_currentLevel = 3;
     m_l3Route = 0; // Common BG
     m_l3NpcDialogueActive = false;
     m_l3Interrupted = false;
@@ -1233,17 +1273,70 @@ void GameManager::LoadLevel3() {
     collectibles.push_back(Collectible(500, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
     collectibles.push_back(Collectible(600, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
     collectibles.push_back(Collectible(750, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
+    collectibles.push_back(Collectible(850, kLevel1GroundY, 48, 48, COL_SHOTGUN_WEAPON, true, 0)); // Shotgun Weapon Pickup
+    collectibles.push_back(Collectible(950, kLevel1GroundY, 32, 32, COL_SHOTGUN_AMMO, true, 0)); // Shotgun Shell Box Pickup
     collectibles.push_back(Collectible(1200, kLevel1GroundY, 32, 32, COL_FOOD, true, 0));
     collectibles.push_back(Collectible(2500, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
     collectibles.push_back(Collectible(4000, kLevel1GroundY, 32, 32, COL_AMMO, true, 0));
 
     LoadLevel3NPCs();
+    LoadLevel3Props();
     m_l3Boss.phase = L3_BOSS_INACTIVE;
     m_l3Boss.assetsLoaded = false;
     m_l3Boss.PreloadAssets();
 
     UI::ShowNotification("CHAPTER 3: FINAL CONFRONTATION", "NOVAGEN RESEARCH FACILITY B", 3.0);
     printf("[GENESIS Engine] Level 3: Novagen Facility B Loaded (Common Scene).\n");
+}
+
+void GameManager::ClearCurrentLevelObjects() {
+    // Clear active player projectiles & pellets
+    for (int p = 0; p < 10; ++p) {
+        g_playerProjectiles[p].active = false;
+    }
+    for (int p = 0; p < 18; ++p) {
+        g_shotgunPellets[p].active = false;
+    }
+    for (int p = 0; p < 4; ++p) {
+        g_bossProjectiles[p].active = false;
+    }
+
+    // Clear active level entities, collectibles & props
+    enemies.clear();
+    collectibles.clear();
+    props.clear();
+    worldProps.clear();
+
+    // Reset Level 3 Manager & Boss State
+    m_l3Manager.Initialize();
+    m_l3Boss.phase = L3_BOSS_INACTIVE;
+    m_l3Boss.assetsLoaded = false;
+    m_l3Boss.PreloadAssets();
+
+    // Reset player input & action states
+    player.ResetInputState();
+}
+
+void GameManager::RestartCurrentLevel() {
+    printf("[GENESIS Engine] Restarting active level %d from beginning...\n", currentLevel);
+
+    ClearCurrentLevelObjects();
+
+    switch (currentLevel) {
+    case 3:
+        LoadLevel3();
+        break;
+    case 2:
+        LoadLevel2();
+        break;
+    case 1:
+    default:
+        LoadLevel1();
+        break;
+    }
+
+    currentState = STATE_PLAYING;
+    menuTransitionAlpha = 1.0;
 }
 
 void GameManager::InitLevel3EasyWaveSystem() {
@@ -1339,7 +1432,8 @@ void GameManager::UpdateLevel3EasyWaves(float dt) {
             "BIO-CONTAINMENT VAULT (BG 4)",
             "LAB COMPLEX GAUNTLET (BG 5)"
         };
-        UI::ShowNotification(title, secNames[secIdx], 2.5);
+        // Removed to prevent overlapping with the under UI (DrawAreaBanner)
+        // UI::ShowNotification(title, secNames[secIdx], 2.5);
     }
 
     if (sec.completed) return;
@@ -1506,7 +1600,8 @@ void GameManager::UpdateLevel3HardWaves(float dt) {
             "MULTI-THREAT ZONE 5 (BG 5)",
             "FINAL ASSAULT GAUNTLET 6 (BG 6)"
         };
-        UI::ShowNotification(title, secNames[secIdx], 2.5);
+        // Removed to prevent overlapping with the under UI (DrawAreaBanner)
+        // UI::ShowNotification(title, secNames[secIdx], 2.5);
     }
 
     if (sec.completed) return;
@@ -1609,6 +1704,29 @@ void GameManager::TriggerLevel3Route(int route) {
         collectibles.push_back(Collectible(8000, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0));
         collectibles.push_back(Collectible(8500, kLevel1GroundY, 32, 32, COL_MEDKIT, true, 0)); // Pre-Boss Arena Cache
     }
+
+    LoadLevel3Props();
+}
+
+void GameManager::StartBossFightTransition(double arenaTriggerX) {
+    bossSpawned = true;
+    bossDefeated = false;
+    m_l3NpcDialogueActive = false;
+
+    // Clean up all normal enemies & enemy projectiles, stop route timers/events
+    enemies.clear();
+    for (int p = 0; p < 4; ++p) {
+        g_bossProjectiles[p].active = false;
+    }
+
+    // Force load/reset boss state here to ensure assets are ready before the loading screen completes
+    m_l3Boss.phase = L3_BOSS_INACTIVE;
+    m_l3Boss.assetsLoaded = false;
+    // PreloadAssets and Initialize deferred to Level3Manager to allow loading screen to render first
+
+    // Start Level 3 Boss Loading Screen transition
+    m_l3Manager.StartBossLoading(arenaTriggerX);
+    UI::ShowNotification("FINAL BOSS ARENA", "PREPARING FINAL ARENA...", 3.0);
 }
 
 // ============================================================================
@@ -1734,12 +1852,38 @@ void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
         if (areaBannerAlpha < 0.0) areaBannerAlpha = 0.0;
     }
 
-    if (currentState == STATE_PLAYING || (currentState == STATE_DIALOGUE && (m_l3NpcDialogueActive || m_l3Boss.IsInDialogue()))) {
+    if (currentState == STATE_MENU) {
+        m_menuEntranceTimer += dt;
+        m_btnStartSurvival.Update(dt, mouseX, mouseY, isMouseDown);
+        m_btnLeaderboard.Update(dt, mouseX, mouseY, isMouseDown);
+        m_btnExit.Update(dt, mouseX, mouseY, isMouseDown);
+    } else {
+        m_menuEntranceTimer = 0.0;
+    }
+
+    if (showInventory) {
+        if (inventoryState == CONTROLS_SCREEN) {
+            controlsFadeAlpha += dt * 5.0f;
+            if (controlsFadeAlpha > 1.0f) controlsFadeAlpha = 1.0f;
+        } else {
+            controlsFadeAlpha -= dt * 5.0f;
+            if (controlsFadeAlpha < 0.0f) controlsFadeAlpha = 0.0f;
+        }
+    } else {
+        controlsFadeAlpha = 0.0f;
+        inventoryState = INVENTORY_MAIN;
+    }
+
+    if (currentState == STATE_PLAYING || currentState == STATE_DIALOGUE) {
         UpdatePlaying(dt, keys, specialKeys);
     }
 }
 
 void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
+    if (showInventory) {
+        player.ResetInputState();
+        return;
+    }
     // 0. Check Arin death transition to STATE_GAMEOVER
     if (player.hp <= 0 || player.state == STATE_DEAD) {
         if (player.state != STATE_DEAD) {
@@ -1988,6 +2132,47 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             halfWidthFactor = 0.35;
             topHeightFactor = 0.60;
         }
+        // Level 3 Props Tight Collision Bounding Boxes
+        else if (path.find("Genesis_Specimen_Container") != std::string::npos) {
+            halfWidthFactor = 0.27;
+            topHeightFactor = 0.88;
+        }
+        else if (path.find("Abandoned_Medical_Examination_Machine") != std::string::npos) {
+            halfWidthFactor = 0.44;
+            topHeightFactor = 0.85;
+        }
+        else if (path.find("machine_01") != std::string::npos) {
+            halfWidthFactor = 0.41;
+            topHeightFactor = 0.84;
+        }
+        else if (path.find("machine_02") != std::string::npos) {
+            halfWidthFactor = 0.37;
+            topHeightFactor = 0.88;
+        }
+        else if (path.find("machine_03") != std::string::npos) {
+            halfWidthFactor = 0.39;
+            topHeightFactor = 0.89;
+        }
+        else if (path.find("machine_04") != std::string::npos) {
+            halfWidthFactor = 0.41;
+            topHeightFactor = 0.87;
+        }
+        else if (path.find("NovaGen_Laboratory_Computer_Terminal") != std::string::npos) {
+            halfWidthFactor = 0.34;
+            topHeightFactor = 0.81;
+        }
+        else if (path.find("crate_03") != std::string::npos) {
+            halfWidthFactor = 0.39;
+            topHeightFactor = 0.76;
+        }
+        else if (path.find("prop_wooden_crate_01") != std::string::npos) {
+            halfWidthFactor = 0.36;
+            topHeightFactor = 0.71;
+        }
+        else if (path.find("veh_shopping_cart_destroyed") != std::string::npos) {
+            halfWidthFactor = 0.39;
+            topHeightFactor = 0.64;
+        }
 
         double obsLeft = worldProps[i].x - (renderW * halfWidthFactor);
         double obsRight = worldProps[i].x + (renderW * halfWidthFactor);
@@ -2095,19 +2280,8 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
     if (currentLevel == 3) {
         double arenaTriggerX = (m_l3Route == 2) ? 8600.0 : 7200.0;
         if (player.x >= arenaTriggerX && !bossSpawned && !m_l3Manager.IsLoading()) {
-            bossSpawned = true;
             printf("[GENESIS Engine] FINAL BOSS ARENA TRIGGERED - STARTING LOADING SCENE\n");
-
-            // Clean up all normal enemies & enemy projectiles, stop route timers/events
-            enemies.clear();
-            for (int p = 0; p < 4; ++p) {
-                g_bossProjectiles[p].active = false;
-            }
-            m_l3NpcDialogueActive = false;
-
-            // Start Level 3 Boss Loading Screen transition
-            m_l3Manager.StartBossLoading(arenaTriggerX);
-            UI::ShowNotification("FINAL BOSS ARENA", "PREPARING FINAL ARENA...", 3.0);
+            StartBossFightTransition(arenaTriggerX);
         }
 
         if (m_l3Manager.IsLoading()) {
@@ -2172,19 +2346,25 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                     }
                 }
 
-                // Boss Dialogue Trigger
-                if ((m_l3Boss.IsDialogueReady() || m_l3Boss.IsInDialogue()) && currentState == STATE_PLAYING) {
-                    if (m_l3Boss.IsDialogueReady()) {
-                        m_l3Boss.phase = L3_BOSS_HUMAN_DIALOGUE;
-                    }
+                // Boss Dialogue Trigger & State Sync
+                if (m_l3Boss.IsDialogueReady() && currentState == STATE_PLAYING) {
+                    m_l3Boss.phase = L3_BOSS_HUMAN_DIALOGUE;
                     currentState = STATE_DIALOGUE;
                     sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
                     sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
                 }
+                else if (m_l3Boss.IsInDialogue() && currentState == STATE_PLAYING) {
+                    currentState = STATE_DIALOGUE;
+                    sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
+                    sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
+                }
+                else if (!m_l3Boss.IsInDialogue() && m_l3Boss.phase >= L3_BOSS_HUMAN_DIALOGUE_COMPLETE && currentState == STATE_DIALOGUE && !m_l3NpcDialogueActive) {
+                    currentState = STATE_PLAYING;
+                }
 
                 if (m_l3Boss.IsDefeated()) {
                     bossDefeated = true;
-                    UI::ShowNotification("FINAL BOSS DEFEATED", "FACILITY ESCAPE DOOR UNLOCKED!", 3.0);
+                    currentState = STATE_ENDING_SCENE;
                 }
             }
 
@@ -2375,12 +2555,12 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                     g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
                     break;
                 case COL_AMMO:
-                    player.ammo += 15;
+                    player.pistolReserve += 15;
                     sprintf_s(g_pickupText, sizeof(g_pickupText), "+15 PISTOL AMMO");
                     g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
                     break;
                 case COL_COIN:
-                    player.ammo += 10;
+                    player.pistolReserve += 10;
                     score += 50;
                     sprintf_s(g_pickupText, sizeof(g_pickupText), "+10 AMMO (+50 PTS)");
                     g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
@@ -2697,7 +2877,7 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                         }
                     }
                 }
-                else {
+                else if (enemies[i].type != TYPE_FOREST_ABOMINATION) {
                     double atkExtra = (enemies[i].type == TYPE_RUNNER) ? 40.0 : ((enemies[i].type == TYPE_HEAVY) ? 45.0 : 30.0);
                     double atkX = enemies[i].isFacingRight ? enemies[i].x : (enemies[i].x - atkExtra);
                     double atkW = enemies[i].width + atkExtra;
@@ -2817,6 +2997,9 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             // Check if boss died and finished Death animation
             if (enemies[i].type == TYPE_ABOMINATION || enemies[i].type == TYPE_FOREST_ABOMINATION) {
                 if (enemies[i].animDeath.IsFinished() || !enemies[i].animDeath.IsValid()) {
+                    if (!bossDefeated && currentLevel == 2 && enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                        collectibles.push_back(Collectible(enemies[i].x - 200, kLevel1GroundY, 48, 48, COL_SMG_WEAPON, true, 0));
+                    }
                     bossDefeated = true;
                     bossHp = 0;
                 }
@@ -3149,7 +3332,9 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         }
         else if (currentLevel == 2) {
             RecordLevelCompletion(2);
-            LoadLevel3();
+            currentState = STATE_VICTORY;
+            menuTransitionAlpha = 1.0;
+            leaderboard.AddScore("Arin", score);
         }
         else if (currentState != STATE_DIALOGUE && currentState != STATE_VICTORY) {
             RecordLevelCompletion(1);
@@ -3169,15 +3354,15 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
             double dist = std::abs(player.x - collectibles[i].x);
             if (dist < 70.0) {
                 switch (collectibles[i].type) {
-                case COL_NOTE: activePromptText = "[SPACE] / [ENTER] / [E] READ DOCUMENT"; break;
-                case COL_KEYCARD: activePromptText = "[SPACE] / [ENTER] / [E] COLLECT NOVAGEN KEYCARD"; break;
-                case COL_RUSTY_KEY: activePromptText = "[SPACE] / [ENTER] / [E] PICK UP GATE KEY"; break;
-                case COL_MEDKIT: activePromptText = "[SPACE] / [ENTER] / [E] PICK UP MEDKIT"; break;
-                case COL_AMMO: activePromptText = "[SPACE] / [ENTER] / [E] PICK UP AMMO"; break;
-                case COL_BATTERY: activePromptText = "[SPACE] / [ENTER] / [E] PICK UP BATTERY"; break;
-                case COL_FOOD: activePromptText = "[SPACE] / [ENTER] / [E] PICK UP RATION"; break;
-                case COL_WATER: activePromptText = "[SPACE] / [ENTER] / [E] PICK UP WATER BOTTLE"; break;
-                default: activePromptText = "[SPACE] / [ENTER] / [E] PICK UP ITEM"; break;
+                case COL_NOTE: activePromptText = "[E] READ DOCUMENT"; break;
+                case COL_KEYCARD: activePromptText = "[E] COLLECT NOVAGEN KEYCARD"; break;
+                case COL_RUSTY_KEY: activePromptText = "[E] PICK UP GATE KEY"; break;
+                case COL_MEDKIT: activePromptText = "[E] PICK UP MEDKIT"; break;
+                case COL_AMMO: activePromptText = "[E] PICK UP AMMO"; break;
+                case COL_BATTERY: activePromptText = "[E] PICK UP BATTERY"; break;
+                case COL_FOOD: activePromptText = "[E] PICK UP RATION"; break;
+                case COL_WATER: activePromptText = "[E] PICK UP WATER BOTTLE"; break;
+                default: activePromptText = "[E] PICK UP ITEM"; break;
                 }
                 activePromptX = (int)(collectibles[i].x - camX);
                 activePromptY = (int)(collectibles[i].y - camY + collectibles[i].height + 30.0);
@@ -3190,7 +3375,7 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         if (currentLevel == 2) {
             for (auto& npc : level2NPCs) {
                 if (std::abs(player.x - npc.x) < 150.0) {
-                    activePromptText = "[SPACE] / [ENTER] / [E] Talk to " + npc.name;
+                    activePromptText = "[ENTER] Talk to " + npc.name;
                     activePromptX = (int)(npc.x - camX);
                     activePromptY = (int)(npc.y - camY + npc.height + 30.0);
                     break;
@@ -3199,7 +3384,7 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         }
         else if (currentLevel == 3 && bossSpawned && !bossDefeated && !m_l3Boss.IsDialogueComplete() && m_l3Boss.phase < L3_BOSS_HUMAN_DIALOGUE_COMPLETE) {
             if (std::abs(player.x - m_l3Boss.x) < 220.0) {
-                activePromptText = "[SPACE] / [ENTER] / [E] Talk with Dr. Kael";
+                activePromptText = "[ENTER] Talk with Dr. Kael";
                 activePromptX = (int)(m_l3Boss.x - camX);
                 activePromptY = (int)(m_l3Boss.y - camY + m_l3Boss.height + 30.0);
             }
@@ -3207,7 +3392,7 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         else if (currentLevel == 3 && m_l3Route == 0) {
             for (auto& npc : level3NPCs) {
                 if (std::abs(player.x - npc.x) < 150.0) {
-                    activePromptText = "[SPACE] / [ENTER] / [E] Talk to " + npc.name;
+                    activePromptText = "[ENTER] Talk to " + npc.name;
                     activePromptX = (int)(npc.x - camX);
                     activePromptY = (int)(npc.y - camY + npc.height + 30.0);
                     break;
@@ -3222,7 +3407,7 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
     }
 
     if (activePromptText.empty() && player.x >= 13000 && bossDefeated) {
-        activePromptText = "[SPACE] / [ENTER] / [E] Interact with Exit Gate";
+        activePromptText = "[E] Interact with Exit Gate";
         activePromptX = (int)(player.x - camX);
         activePromptY = (int)(player.y - camY + player.height + 30.0);
     }
@@ -3252,6 +3437,9 @@ void GameManager::Render() {
     case STATE_VICTORY:
         UI::DrawLevelComplete(mouseX, mouseY, isMouseDown, uiAnimTime);
         break;
+    case STATE_ENDING_SCENE:
+        RenderEndingScene();
+        break;
     case STATE_LEADERBOARD:
         RenderLeaderboard();
         break;
@@ -3268,30 +3456,71 @@ void GameManager::Render() {
 // State Specific Renderers (Menu, Gameplay, Dialogue, End Screens, Archive)
 // ============================================================================
 void GameManager::RenderMenu() {
-    // 1. Draw Main Menu Background Graphic
+    // 0. Ensure Main Menu textures are loaded
+    if (g_texMainMenuBg == 0 || g_texGameName == 0 || g_texStartSurvivalBtn == 0) {
+        LoadMainMenuAssets();
+    }
+
+    if (m_menuEntranceTimer < 0.4) {
+        m_menuEntranceTimer = 0.4;
+    }
+
+    float bgAlpha = 1.0f;
+
+    // 1. First Layer: Full Screen Background Image (new_main_menu.png)
     if (g_texMainMenuBg != 0) {
-        iShowImage(0, 0, 1280, 720, g_texMainMenuBg);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, g_texMainMenuBg);
+        glColor4f(1.0f, 1.0f, 1.0f, bgAlpha);
+
+        glBegin(GL_QUADS);
+        glTexCoord2f(0.001f, 0.999f); glVertex2f(0.0f, 0.0f);
+        glTexCoord2f(0.999f, 0.999f); glVertex2f(1280.0f, 0.0f);
+        glTexCoord2f(0.999f, 0.001f); glVertex2f(1280.0f, 720.0f);
+        glTexCoord2f(0.001f, 0.001f); glVertex2f(0.0f, 720.0f);
+        glEnd();
+
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_BLEND);
     } else {
         iSetColor(10, 12, 18);
         iFilledRectangle(0, 0, 1280, 720);
     }
 
-    // 2. Top Carved Banner Slot: Title Header
-    const char* titleStr = "GENESIS: WHISPERS OF THE INFECTED";
-    DrawOutlinedText(445, 525, titleStr, GLUT_BITMAP_TIMES_ROMAN_24, 0, 220, 255);
+    // 2. Second Layer: Top-Center Game Title Logo (game_name.png)
+    if (g_texGameName != 0) {
+        float logoW = 560.0f;
+        float logoH = 180.0f;
+        float logoX = (1280.0f - logoW) * 0.5f; // 360.0f
+        float logoY = 445.0f;
 
-    // 3. Slot 1: Play Game
-    RenderMenuButtonSlot(1, 540, 440, "1. START SURVIVAL", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+        glEnable(GL_BLEND);
+        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+        glEnable(GL_TEXTURE_2D);
+        glBindTexture(GL_TEXTURE_2D, g_texGameName);
+        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
 
-    // 4. Slot 2: Leaderboard
-    RenderMenuButtonSlot(2, 555, 362, "2. LEADERBOARD", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+        glBegin(GL_QUADS);
+        glTexCoord2f(0.001f, 0.999f); glVertex2f(logoX, logoY);
+        glTexCoord2f(0.999f, 0.999f); glVertex2f(logoX + logoW, logoY);
+        glTexCoord2f(0.999f, 0.001f); glVertex2f(logoX + logoW, logoY + logoH);
+        glTexCoord2f(0.001f, 0.001f); glVertex2f(logoX, logoY + logoH);
+        glEnd();
 
-    // 5. Slot 3: Exit Game
-    RenderMenuButtonSlot(3, 565, 285, "3. EXIT GAME", GLUT_BITMAP_HELVETICA_18, mouseX, mouseY, isMouseDown, uiAnimTime);
+        glDisable(GL_TEXTURE_2D);
+        glDisable(GL_BLEND);
+    }
 
-    // 6. Bottom Detail Slot: Footer Instructions
-    const char* footerStr = "Press [1], [2], [3] or Click Options to Select";
-    DrawShadowText(510, 148, footerStr, GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
+    // 3. Third Layer: Interactive Image Buttons
+    m_btnStartSurvival.SetAlpha(1.0f);
+    m_btnLeaderboard.SetAlpha(1.0f);
+    m_btnExit.SetAlpha(1.0f);
+
+    m_btnStartSurvival.Draw();
+    m_btnLeaderboard.Draw();
+    m_btnExit.Draw();
 }
 
 // ============================================================================
@@ -3314,6 +3543,21 @@ void GameManager::AddWorldProp(const std::string& assetPath, double x, double y,
 }
 
 double GameManager::GetPropWorldScale(const std::string& assetPath) const {
+    // --- LEVEL 3 PROPS SPECIFIC SCALING ---
+    if (assetPath.find("Level 3/") != std::string::npos || assetPath.find("Level 3\\") != std::string::npos) {
+        if (assetPath.find("Genesis_Specimen_Container") != std::string::npos) return 0.108; // visH ~97.5px (50% Arin height)
+        if (assetPath.find("Abandoned_Medical_Examination_Machine") != std::string::npos) return 0.111; // visH ~97.5px (50% Arin height)
+        if (assetPath.find("machine_01") != std::string::npos) return 0.112; // visH ~97.5px (50% Arin height)
+        if (assetPath.find("machine_02") != std::string::npos) return 0.107; // visH ~97.5px (50% Arin height)
+        if (assetPath.find("machine_03") != std::string::npos) return 0.106; // visH ~97.5px (50% Arin height)
+        if (assetPath.find("machine_04") != std::string::npos) return 0.109; // visH ~97.5px (50% Arin height)
+        if (assetPath.find("NovaGen_Laboratory_Computer_Terminal") != std::string::npos) return 0.070; // visH ~58px (Compact terminal)
+        if (assetPath.find("crate_03") != std::string::npos) return 0.065; // visH ~50px (Small crate)
+        if (assetPath.find("prop_wooden_crate_01") != std::string::npos) return 0.065; // visH ~47px (Small crate)
+        if (assetPath.find("veh_shopping_cart_destroyed") != std::string::npos) return 0.075; // visH ~50px (Small shopping cart)
+        return 0.07;
+    }
+
     // --- LEVEL 2 PROPS SPECIFIC SCALING (Checked first to avoid folder name overrides) ---
     if (assetPath.find("Level 2/") != std::string::npos || assetPath.find("Level 2\\") != std::string::npos) {
         // Level 2 Military Props - Increased size
@@ -3366,7 +3610,7 @@ double GameManager::GetPropWorldScale(const std::string& assetPath) const {
             return 2.4;
         }
         if (assetPath.find("Military_Supply_Vehicle") != std::string::npos) {
-            return 3.6;
+            return 3.1;
         }
         return 1.4;
     }
@@ -3451,6 +3695,21 @@ double GameManager::GetPropWorldScale(const std::string& assetPath) const {
 }
 
 double GameManager::GetPropGroundOffset(const std::string& assetPath) const {
+    // --- LEVEL 3 PROPS SPECIFIC GROUND OFFSETS (Exact bottom alignment onto kLevel1GroundY) ---
+    if (assetPath.find("Level 3/") != std::string::npos || assetPath.find("Level 3\\") != std::string::npos) {
+        if (assetPath.find("Genesis_Specimen_Container") != std::string::npos) return 33.95;
+        if (assetPath.find("Abandoned_Medical_Examination_Machine") != std::string::npos) return 32.45;
+        if (assetPath.find("crate_03") != std::string::npos) return 32.72;
+        if (assetPath.find("machine_01") != std::string::npos) return 31.94;
+        if (assetPath.find("machine_02") != std::string::npos) return 34.01;
+        if (assetPath.find("machine_03") != std::string::npos) return 34.49;
+        if (assetPath.find("machine_04") != std::string::npos) return 33.02;
+        if (assetPath.find("NovaGen_Laboratory_Computer_Terminal") != std::string::npos) return 33.84;
+        if (assetPath.find("prop_wooden_crate_01") != std::string::npos) return 31.42;
+        if (assetPath.find("veh_shopping_cart_destroyed") != std::string::npos) return 28.00;
+        return 30.0;
+    }
+
     // 1. Burning barrels and oil drums
     if (assetPath.find("burning_barrel") != std::string::npos ||
         assetPath.find("oil_drum") != std::string::npos ||
@@ -3579,6 +3838,115 @@ void GameManager::RenderWorldProps(PropLayer layer, double camX, double camY) {
             }
         }
     }
+
+    // Level 3 Prop Collision & Scale Debug Visualization Overlay (Toggle with 'P')
+    if (m_debugPropsEnabled) {
+        glDisable(GL_TEXTURE_2D);
+        for (size_t i = 0; i < worldProps.size(); ++i) {
+            if (!worldProps[i].visible) continue;
+
+            double scale = GetPropWorldScale(worldProps[i].assetPath);
+            double renderW = worldProps[i].width * scale;
+            double renderH = worldProps[i].height * scale;
+
+            double halfWidthFactor = 0.38;
+            double topHeightFactor = 0.65;
+            const std::string& path = worldProps[i].assetPath;
+
+            if (path.find("Genesis_Specimen_Container") != std::string::npos) { halfWidthFactor = 0.27; topHeightFactor = 0.88; }
+            else if (path.find("Abandoned_Medical_Examination_Machine") != std::string::npos) { halfWidthFactor = 0.44; topHeightFactor = 0.85; }
+            else if (path.find("machine_01") != std::string::npos) { halfWidthFactor = 0.41; topHeightFactor = 0.84; }
+            else if (path.find("machine_02") != std::string::npos) { halfWidthFactor = 0.37; topHeightFactor = 0.88; }
+            else if (path.find("machine_03") != std::string::npos) { halfWidthFactor = 0.39; topHeightFactor = 0.89; }
+            else if (path.find("machine_04") != std::string::npos) { halfWidthFactor = 0.41; topHeightFactor = 0.87; }
+            else if (path.find("NovaGen_Laboratory_Computer_Terminal") != std::string::npos) { halfWidthFactor = 0.34; topHeightFactor = 0.81; }
+            else if (path.find("crate_03") != std::string::npos) { halfWidthFactor = 0.39; topHeightFactor = 0.76; }
+            else if (path.find("prop_wooden_crate_01") != std::string::npos) { halfWidthFactor = 0.36; topHeightFactor = 0.71; }
+            else if (path.find("veh_shopping_cart_destroyed") != std::string::npos) { halfWidthFactor = 0.39; topHeightFactor = 0.64; }
+
+            double obsLeft = worldProps[i].x - (renderW * halfWidthFactor);
+            double obsRight = worldProps[i].x + (renderW * halfWidthFactor);
+            double obsTop = worldProps[i].y + (renderH * topHeightFactor);
+            double obsBottom = worldProps[i].y;
+
+            double screenLeft = obsLeft - camX;
+            double screenRight = obsRight - camX;
+            double screenTop = obsTop - camY;
+            double screenBottom = obsBottom - camY;
+
+            if (screenRight >= -100 && screenLeft <= 1380) {
+                // Draw green outline around solid collision box
+                iSetColor(0, 255, 100);
+                iRectangle((int)screenLeft, (int)screenBottom, (int)(screenRight - screenLeft), (int)(screenTop - screenBottom));
+
+                std::string filename = path;
+                size_t slashPos = filename.find_last_of("/\\");
+                if (slashPos != std::string::npos) {
+                    filename = filename.substr(slashPos + 1);
+                }
+
+                char debugBuf[128];
+                sprintf_s(debugBuf, sizeof(debugBuf), "%s | X:%.0f Y:%.0f | Scale:%.3f", filename.c_str(), worldProps[i].x, worldProps[i].y, scale);
+
+                iSetColor(10, 10, 10);
+                iFilledRectangle((int)screenLeft - 5, (int)screenTop + 4, 280, 16);
+                iSetColor(255, 255, 0);
+                iText((int)screenLeft, (int)screenTop + 6, debugBuf, GLUT_BITMAP_HELVETICA_10);
+            }
+        }
+        glEnable(GL_TEXTURE_2D);
+    }
+}
+
+// ============================================================================
+// Level 3 Environmental Prop Loading & Placement System
+// ============================================================================
+void GameManager::LoadLevel3Props() {
+    if (currentLevel != 3) return;
+
+    worldProps.clear();
+
+    // Helper lambda: Ensure no prop is added inside the Final Boss Arena
+    auto AddL3Prop = [this](const std::string& assetPath, double x, double y, double width, double height, PropLayer layer, bool isObstacle) {
+        int area = GetAreaFromPosition(x);
+        if (area == L3_AREA_BOSS_ARENA) {
+            printf("[Level 3 Props] Blocked prop placement at X=%.1f (Inside Final Boss Arena)\n", x);
+            return;
+        }
+        AddWorldProp(assetPath, x, y, width, height, layer, isObstacle);
+    };
+
+    // --- Section 1: Facility Antechamber & Security Checkpoint (X: 200 - 1400) ---
+    AddL3Prop("Assets/Props/Level 3/veh_shopping_cart_destroyed.png", 380.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/prop_wooden_crate_01.png", 620.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/NovaGen_Laboratory_Computer_Terminal.png", 950.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/crate_03.png", 1180.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+
+    // --- Section 2: Research Corridor A / Diagnostic Labs (X: 1500 - 2800) ---
+    AddL3Prop("Assets/Props/Level 3/machine_01.png", 1650.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/Genesis_Specimen_Container.png", 2050.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/prop_wooden_crate_01.png", 2320.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/Abandoned_Medical_Examination_Machine.png", 2600.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+
+    // --- Section 3: Decontamination Sector & Control Hub (X: 2900 - 4300) ---
+    AddL3Prop("Assets/Props/Level 3/machine_02.png", 3150.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/NovaGen_Laboratory_Computer_Terminal.png", 3480.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/crate_03.png", 3800.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/machine_03.png", 4100.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+
+    // --- Section 4: Bio-Containment Vault (X: 4400 - 5800) ---
+    AddL3Prop("Assets/Props/Level 3/Genesis_Specimen_Container.png", 4650.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/machine_04.png", 4950.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/veh_shopping_cart_destroyed.png", 5250.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/prop_wooden_crate_01.png", 5550.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+
+    // --- Section 5: Sub-Level Lab Complex (X: 5900 - 7100) ---
+    AddL3Prop("Assets/Props/Level 3/Abandoned_Medical_Examination_Machine.png", 6050.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/NovaGen_Laboratory_Computer_Terminal.png", 6380.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/crate_03.png", 6700.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+    AddL3Prop("Assets/Props/Level 3/machine_01.png", 7000.0, kLevel1GroundY, 1024.0, 1024.0, PROP_LAYER_BACKGROUND, true);
+
+    printf("Level 3 Props Loaded\n");
 }
 
 void GameManager::RenderPlaying() {
@@ -3590,7 +3958,7 @@ void GameManager::RenderPlaying() {
     double camX = gameMap.GetCameraX();
     double camY = gameMap.GetCameraY();
 
-    bool isL2BossFight = (currentLevel == 2 && bossSpawned);
+    bool isL2BossFight = (currentLevel == 2 && bossSpawned && !bossDefeated);
 
     if (isL2BossFight) {
         // Level 2 Boss Arena: Load ONLY bg_10.png without blending any other background
@@ -4130,37 +4498,33 @@ void GameManager::RenderPlaying() {
             }
         }
 
-        if (currentLevel == 1) {
-            iSetColor(255, 255, 0);
-            UI::DrawShadowText(300, 700, "DEBUG: Press 'U' to Skip to Level 2!", GLUT_BITMAP_HELVETICA_18, 255, 255, 0);
-        }
-        else if (currentLevel == 2) {
-            iSetColor(255, 255, 0);
-            UI::DrawShadowText(300, 700, "DEBUG: Press 'U' to Skip to Level 3 (NPC Common Area)!", GLUT_BITMAP_HELVETICA_18, 255, 255, 0);
-        }
+
     }
 
     // ------------------------------------------------------------------------
     // INVENTORY OVERLAY (Rendered when TAB or [I] is pressed)
     // ------------------------------------------------------------------------
     if (showInventory) {
-        // Ensure textures are loaded
-        LoadInventoryTextures();
-
-        // Semi-transparent dark background dimmer
-        iSetColor(0, 0, 0);
-        iFilledRectangle(0, 0, 1280, 720);
-
-        // Center Inventory Panel (using ui_inventory_panel.png / inventory__panel.png)
-        int panelX = 340, panelY = 140, panelW = 600, panelH = 440;
-        if (g_texInventoryPanel != 0) {
-            iShowImage(panelX, panelY, panelW, panelH, g_texInventoryPanel);
+        if (inventoryState == CONTROLS_SCREEN) {
+            UI::DrawControlsScreen(controlsFadeAlpha > 0.01f ? controlsFadeAlpha : 1.0f);
         } else {
-            iSetColor(12, 16, 24);
-            iFilledRectangle(panelX, panelY, panelW, panelH);
-            iSetColor(0, 180, 220);
-            iRectangle(panelX, panelY, panelW, panelH);
-        }
+            // Ensure textures are loaded
+            LoadInventoryTextures();
+
+            // Semi-transparent dark background dimmer
+            iSetColor(0, 0, 0);
+            iFilledRectangle(0, 0, 1280, 720);
+
+            // Center Inventory Panel (using ui_inventory_panel.png / inventory__panel.png)
+            int panelX = 340, panelY = 140, panelW = 600, panelH = 440;
+            if (g_texInventoryPanel != 0) {
+                iShowImage(panelX, panelY, panelW, panelH, g_texInventoryPanel);
+            } else {
+                iSetColor(12, 16, 24);
+                iFilledRectangle(panelX, panelY, panelW, panelH);
+                iSetColor(0, 180, 220);
+                iRectangle(panelX, panelY, panelW, panelH);
+            }
 
         // --------------------------------------------------------------------
         // EMBEDDED RUSTED METAL TITLE PLATE (ATTACHED TO INVENTORY FRAME)
@@ -4333,8 +4697,66 @@ void GameManager::RenderPlaying() {
 
         // Bottom instruction label
         iSetColor(200, 210, 220);
-        iText(panelX + 180, panelY + 30, "Press [TAB] or [ESC] to Close", GLUT_BITMAP_HELVETICA_12);
+        iText(panelX + 70, panelY + 26, "Press [TAB] or [ESC] to Close", GLUT_BITMAP_HELVETICA_12);
+
+        // 7. Interactive CONTROLS [C] & MAIN MENU [M] option buttons on panel frame
+        int btnW = 125;
+        int btnH = 28;
+        int ctrlBtnX = panelX + panelW - btnW - 20; // 795
+        int menuBtnX = ctrlBtnX - btnW - 12;        // 658
+        int btnY = panelY + 18;                     // 158
+
+        // --- MAIN MENU [M] BUTTON ---
+        bool isMenuHovered = (mouseX >= menuBtnX && mouseX <= menuBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH);
+        if (isMenuHovered) {
+            iSetColor(0, 200, 240);
+            iFilledRectangle(menuBtnX - 2, btnY - 2, btnW + 4, btnH + 4);
+            iSetColor(12, 16, 24);
+            iFilledRectangle(menuBtnX, btnY, btnW, btnH);
+            iSetColor(0, 240, 255);
+            iRectangle(menuBtnX, btnY, btnW, btnH);
+        } else {
+            iSetColor(24, 28, 36);
+            iFilledRectangle(menuBtnX, btnY, btnW, btnH);
+            iSetColor(60, 68, 80);
+            iRectangle(menuBtnX, btnY, btnW, btnH);
+        }
+        const char* menuBtnText = "MAIN MENU [M]";
+        int menuTxtW = UI::GetTextWidth(menuBtnText, GLUT_BITMAP_HELVETICA_12);
+        int menuTxtX = menuBtnX + (btnW - menuTxtW) / 2;
+        int menuTxtY = btnY + 8;
+        if (isMenuHovered) {
+            UI::DrawShadowText(menuTxtX, menuTxtY, menuBtnText, GLUT_BITMAP_HELVETICA_12, 0, 255, 255);
+        } else {
+            UI::DrawShadowText(menuTxtX, menuTxtY, menuBtnText, GLUT_BITMAP_HELVETICA_12, 210, 215, 225);
+        }
+
+        // --- CONTROLS [C] BUTTON ---
+        bool isControlsHovered = (mouseX >= ctrlBtnX && mouseX <= ctrlBtnX + btnW && mouseY >= btnY && mouseY <= btnY + btnH);
+        if (isControlsHovered) {
+            iSetColor(0, 200, 240);
+            iFilledRectangle(ctrlBtnX - 2, btnY - 2, btnW + 4, btnH + 4);
+            iSetColor(12, 16, 24);
+            iFilledRectangle(ctrlBtnX, btnY, btnW, btnH);
+            iSetColor(0, 240, 255);
+            iRectangle(ctrlBtnX, btnY, btnW, btnH);
+        } else {
+            iSetColor(24, 28, 36);
+            iFilledRectangle(ctrlBtnX, btnY, btnW, btnH);
+            iSetColor(60, 68, 80);
+            iRectangle(ctrlBtnX, btnY, btnW, btnH);
+        }
+        const char* ctrlBtnText = "CONTROLS [C]";
+        int ctrlTxtW = UI::GetTextWidth(ctrlBtnText, GLUT_BITMAP_HELVETICA_12);
+        int ctrlTxtX = ctrlBtnX + (btnW - ctrlTxtW) / 2;
+        int ctrlTxtY = btnY + 8;
+        if (isControlsHovered) {
+            UI::DrawShadowText(ctrlTxtX, ctrlTxtY, ctrlBtnText, GLUT_BITMAP_HELVETICA_12, 0, 255, 255);
+        } else {
+            UI::DrawShadowText(ctrlTxtX, ctrlTxtY, ctrlBtnText, GLUT_BITMAP_HELVETICA_12, 210, 215, 225);
+        }
     }
+}
 }
 
 void GameManager::RenderDialogue() {
@@ -4593,6 +5015,37 @@ void GameManager::RenderGameOver() {
     DrawShadowText(470, 148, goFooter, GLUT_BITMAP_HELVETICA_12, 200, 210, 220);
 }
 
+void GameManager::RenderEndingScene() {
+    if (g_texEndingScene == 0) {
+        g_texEndingScene = ResourceManager::GetInstance().GetTexture("Assets/Backgrounds/Level3/Ending scene/ending_scence.png");
+        if (g_texEndingScene == 0) {
+            g_texEndingScene = ResourceManager::GetInstance().GetTexture("Assets/Backgrounds/Level3/Ending scene/ending_scene.png");
+        }
+        if (g_texEndingScene == 0) {
+            g_texEndingScene = iLoadImage((char*)GetAssetPath("Assets/Backgrounds/Level3/Ending scene/ending_scence.png").c_str());
+        }
+        if (g_texEndingScene == 0) {
+            g_texEndingScene = iLoadImage((char*)GetAssetPath("Assets/Backgrounds/Level3/Ending scene/ending_scene.png").c_str());
+        }
+        if (g_texEndingScene == 0) {
+            g_texEndingScene = iLoadImage((char*)GetAssetPath("Assets/ending_scene.png").c_str());
+        }
+    }
+    
+    if (g_texEndingScene != 0) {
+        iShowImage(0, 0, 1280, 720, g_texEndingScene);
+    } else {
+        iSetColor(0, 0, 0);
+        iFilledRectangle(0, 0, 1280, 720);
+        UI::DrawShadowText(500, 360, "ENDING SCENE (Missing Assets/ending_scene.png)", GLUT_BITMAP_TIMES_ROMAN_24, 255, 255, 255);
+    }
+    
+    // Add pulsing enter text
+    if (((int)(uiAnimTime * 2.0)) % 2 == 0) {
+        UI::DrawShadowText(520, 50, "Press [ENTER] to continue", GLUT_BITMAP_HELVETICA_18, 200, 200, 200);
+    }
+}
+
 void GameManager::RenderVictory() {
     // 1. Display ui_level_complete_background.png / level_complete_screen.png image asset
     if (g_texLevelCompleteBg != 0) {
@@ -4684,26 +5137,55 @@ void GameManager::RenderCursor() {
 }
 
 void GameManager::RenderLeaderboard() {
-    iSetColor(10, 10, 15);
-    iFilledRectangle(0, 0, 1280, 720);
-
-    DrawOutlinedText(440, 650, "GENESIS ARCHIVE - LEADERBOARD", GLUT_BITMAP_TIMES_ROMAN_24, 0, 230, 255);
-
-    const std::vector<ScoreEntry>& entries = leaderboard.GetEntries();
-
-    if (entries.empty()) {
-        DrawShadowText(540, 400, "No records found.", GLUT_BITMAP_HELVETICA_18, 255, 255, 255);
-    }
-    else {
-        for (size_t i = 0; i < entries.size() && i < 5; ++i) {
-            char row[128];
-            sprintf_s(row, sizeof(row), "%d.  %-20s   Score: %07d", (int)(i + 1), entries[i].name, entries[i].score);
-            iText(350, 500 - (i * 60), row, GLUT_BITMAP_HELVETICA_18);
-        }
+    // 1. Check & load static full-screen background image
+    if (g_texLeaderboardBg == 0) {
+        g_texLeaderboardBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/ui_leaderboard_screen.png").c_str());
+        if (g_texLeaderboardBg == 0) g_texLeaderboardBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/leaderboard_background.png").c_str());
+        if (g_texLeaderboardBg == 0) g_texLeaderboardBg = iLoadImage((char*)GetAssetPath("Assets/Images/UI/Leaderboard/ui_leaderboard_screen.png").c_str());
+        if (g_texLeaderboardBg == 0) g_texLeaderboardBg = iLoadImage((char*)GetAssetPath("Assets/UI/Leaderboard/ui_leaderboard_screen.png").c_str());
     }
 
-    iSetColor(0, 230, 120);
-    iText(400, 100, "Press ESC to Return to Menu", GLUT_BITMAP_HELVETICA_18);
+    // 2. Draw Full Screen Background Image Centered and Scaled to Window (1280x720)
+    if (g_texLeaderboardBg != 0) {
+        iShowImage(0, 0, 1280, 720, g_texLeaderboardBg);
+    } else {
+        iSetColor(10, 14, 24);
+        iFilledRectangle(0, 0, 1280, 720);
+        DrawOutlinedText(430, 640, "GENESIS ARCHIVE LEADERBOARD", GLUT_BITMAP_TIMES_ROMAN_24, 0, 230, 255);
+    }
+
+    // 3. Load dynamic scores from score system
+    leaderboard.LoadScores();
+    int scoreArin = leaderboard.GetScoreForName("ARIN_RESCUER", 8500);
+    int scoreSurvivor = leaderboard.GetScoreForName("SURVIVOR_X", 6200);
+    int scoreDefector = leaderboard.GetScoreForName("NOVAGEN_DEFECTOR", 4100);
+
+    if (score > scoreArin) {
+        scoreArin = score;
+    }
+
+    // Explicit score positions aligned beside existing "Score:" labels on background PNG
+    struct ScorePosition {
+        int x;
+        int y;
+    };
+
+    ScorePosition arinScorePosition     = { 675, 438 };
+    ScorePosition survivorScorePosition = { 675, 375 };
+    ScorePosition defectorScorePosition = { 675, 312 };
+
+    char strArinScore[32];
+    char strSurvivorScore[32];
+    char strDefectorScore[32];
+
+    sprintf_s(strArinScore, sizeof(strArinScore), "%07d", scoreArin);
+    sprintf_s(strSurvivorScore, sizeof(strSurvivorScore), "%07d", scoreSurvivor);
+    sprintf_s(strDefectorScore, sizeof(strDefectorScore), "%07d", scoreDefector);
+
+    // Render ONLY the numeric values beside the pre-printed "Score:" labels in signature HUD Cyan
+    DrawOutlinedText(arinScorePosition.x, arinScorePosition.y, strArinScore, GLUT_BITMAP_HELVETICA_18, 0, 230, 255);
+    DrawOutlinedText(survivorScorePosition.x, survivorScorePosition.y, strSurvivorScore, GLUT_BITMAP_HELVETICA_18, 0, 230, 255);
+    DrawOutlinedText(defectorScorePosition.x, defectorScorePosition.y, strDefectorScore, GLUT_BITMAP_HELVETICA_18, 0, 230, 255);
 }
 
 // ============================================================================
@@ -4723,16 +5205,19 @@ void GameManager::HandleKeyPress(unsigned char key) {
         player.vy = 0.0;
         player.isFacingRight = true;
         gameMap.SetCameraX(arenaTriggerX - 100.0);
-        bossSpawned = true;
-        bossDefeated = false;
-        m_l3NpcDialogueActive = false;
-        enemies.clear();
-        for (int p = 0; p < 4; ++p) {
-            g_bossProjectiles[p].active = false;
-        }
         currentState = STATE_PLAYING;
-        m_l3Manager.StartBossLoading(arenaTriggerX);
-        UI::ShowNotification("DIRECT WARP (&)", "PREPARING FINAL ARENA...", 3.0);
+        
+        StartBossFightTransition(arenaTriggerX);
+        return;
+    }
+
+    if (currentState == STATE_ENDING_SCENE) {
+        if (key == '\r' || key == 13) {
+            RecordGameCompletion();
+            currentState = STATE_VICTORY;
+            menuTransitionAlpha = 1.0;
+            leaderboard.AddScore("Arin", score);
+        }
         return;
     }
 
@@ -4749,11 +5234,23 @@ void GameManager::HandleKeyPress(unsigned char key) {
         else if (key == '3') {
             exit(0);
         }
+        else if (key == 27) { // ESC Key on Main Menu returns to active run's inventory
+            if (hasActiveGameRun) {
+                currentState = STATE_PLAYING;
+                showInventory = true;
+                inventoryState = INVENTORY_MAIN;
+                menuTransitionAlpha = 1.0;
+            }
+        }
     }
     else if (currentState == STATE_PLAYING) {
         if (key == 27) { // ESC Key
             if (showInventory) {
-                showInventory = false;
+                if (inventoryState == CONTROLS_SCREEN) {
+                    inventoryState = INVENTORY_MAIN;
+                } else {
+                    showInventory = false;
+                }
             } else {
                 currentState = STATE_PAUSED;
                 pauseSubMenu = 0;
@@ -4761,7 +5258,30 @@ void GameManager::HandleKeyPress(unsigned char key) {
             }
         }
         else if (key == 9 || key == '\t' || key == 'i' || key == 'I') {
-            showInventory = !showInventory;
+            if (showInventory && inventoryState == CONTROLS_SCREEN) {
+                inventoryState = INVENTORY_MAIN;
+            } else {
+                showInventory = !showInventory;
+                if (showInventory) {
+                    inventoryState = INVENTORY_MAIN;
+                }
+            }
+        }
+        else if (key == 'c' || key == 'C') {
+            if (showInventory) {
+                if (inventoryState == CONTROLS_SCREEN) {
+                    inventoryState = INVENTORY_MAIN;
+                } else {
+                    inventoryState = CONTROLS_SCREEN;
+                    controlsFadeAlpha = 0.0f;
+                }
+            }
+        }
+        else if (key == 'm' || key == 'M') {
+            if (showInventory) {
+                hasActiveGameRun = true;
+                LoadMainMenuAssets();
+            }
         }
         else if (key == 'u' || key == 'U') {
             if (currentLevel == 1) {
@@ -4771,7 +5291,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                 LoadLevel3();
             }
         }
-        else if (key == 'e' || key == 'E' || key == 32 || key == ' ' || key == 13 || key == '\r') {
+        else if (key == 'e' || key == 'E') {
             if (!showInventory) {
                 bool itemInteracted = false;
                 for (size_t i = 0; i < collectibles.size(); ++i) {
@@ -4843,12 +5363,14 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             break;
                         case COL_SMG_WEAPON:
                             player.hasSMG = true;
-                            player.SwitchWeapon(WEAPON_SMG);
+                            if (currentLevel >= 3) {
+                                player.SwitchWeapon(WEAPON_SMG);
+                            }
                             AddInventoryItem("smg_weapon", 1);
                             sprintf_s(g_pickupText, sizeof(g_pickupText), "SMG ACQUIRED");
                             g_pickupR = 0; g_pickupG = 255; g_pickupB = 200;
                             g_pickupTimer = 2.5; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
-                            UI::ShowNotification("WEAPON UNLOCKED", "SMG (SUBMACHINE GUN) ACQUIRED [KEY 3]", 3.0);
+                            UI::ShowNotification("WEAPON UNLOCKED", (currentLevel >= 3) ? "SMG (SUBMACHINE GUN) ACQUIRED [KEY 3]" : "SMG UNLOCKED (AVAILABLE LEVEL 3)", 3.0);
                             break;
                         case COL_GRENADE_WEAPON:
                             player.hasGrenade = true;
@@ -4861,7 +5383,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             UI::ShowNotification("WEAPON UNLOCKED", "GRENADE (TACTICAL) ACQUIRED [KEY 5]", 3.0);
                             break;
                         case COL_AMMO:
-                            player.ammo += 15;
+                            player.pistolReserve += 15;
                             sprintf_s(g_pickupText, sizeof(g_pickupText), "+15 PISTOL AMMO");
                             g_pickupR = 255; g_pickupG = 215; g_pickupB = 0;
                             g_pickupTimer = 2.0; g_pickupX = collectibles[i].x; g_pickupY = collectibles[i].y + 40.0;
@@ -4875,50 +5397,6 @@ void GameManager::HandleKeyPress(unsigned char key) {
                             break;
                         }
                         break;
-                    }
-                }
-
-                // Check Level 2 NPC interaction
-                if (!itemInteracted && currentLevel == 2) {
-                    for (auto& npc : level2NPCs) {
-                        if (std::abs(player.x - npc.x) < 150.0) {
-                            npc.isTalking = true;
-                            
-                            currentState = STATE_DIALOGUE;
-                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", npc.name.c_str());
-                            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", npc.dialogueText.c_str());
-                            itemInteracted = true;
-                            break;
-                        }
-                    }
-                }
-
-                // Check Level 3 NPC interaction
-                if (!itemInteracted && currentLevel == 3 && m_l3Route == 0) {
-                    for (auto& npc : level3NPCs) {
-                        if (std::abs(player.x - npc.x) < 150.0) {
-                            npc.isTalking = true;
-                            currentState = STATE_DIALOGUE;
-                            m_l3NpcDialogueActive = true;
-                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", npc.name.c_str());
-                            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", npc.dialogueText.c_str());
-                            itemInteracted = true;
-                            break;
-                        }
-                    }
-                }
-
-                // Check Level 3 Dr. Kael interaction (only before dialogue is completed)
-                if (!itemInteracted && currentLevel == 3 && bossSpawned && !bossDefeated && !m_l3Boss.IsDialogueComplete() && m_l3Boss.phase < L3_BOSS_HUMAN_DIALOGUE_COMPLETE) {
-                    if (std::abs(player.x - m_l3Boss.x) < 220.0) {
-                        m_l3Boss.dialogueStep = 0;
-                        m_l3Boss.currentSpeaker = "Dr. Kael";
-                        m_l3Boss.currentText = "\"Ah, Arin... So you survived my test subjects. I am Dr. Kael, chief architect of Project Genesis.\"";
-                        m_l3Boss.phase = L3_BOSS_HUMAN_DIALOGUE;
-                        currentState = STATE_DIALOGUE;
-                        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
-                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
-                        itemInteracted = true;
                     }
                 }
 
@@ -4954,6 +5432,58 @@ void GameManager::HandleKeyPress(unsigned char key) {
                 }
             }
         }
+        else if (key == 13 || key == '\r' || key == '\n') { // ENTER key ONLY to Talk to NPCs
+            if (!showInventory) {
+                bool talkInteracted = false;
+
+                // Check Level 2 NPC interaction
+                if (currentLevel == 2) {
+                    for (auto& npc : level2NPCs) {
+                        if (std::abs(player.x - npc.x) < 150.0) {
+                            npc.isTalking = true;
+                            currentState = STATE_DIALOGUE;
+                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", npc.name.c_str());
+                            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", npc.dialogueText.c_str());
+                            talkInteracted = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Check Level 3 NPC interaction
+                if (!talkInteracted && currentLevel == 3 && m_l3Route == 0) {
+                    for (auto& npc : level3NPCs) {
+                        if (std::abs(player.x - npc.x) < 150.0) {
+                            npc.isTalking = true;
+                            currentState = STATE_DIALOGUE;
+                            m_l3NpcDialogueActive = true;
+                            sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", npc.name.c_str());
+                            sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", npc.dialogueText.c_str());
+                            talkInteracted = true;
+                            break;
+                        }
+                    }
+                }
+
+                // Check Level 3 Dr. Kael interaction
+                if (!talkInteracted && currentLevel == 3 && bossSpawned && !bossDefeated && !m_l3Boss.IsDialogueComplete() && m_l3Boss.phase < L3_BOSS_HUMAN_DIALOGUE_COMPLETE) {
+                    if (std::abs(player.x - m_l3Boss.x) < 220.0) {
+                        if (m_l3Boss.IsInDialogue()) {
+                            m_l3Boss.AdvanceDialogue();
+                        } else {
+                            m_l3Boss.dialogueStep = 0;
+                            m_l3Boss.currentSpeaker = "Dr. Kael";
+                            m_l3Boss.currentText = "\"Ah, Arin... So you survived my test subjects. I am Dr. Kael, chief architect of Project Genesis.\"";
+                            m_l3Boss.phase = L3_BOSS_HUMAN_DIALOGUE;
+                        }
+                        currentState = STATE_DIALOGUE;
+                        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
+                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
+                        talkInteracted = true;
+                    }
+                }
+            }
+        }
         else if (key == '1') {
             if (!showInventory) {
                 player.SwitchWeapon(WEAPON_KATANA);
@@ -4969,8 +5499,12 @@ void GameManager::HandleKeyPress(unsigned char key) {
         else if (key == '3') {
             if (!showInventory) {
                 if (player.hasSMG) {
-                    player.SwitchWeapon(WEAPON_SMG);
-                    UI::ShowNotification("WEAPON EQUIPPED", "SMG (SUBMACHINE GUN)", 1.5);
+                    if (currentLevel >= 3) {
+                        player.SwitchWeapon(WEAPON_SMG);
+                        UI::ShowNotification("WEAPON EQUIPPED", "SMG (SUBMACHINE GUN)", 1.5);
+                    } else {
+                        UI::ShowNotification("WEAPON LOCKED", "SMG ONLY AVAILABLE FROM LEVEL 3", 1.5);
+                    }
                 } else {
                     UI::ShowNotification("WEAPON LOCKED", "SMG NOT UNLOCKED YET", 1.5);
                 }
@@ -5035,6 +5569,10 @@ void GameManager::HandleKeyPress(unsigned char key) {
         else if (key == 'f' || key == 'F') {
             if (!showInventory) player.UseFood();
         }
+        else if (key == 'p' || key == 'P') { // Debug prop overlay toggle key
+            m_debugPropsEnabled = !m_debugPropsEnabled;
+            printf("[Debug] Prop Debug Overlay %s\n", m_debugPropsEnabled ? "ENABLED" : "DISABLED");
+        }
         else if (key == 'b' || key == 'B') {
             if (!showInventory) {
                 for (int s = 0; s < 12; ++s) {
@@ -5081,14 +5619,14 @@ void GameManager::HandleKeyPress(unsigned char key) {
             player.ResetInputState();
         }
         else if (key == '6' || key == 'm' || key == 'M') { // Quit to menu
-            currentState = STATE_MENU;
+            hasActiveGameRun = true;
+            LoadMainMenuAssets();
             pauseSubMenu = 0;
-            menuTransitionAlpha = 1.0;
         }
     }
     else if (currentState == STATE_DIALOGUE) {
         if (currentLevel == 3 && m_l3Boss.IsInDialogue()) {
-            if (key == 13 || key == 'e' || key == 'E' || key == 32) {
+            if (key == 13 || key == '\r' || key == '\n') {
                 m_l3Boss.AdvanceDialogue();
                 if (!m_l3Boss.IsInDialogue()) {
                     currentState = STATE_PLAYING;
@@ -5142,7 +5680,7 @@ void GameManager::HandleKeyPress(unsigned char key) {
                 player.ResetInputState();
             }
         }
-        else if (key == 13 || key == 'e' || key == 'E' || key == 32 || key == 27) { // Enter, E, Space, or ESC key
+        else if (key == 13 || key == '\r' || key == '\n' || key == 27) { // Enter or ESC key ONLY
             if (currentLevel == 2) {
                 for (auto& npc : level2NPCs) {
                     npc.isTalking = false;
@@ -5162,10 +5700,8 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
     }
     else if (currentState == STATE_GAMEOVER) {
-        if (key == 13 || key == '1') { // Enter or 1 = Restart Game
-            Initialize();
-            currentState = STATE_PLAYING;
-            menuTransitionAlpha = 1.0;
+        if (key == 13 || key == '1') { // Enter or 1 = Restart Level
+            RestartCurrentLevel();
         }
         else if (key == 'm' || key == 'M' || key == '2') { // M or 2 = Exit to Menu
             currentState = STATE_MENU;
@@ -5238,21 +5774,8 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
             isMouseDown = false;
 
             if (currentState == STATE_MENU) {
-                // Slot 1: Start Survival (Level 1)
-                if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
-                    Initialize();
-                    currentState = STATE_PLAYING;
-                    menuTransitionAlpha = 1.0;
-                }
-                // Slot 2: Leaderboard
-                else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
-                    currentState = STATE_LEADERBOARD;
-                    menuTransitionAlpha = 1.0;
-                }
-                // Slot 3: Exit
-                else if (mx >= 440 && mx <= 840 && my >= 265 && my <= 310) {
-                    exit(0);
-                }
+                // Interactive Button objects (m_btnStartSurvival, m_btnLeaderboard, m_btnExit)
+                // handle their click events automatically via Button::Update callbacks.
             }
             else if (currentState == STATE_PAUSED) {
                 if (pauseSubMenu > 0) {
@@ -5278,47 +5801,20 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                     }
                     // Slot 5: Restart Level (210 - 255)
                     else if (mx >= 440 && mx <= 840 && my >= 210 && my <= 255) {
-                        if (currentLevel == 2) {
-                            LoadLevel2();
-                        } else {
-                            LoadLevel1();
-                        }
-                        currentState = STATE_PLAYING;
-                        menuTransitionAlpha = 1.0;
+                        RestartCurrentLevel();
                     }
                     // Slot 6: Quit to Menu (155 - 200)
                     else if (mx >= 440 && mx <= 840 && my >= 155 && my <= 200) {
-                        currentState = STATE_MENU;
-                        menuTransitionAlpha = 1.0;
+                        hasActiveGameRun = true;
+                        LoadMainMenuAssets();
+                        pauseSubMenu = 0;
                     }
-                }
-            }
-            else if (currentState == STATE_DIALOGUE) {
-                if (currentLevel == 3 && m_l3Boss.IsInDialogue()) {
-                    m_l3Boss.AdvanceDialogue();
-                    if (!m_l3Boss.IsInDialogue()) {
-                        currentState = STATE_PLAYING;
-                        player.ResetInputState();
-                    } else {
-                        sprintf_s(g_dialogueSpeaker, sizeof(g_dialogueSpeaker), "%s", m_l3Boss.currentSpeaker.c_str());
-                        sprintf_s(g_dialogueText, sizeof(g_dialogueText), "%s", m_l3Boss.currentText.c_str());
-                    }
-                }
-                else if (ribbonCollected || (player.x >= 12800 && hasKeycard && bossDefeated)) {
-                    currentState = STATE_VICTORY;
-                    menuTransitionAlpha = 1.0;
-                    leaderboard.AddScore("Arin", score);
-                } else {
-                    currentState = STATE_PLAYING;
-                    menuTransitionAlpha = 1.0;
                 }
             }
             else if (currentState == STATE_GAMEOVER) {
-                // Slot 1: Restart Game
+                // Slot 1: Restart Level
                 if (mx >= 440 && mx <= 840 && my >= 420 && my <= 470) {
-                    Initialize();
-                    currentState = STATE_PLAYING;
-                    menuTransitionAlpha = 1.0;
+                    RestartCurrentLevel();
                 }
                 // Slot 2: Exit to Menu
                 else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
@@ -5331,10 +5827,14 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                 }
             }
             else if (currentState == STATE_VICTORY) {
-                // Slot 1: Next Level (Level 1) or Main Menu (Level 2)
+                // Slot 1: Next Level (Level 1 or 2) or Main Menu (Level 3)
                 if (mx >= 440 && mx <= 840 && my >= 400 && my <= 450) {
                     if (currentLevel == 1) {
                         LoadLevel2();
+                        currentState = STATE_PLAYING;
+                        menuTransitionAlpha = 1.0;
+                    } else if (currentLevel == 2) {
+                        LoadLevel3();
                         currentState = STATE_PLAYING;
                         menuTransitionAlpha = 1.0;
                     } else {
@@ -5344,21 +5844,43 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
                 }
                 // Slot 2: Restart Level
                 else if (mx >= 440 && mx <= 840 && my >= 345 && my <= 390) {
-                    if (currentLevel == 2) {
-                        LoadLevel2();
-                    } else {
-                        LoadLevel1();
-                    }
-                    currentState = STATE_PLAYING;
-                    menuTransitionAlpha = 1.0;
+                    RestartCurrentLevel();
                 }
                 // Slot 3: Exit Game
                 else if (mx >= 440 && mx <= 840 && my >= 265 && my <= 310) {
                     exit(0);
                 }
             }
+            else if (currentState == STATE_LEADERBOARD) {
+                LoadMainMenuAssets();
+            }
             else if (currentState == STATE_PLAYING) {
                 if (showInventory) {
+                    if (inventoryState == CONTROLS_SCREEN) {
+                        inventoryState = INVENTORY_MAIN;
+                        return;
+                    }
+
+                    // Check if player clicked MAIN MENU or CONTROLS button on Inventory Panel
+                    int btnW = 125;
+                    int btnH = 28;
+                    int ctrlBtnX = 340 + 600 - btnW - 20; // 795
+                    int menuBtnX = ctrlBtnX - btnW - 12;  // 658
+                    int btnY = 140 + 18;                  // 158
+
+                    if (mx >= menuBtnX && mx <= menuBtnX + btnW && my >= btnY && my <= btnY + btnH) {
+                        hasActiveGameRun = true;
+                        currentState = STATE_MENU;
+                        menuTransitionAlpha = 1.0;
+                        return;
+                    }
+
+                    if (mx >= ctrlBtnX && mx <= ctrlBtnX + btnW && my >= btnY && my <= btnY + btnH) {
+                        inventoryState = CONTROLS_SCREEN;
+                        controlsFadeAlpha = 0.0f;
+                        return;
+                    }
+
                     int cols = 4, rows = 3;
                     int slotW = 85, slotH = 85;
                     int panelX = 340, panelY = 140, panelH = 440;

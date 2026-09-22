@@ -96,6 +96,8 @@
     <ClInclude Include="src\EncounterManager.h" />
     <ClInclude Include="src\Level3Boss.h" />
     <ClInclude Include="src\Level3Manager.h" />
+    <ClInclude Include="src\Button.h" />
+    <ClInclude Include="src\Inventory.h" />
   </ItemGroup>
   <ItemGroup>
     <Library Include="Glaux.lib" />
@@ -127,6 +129,8 @@
     <ClCompile Include="src\EncounterManager.cpp" />
     <ClCompile Include="src\Level3Boss.cpp" />
     <ClCompile Include="src\Level3Manager.cpp" />
+    <ClCompile Include="src\Button.cpp" />
+    <ClCompile Include="src\Inventory.cpp" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

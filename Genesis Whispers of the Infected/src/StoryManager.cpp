@@ -690,7 +690,7 @@ void StoryManager::RenderControlsAndHUD() {
 
     // 2. Continue Button Element (Bottom-Right)
     const char* actionText = (m_currentIndex == static_cast<int>(m_panels.size()) - 1) ? "Begin Level 1" : "Continue";
-    RenderCinematicButton(m_screenWidth - 230, 18, 190, 56, "[ SPACE / ENTER ]", actionText, m_isContinueHovered, m_continueGlowTimer);
+    RenderCinematicButton(m_screenWidth - 230, 18, 190, 56, "[ ENTER ]", actionText, m_isContinueHovered, m_continueGlowTimer);
 
     // 3. Minimal Step Indicator Dots (Centered at bottom)
     float baseOpacity = 0.70f * m_textAlpha;
@@ -754,7 +754,7 @@ void StoryManager::HandleKeyPress(unsigned char key) {
             m_debounceTimer = 0.25f;
             SkipStory();
         }
-    } else if (key == 32 || key == ' ' || key == 13 || key == '\r' || key == '\n' || key == 10 || key == 'd' || key == 'D') {
+    } else if (key == 13 || key == '\r' || key == '\n' || key == 10) {
         if (m_debounceTimer <= 0.0f) {
             m_continueGlowTimer = 0.25f;
             m_debounceTimer = 0.25f;

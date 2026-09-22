@@ -126,6 +126,15 @@ unsigned int ResourceManager::GetLevel3Tile() {
     if (tex == 0) {
         tex = GetTexture("Assets/Tiles/Ground/level3tile.png");
     }
+    if (tex == 0) {
+        tex = GetTexture("Assets/Tiles/Ground/concrete_ground_tile.png");
+    }
+    if (tex == 0) {
+        tex = GetTexture("Assets/Tiles/Ground/military_tile.png");
+    }
+    if (tex == 0) {
+        tex = GetTexture("Assets/Tiles/Ground/dirt_tile.png");
+    }
     return tex;
 }
 

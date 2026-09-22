@@ -91,6 +91,19 @@ void Game::Update() {
                 keyPressed[i] = 0;
             }
         }
+        // Sync uppercase ASCII letters A-Z with physical OS key state
+        if (i >= 'A' && i <= 'Z') {
+            if ((GetAsyncKeyState(i) & 0x8000) == 0) {
+                keyPressed[i] = 0;
+            }
+        }
+        // Sync lowercase ASCII letters a-z with physical OS key state
+        if (i >= 'a' && i <= 'z') {
+            char upperKey = (char)(i - 'a' + 'A');
+            if ((GetAsyncKeyState(upperKey) & 0x8000) == 0) {
+                keyPressed[i] = 0;
+            }
+        }
         keys[i] = (keyPressed[i] != 0);
         specialKeys[i] = (specialKeyPressed[i] != 0);
     }
@@ -149,7 +162,14 @@ void Game::HandleKeyPress(unsigned char key) {
     m_gameManager.HandleKeyPress(key);
 }
 
-void Game::HandleKeyRelease(unsigned char key) {}
+void Game::HandleKeyRelease(unsigned char key) {
+    keyPressed[key] = 0;
+    if (key >= 'A' && key <= 'Z') {
+        keyPressed[key + ('a' - 'A')] = 0;
+    } else if (key >= 'a' && key <= 'z') {
+        keyPressed[key - ('a' - 'A')] = 0;
+    }
+}
 
 void Game::HandleSpecialKeyPress(unsigned char key) {
     if (m_engineState == GAME_STATE_STORY) {
