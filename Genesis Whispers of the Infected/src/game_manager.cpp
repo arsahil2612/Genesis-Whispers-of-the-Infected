@@ -3159,6 +3159,34 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                     }
                 }
             }
+
+            if (currentLevel == 3 && m_l3Boss.phase != L3_BOSS_INACTIVE && !m_l3Boss.IsDefeated()) {
+                double bossCenterX = m_l3Boss.x + m_l3Boss.width / 2.0;
+                double bossCenterY = m_l3Boss.y + m_l3Boss.height / 2.0;
+                double dx = bossCenterX - expCenterX;
+                double dy = bossCenterY - expCenterY;
+                double dist = std::sqrt(dx * dx + dy * dy);
+                if (dist <= explosionRadius) {
+                    m_l3Boss.TakeDamage(explosionDamage);
+                    score += 100;
+                }
+                for (auto& d : m_l3Boss.drones) {
+                    if (d.active) {
+                        double dDx = d.x - expCenterX;
+                        double dDy = d.y - expCenterY;
+                        double dDist = std::sqrt(dDx * dDx + dDy * dDy);
+                        if (dDist <= explosionRadius) {
+                            d.hp -= explosionDamage;
+                            score += 50;
+                            if (d.hp <= 0) {
+                                d.active = false;
+                                score += 150;
+                                UI::ShowNotification("DRONE DESTROYED", "+150 PTS", 1.5);
+                            }
+                        }
+                    }
+                }
+            }
         }
         if (g_grenade.timer <= 0.0) {
             g_grenade.state = GRENADE_INACTIVE;
@@ -3200,6 +3228,42 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                     }
                 }
             }
+
+            // Check collision with Level 3 Boss (Dr. Kael) & Drones
+            if (!hitSomething && currentLevel == 3 && m_l3Boss.phase != L3_BOSS_INACTIVE && !m_l3Boss.IsDefeated()) {
+                bool hitX = (g_playerProjectiles[p].x + g_playerProjectiles[p].width >= m_l3Boss.x) && 
+                            (g_playerProjectiles[p].x <= m_l3Boss.x + m_l3Boss.width);
+                bool hitY = (g_playerProjectiles[p].y + g_playerProjectiles[p].height >= m_l3Boss.y) && 
+                            (g_playerProjectiles[p].y <= m_l3Boss.y + m_l3Boss.height);
+                if (hitX && hitY) {
+                    m_l3Boss.TakeDamage(g_playerProjectiles[p].damage);
+                    score += 50;
+                    hitSomething = true;
+                }
+
+                if (!hitSomething) {
+                    for (auto& d : m_l3Boss.drones) {
+                        if (d.active) {
+                            bool dHitX = (g_playerProjectiles[p].x + g_playerProjectiles[p].width >= d.x - 45.0) &&
+                                         (g_playerProjectiles[p].x <= d.x + 45.0);
+                            bool dHitY = (g_playerProjectiles[p].y + g_playerProjectiles[p].height >= d.y - 40.0) &&
+                                         (g_playerProjectiles[p].y <= d.y + 40.0);
+                            if (dHitX && dHitY) {
+                                d.hp -= g_playerProjectiles[p].damage;
+                                score += 50;
+                                if (d.hp <= 0) {
+                                    d.active = false;
+                                    score += 150;
+                                    UI::ShowNotification("DRONE DESTROYED", "+150 PTS", 1.5);
+                                }
+                                hitSomething = true;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+
             if (hitSomething) {
                 g_playerProjectiles[p].active = false;
             }
@@ -3257,6 +3321,28 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
                     m_l3Boss.TakeDamage(g_shotgunPellets[p].damage);
                     score += 20;
                     hitSomething = true;
+                }
+
+                if (!hitSomething) {
+                    for (auto& d : m_l3Boss.drones) {
+                        if (d.active) {
+                            bool dHitX = (g_shotgunPellets[p].x + g_shotgunPellets[p].width >= d.x - 45.0) &&
+                                         (g_shotgunPellets[p].x <= d.x + 45.0);
+                            bool dHitY = (g_shotgunPellets[p].y + g_shotgunPellets[p].height >= d.y - 40.0) &&
+                                         (g_shotgunPellets[p].y <= d.y + 40.0);
+                            if (dHitX && dHitY) {
+                                d.hp -= g_shotgunPellets[p].damage;
+                                score += 20;
+                                if (d.hp <= 0) {
+                                    d.active = false;
+                                    score += 150;
+                                    UI::ShowNotification("DRONE DESTROYED", "+150 PTS", 1.5);
+                                }
+                                hitSomething = true;
+                                break;
+                            }
+                        }
+                    }
                 }
             }
 

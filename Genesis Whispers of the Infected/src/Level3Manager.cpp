@@ -218,10 +218,4 @@ void Level3Manager::Draw()
                                                     "PRELOADING AUDIO ASSETS & ARENA ENVIRONMENT...";
     iSetColor(210, 190, 200);
     iText(barX, barY - 24, (char*)statusMsg, GLUT_BITMAP_HELVETICA_12);
-
-    // Top Header Banner
-    iSetColor(230, 60, 80);
-    iText(barX, 660, "GENESIS: WHISPERS OF THE INFECTED - LEVEL 3", GLUT_BITMAP_HELVETICA_18);
-    iSetColor(255, 255, 255);
-    iText(barX, 635, "FINAL CHAPTER: DR. KAEL'S ARENA ENTRANCE", GLUT_BITMAP_HELVETICA_12);
 }

@@ -136,3 +136,15 @@ Route: Easy
 Completed: No
 ---
 
+Score: 26000
+Kills: 59
+Route: Easy
+Completed: No
+---
+
+Score: 15400
+Kills: 27
+Route: Easy
+Completed: No
+---
+

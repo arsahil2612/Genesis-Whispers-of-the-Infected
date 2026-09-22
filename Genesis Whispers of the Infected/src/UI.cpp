@@ -1586,7 +1586,7 @@ void UI::DrawLevelComplete(int mouseX, int mouseY, bool isMouseDown, double anim
     int lvl = g_currentLevel;
     const char* levelTitle = "THE FALLEN VILLAGE";
     const char* missionMsg = "Mission Updated: REACH BLACKWOOD FOREST";
-    const char* continueMsg = "1. CONTINUE TO LEVEL 3 [ENTER]";
+    const char* continueMsg = "1. CONTINUE TO LEVEL 2 [ENTER]";
 
     if (lvl == 2) {
         levelTitle = "BLACKWOOD FOREST";
