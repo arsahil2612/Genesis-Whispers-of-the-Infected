@@ -99,12 +99,18 @@ void PlayAudioFile(const std::string &primaryRelativePath, const std::string &fa
 }
 
 // ============================================================================
-// MAIN MENU BACKGROUND MUSIC CONTROLLER
+// ============================================================================
+// BACKGROUND MUSIC CONTROLLERS
 // ============================================================================
 static bool s_menuMusicPlaying = false;
+static bool s_levelCompleteMusicPlaying = false;
+static bool s_missionFailedMusicPlaying = false;
 
 void PlayMenuMusic() {
     if (s_menuMusicPlaying) return;
+
+    StopLevelCompleteMusic();
+    StopMissionFailedMusic();
 
     const char* candidates[] = {
         "UI/MainMenu/main_menu_music.wav",
@@ -166,6 +172,159 @@ void StopMenuMusic() {
         PlaySoundA(NULL, NULL, 0);
         s_menuMusicPlaying = false;
         printf("[GENESIS Audio] Stopped Main Menu music.\n");
+    }
+}
+
+// ============================================================================
+// LEVEL COMPLETE BACKGROUND MUSIC CONTROLLER
+// ============================================================================
+void PlayLevelCompleteMusic() {
+    if (s_levelCompleteMusicPlaying) return;
+
+    StopMenuMusic();
+    StopMissionFailedMusic();
+
+    const char* candidates[] = {
+        "UI/MainMenu/LevelCompleteMusic.wav",
+        "Assets/UI/Main Menu/LevelCompleteMusic.wav",
+        "Assets/UI/Main Menu/Audio/LevelCompleteMusic.wav",
+        "Assets/UI/Level Complete/LevelCompleteMusic.wav",
+        "UI/MainMenu/LevelCompleteMusic.mp3",
+        "Assets/UI/Main Menu/Audio/main menu music.mp3",
+        "Audios/background.mp3"
+    };
+
+    std::string resolvedPath = "";
+    for (int i = 0; i < sizeof(candidates) / sizeof(candidates[0]); ++i) {
+        std::string p = GetAssetPath(candidates[i]);
+        FILE* f = fopen(p.c_str(), "rb");
+        if (f) {
+            fclose(f);
+            resolvedPath = p;
+            break;
+        }
+    }
+
+    if (resolvedPath.empty()) {
+        printf("[GENESIS Audio] WARNING: Could not resolve Level Complete music path.\n");
+        return;
+    }
+
+    char fullPath[MAX_PATH];
+    if (_fullpath(fullPath, resolvedPath.c_str(), MAX_PATH) == NULL) {
+        strcpy_s(fullPath, sizeof(fullPath), resolvedPath.c_str());
+    }
+
+    mciSendStringA("stop level_complete_bgm", NULL, 0, NULL);
+    mciSendStringA("close level_complete_bgm", NULL, 0, NULL);
+
+    char cmdOpen[MAX_PATH + 128];
+    sprintf_s(cmdOpen, sizeof(cmdOpen), "open \"%s\" type mpegvideo alias level_complete_bgm", fullPath);
+    MCIERROR err = mciSendStringA(cmdOpen, NULL, 0, NULL);
+    if (err != 0) {
+        sprintf_s(cmdOpen, sizeof(cmdOpen), "open \"%s\" alias level_complete_bgm", fullPath);
+        err = mciSendStringA(cmdOpen, NULL, 0, NULL);
+    }
+
+    if (err == 0) {
+        mciSendStringA("setaudio level_complete_bgm volume to 500", NULL, 0, NULL);
+        mciSendStringA("play level_complete_bgm repeat", NULL, 0, NULL);
+        s_levelCompleteMusicPlaying = true;
+        printf("[GENESIS Audio] Started Level Complete music loop from '%s'\n", fullPath);
+    } else {
+        BOOL ok = PlaySoundA(fullPath, NULL, SND_FILENAME | SND_ASYNC | SND_LOOP | SND_NODEFAULT);
+        if (ok) {
+            s_levelCompleteMusicPlaying = true;
+            printf("[GENESIS Audio] Started Level Complete PlaySound loop from '%s'\n", fullPath);
+        } else {
+            printf("[GENESIS Audio] WARNING: Failed to play Level Complete music from '%s'\n", fullPath);
+        }
+    }
+}
+
+void StopLevelCompleteMusic() {
+    if (s_levelCompleteMusicPlaying) {
+        mciSendStringA("stop level_complete_bgm", NULL, 0, NULL);
+        mciSendStringA("close level_complete_bgm", NULL, 0, NULL);
+        PlaySoundA(NULL, NULL, 0);
+        s_levelCompleteMusicPlaying = false;
+        printf("[GENESIS Audio] Stopped Level Complete music.\n");
+    }
+}
+
+// ============================================================================
+// MISSION FAILED BACKGROUND MUSIC CONTROLLER
+// ============================================================================
+void PlayMissionFailedMusic() {
+    if (s_missionFailedMusicPlaying) return;
+
+    StopMenuMusic();
+    StopLevelCompleteMusic();
+
+    const char* candidates[] = {
+        "UI/MainMenu/main_menu_music.wav",
+        "Assets/UI/Main Menu/Audio/main menu music.mp3",
+        "Assets/UI/Main Menu/main_menu_music.wav",
+        "Assets/UI/Main Menu/Audio/main_menu_music.wav",
+        "UI/MainMenu/main menu music.mp3",
+        "Audios/background.mp3"
+    };
+
+    std::string resolvedPath = "";
+    for (int i = 0; i < sizeof(candidates) / sizeof(candidates[0]); ++i) {
+        std::string p = GetAssetPath(candidates[i]);
+        FILE* f = fopen(p.c_str(), "rb");
+        if (f) {
+            fclose(f);
+            resolvedPath = p;
+            break;
+        }
+    }
+
+    if (resolvedPath.empty()) {
+        printf("[GENESIS Audio] WARNING: Could not resolve Mission Failed music path.\n");
+        return;
+    }
+
+    char fullPath[MAX_PATH];
+    if (_fullpath(fullPath, resolvedPath.c_str(), MAX_PATH) == NULL) {
+        strcpy_s(fullPath, sizeof(fullPath), resolvedPath.c_str());
+    }
+
+    mciSendStringA("stop mission_failed_bgm", NULL, 0, NULL);
+    mciSendStringA("close mission_failed_bgm", NULL, 0, NULL);
+
+    char cmdOpen[MAX_PATH + 128];
+    sprintf_s(cmdOpen, sizeof(cmdOpen), "open \"%s\" type mpegvideo alias mission_failed_bgm", fullPath);
+    MCIERROR err = mciSendStringA(cmdOpen, NULL, 0, NULL);
+    if (err != 0) {
+        sprintf_s(cmdOpen, sizeof(cmdOpen), "open \"%s\" alias mission_failed_bgm", fullPath);
+        err = mciSendStringA(cmdOpen, NULL, 0, NULL);
+    }
+
+    if (err == 0) {
+        mciSendStringA("setaudio mission_failed_bgm volume to 500", NULL, 0, NULL);
+        mciSendStringA("play mission_failed_bgm repeat", NULL, 0, NULL);
+        s_missionFailedMusicPlaying = true;
+        printf("[GENESIS Audio] Started Mission Failed music loop from '%s'\n", fullPath);
+    } else {
+        BOOL ok = PlaySoundA(fullPath, NULL, SND_FILENAME | SND_ASYNC | SND_LOOP | SND_NODEFAULT);
+        if (ok) {
+            s_missionFailedMusicPlaying = true;
+            printf("[GENESIS Audio] Started Mission Failed PlaySound loop from '%s'\n", fullPath);
+        } else {
+            printf("[GENESIS Audio] WARNING: Failed to play Mission Failed music from '%s'\n", fullPath);
+        }
+    }
+}
+
+void StopMissionFailedMusic() {
+    if (s_missionFailedMusicPlaying) {
+        mciSendStringA("stop mission_failed_bgm", NULL, 0, NULL);
+        mciSendStringA("close mission_failed_bgm", NULL, 0, NULL);
+        PlaySoundA(NULL, NULL, 0);
+        s_missionFailedMusicPlaying = false;
+        printf("[GENESIS Audio] Stopped Mission Failed music.\n");
     }
 }
 

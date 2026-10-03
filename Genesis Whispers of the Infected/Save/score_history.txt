@@ -148,3 +148,39 @@ Route: Easy
 Completed: No
 ---
 
+Score: 6700
+Kills: 25
+Route: Standard
+Completed: No
+---
+
+Score: 22100
+Kills: 54
+Route: Standard
+Completed: No
+---
+
+Score: 6550
+Kills: 24
+Route: Standard
+Completed: No
+---
+
+Score: 0
+Kills: 0
+Route: Standard
+Completed: No
+---
+
+Score: 25750
+Kills: 68
+Route: Hard
+Completed: No
+---
+
+Score: 9850
+Kills: 18
+Route: Standard
+Completed: No
+---
+

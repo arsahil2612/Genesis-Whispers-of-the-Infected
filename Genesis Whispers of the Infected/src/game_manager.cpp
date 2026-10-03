@@ -1424,6 +1424,9 @@ void GameManager::ClearCurrentLevelObjects() {
 void GameManager::RestartCurrentLevel() {
     printf("[GENESIS Engine] Restarting active level %d from beginning...\n", currentLevel);
 
+    StopMissionFailedMusic();
+    StopLevelCompleteMusic();
+
     ClearCurrentLevelObjects();
 
     switch (currentLevel) {
@@ -1957,6 +1960,8 @@ void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
     }
 
     if (currentState == STATE_MENU || currentState == STATE_LEADERBOARD || currentState == STATE_CREDITS) {
+        StopLevelCompleteMusic();
+        StopMissionFailedMusic();
         PlayMenuMusic();
         if (currentState == STATE_MENU) {
             m_menuEntranceTimer += dt;
@@ -1967,8 +1972,18 @@ void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
         } else if (currentState == STATE_CREDITS) {
             m_creditsTimer += dt;
         }
+    } else if (currentState == STATE_VICTORY) {
+        StopMenuMusic();
+        StopMissionFailedMusic();
+        PlayLevelCompleteMusic();
+    } else if (currentState == STATE_GAMEOVER) {
+        StopMenuMusic();
+        StopLevelCompleteMusic();
+        PlayMissionFailedMusic();
     } else {
         StopMenuMusic();
+        StopLevelCompleteMusic();
+        StopMissionFailedMusic();
         m_menuEntranceTimer = 0.0;
     }
 
@@ -1995,6 +2010,65 @@ void GameManager::UpdatePlaying(float dt, bool keys[], bool specialKeys[]) {
         player.ResetInputState();
         return;
     }
+
+    // Level 2 Boss Arena Developer Shortcut (Key 'P' / 'p')
+    static bool s_l2pKeyWasDown = false;
+    bool l2pIsDown = (keys['p'] || keys['P'] || (GetKeyState('P') & 0x8000) != 0);
+    if (l2pIsDown && !s_l2pKeyWasDown && currentLevel == 2 && currentState == STATE_PLAYING) {
+        player.x = 13150.0;
+        player.y = kLevel1GroundY;
+        player.vx = 0.0;
+        player.vy = 0.0;
+        player.isFacingRight = true;
+        gameMap.SetCameraX(13000.0);
+
+        bool abominationFound = false;
+        for (size_t i = 0; i < enemies.size(); ++i) {
+            if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                abominationFound = true;
+                enemies[i].x = 13750.0;
+                enemies[i].startX = 13050.0;
+                enemies[i].endX = 14100.0;
+                enemies[i].isFacingRight = false;
+                enemies[i].state = ENEMY_ATTACK;
+                enemies[i].abominationAttack = ABOMINATION_PROJECTILE;
+                enemies[i].animProjectile.Reset();
+                enemies[i].projectileFired = false;
+                enemies[i].isOpeningAttackActive = true;
+                enemies[i].openingProjectileCount = 0;
+                enemies[i].openingProjectileTimer = 0;
+
+                bossMaxHp = enemies[i].maxHp;
+                bossHp = enemies[i].hp;
+                displayedBossHp = (double)enemies[i].hp;
+                break;
+            }
+        }
+
+        if (!abominationFound) {
+            Enemy boss(13750, 14100, kLevel1GroundY, TYPE_FOREST_ABOMINATION);
+            boss.x = 13750.0;
+            boss.startX = 13050.0;
+            boss.endX = 14100.0;
+            boss.isFacingRight = false;
+            boss.state = ENEMY_ATTACK;
+            boss.abominationAttack = ABOMINATION_PROJECTILE;
+            boss.animProjectile.Reset();
+            boss.projectileFired = false;
+            boss.isOpeningAttackActive = true;
+            boss.openingProjectileCount = 0;
+            boss.openingProjectileTimer = 0;
+            bossMaxHp = boss.maxHp;
+            bossHp = boss.hp;
+            displayedBossHp = (double)boss.hp;
+            enemies.push_back(boss);
+        }
+
+        bossSpawned = true;
+        bossDefeated = false;
+        currentAreaIndex = L2_AREA_BOSS_ARENA;
+    }
+    s_l2pKeyWasDown = l2pIsDown;
     // 0. Check Arin death transition to STATE_GAMEOVER
     if (player.hp <= 0 || player.state == STATE_DEAD) {
         if (player.state != STATE_DEAD) {
@@ -5558,6 +5632,62 @@ void GameManager::HandleKeyPress(unsigned char key) {
         }
     }
     else if (currentState == STATE_PLAYING) {
+        if ((key == 'p' || key == 'P') && currentLevel == 2) {
+            player.x = 13150.0;
+            player.y = kLevel1GroundY;
+            player.vx = 0.0;
+            player.vy = 0.0;
+            player.isFacingRight = true;
+            gameMap.SetCameraX(13000.0);
+
+            bool abominationFound = false;
+            for (size_t i = 0; i < enemies.size(); ++i) {
+                if (enemies[i].type == TYPE_FOREST_ABOMINATION) {
+                    abominationFound = true;
+                    enemies[i].x = 13750.0;
+                    enemies[i].startX = 13050.0;
+                    enemies[i].endX = 14100.0;
+                    enemies[i].isFacingRight = false;
+                    enemies[i].state = ENEMY_ATTACK;
+                    enemies[i].abominationAttack = ABOMINATION_PROJECTILE;
+                    enemies[i].animProjectile.Reset();
+                    enemies[i].projectileFired = false;
+                    enemies[i].isOpeningAttackActive = true;
+                    enemies[i].openingProjectileCount = 0;
+                    enemies[i].openingProjectileTimer = 0;
+
+                    bossMaxHp = enemies[i].maxHp;
+                    bossHp = enemies[i].hp;
+                    displayedBossHp = (double)enemies[i].hp;
+                    break;
+                }
+            }
+
+            if (!abominationFound) {
+                Enemy boss(13750, 14100, kLevel1GroundY, TYPE_FOREST_ABOMINATION);
+                boss.x = 13750.0;
+                boss.startX = 13050.0;
+                boss.endX = 14100.0;
+                boss.isFacingRight = false;
+                boss.state = ENEMY_ATTACK;
+                boss.abominationAttack = ABOMINATION_PROJECTILE;
+                boss.animProjectile.Reset();
+                boss.projectileFired = false;
+                boss.isOpeningAttackActive = true;
+                boss.openingProjectileCount = 0;
+                boss.openingProjectileTimer = 0;
+                bossMaxHp = boss.maxHp;
+                bossHp = boss.hp;
+                displayedBossHp = (double)boss.hp;
+                enemies.push_back(boss);
+            }
+
+            bossSpawned = true;
+            bossDefeated = false;
+            currentAreaIndex = L2_AREA_BOSS_ARENA;
+            return;
+        }
+
         if (key == 27) { // ESC Key
             if (showInventory) {
                 if (inventoryState == CONTROLS_SCREEN) {

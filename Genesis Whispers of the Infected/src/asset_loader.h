@@ -36,4 +36,12 @@ void PlayAudioFile(const std::string &primaryRelativePath, const std::string &fa
 void PlayMenuMusic();
 void StopMenuMusic();
 
+// Controls looping background music for Level Complete
+void PlayLevelCompleteMusic();
+void StopLevelCompleteMusic();
+
+// Controls looping background music for Mission Failed
+void PlayMissionFailedMusic();
+void StopMissionFailedMusic();
+
 #endif // ASSET_LOADER_H
