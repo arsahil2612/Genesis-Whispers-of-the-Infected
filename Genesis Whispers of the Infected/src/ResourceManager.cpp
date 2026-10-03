@@ -16,9 +16,9 @@ ResourceManager& ResourceManager::GetInstance() {
 }
 
 unsigned int ResourceManager::GetTexture(const std::string& filePath) {
-    // Check if texture is already cached
+    // Check if texture is already cached with a valid ID
     std::map<std::string, unsigned int>::iterator it = m_textureCache.find(filePath);
-    if (it != m_textureCache.end()) {
+    if (it != m_textureCache.end() && it->second != 0) {
         return it->second;
     }
 

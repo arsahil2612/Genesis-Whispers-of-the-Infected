@@ -1,5 +1,6 @@
 #include "Game.h"
 #include "ResourceManager.h"
+#include "asset_loader.h"
 #include "../iGraphics.h"
 #include <stdio.h>
 
@@ -10,7 +11,7 @@ Game::Game()
     : m_screenWidth(1280)
     , m_screenHeight(720)
     , m_isRunning(true)
-    , m_engineState(GAME_STATE_STORY)
+    , m_engineState(GAME_STATE_PLAYING)
     , m_deltaTime(0.016f)
 {
     m_frequency.QuadPart = 0;
@@ -31,14 +32,13 @@ void Game::Initialize(int width, int height) {
     QueryPerformanceFrequency(&m_frequency);
     QueryPerformanceCounter(&m_lastTime);
 
-    // Initialize GameManager (Loads Level 1 map, Arin player character, backgrounds, props, enemies, sound)
+    // Initialize GameManager and ensure initial state is Main Menu
     m_gameManager.Initialize();
-    m_gameManager.SetCurrentState(STATE_STORY);
+    m_gameManager.LoadMainMenuAssets();
 
     // Initialize Level 1 Cinematic Story Introduction System
     m_storyManager.Initialize(width, height);
-    m_storyManager.StartStory();
-    m_engineState = GAME_STATE_STORY;
+    m_engineState = GAME_STATE_PLAYING;
 
     // Force window input focus immediately on game initialization
     HWND hwnd = GetActiveWindow();
@@ -51,7 +51,7 @@ void Game::Initialize(int width, int height) {
         SetActiveWindow(hwnd);
     }
 
-    printf("[GENESIS Engine] Game Engine Initialized. Initial State: GAME_STATE_STORY. Screen: %dx%d\n", width, height);
+    printf("[GENESIS Engine] Game Engine Initialized. Initial State: Main Menu (STATE_MENU). Screen: %dx%d\n", width, height);
 }
 
 // ============================================================================
@@ -108,6 +108,13 @@ void Game::Update() {
         specialKeys[i] = (specialKeyPressed[i] != 0);
     }
 
+    // Trigger Story intro sequence when START GAME is selected from Main Menu
+    if (m_engineState != GAME_STATE_STORY && m_gameManager.GetCurrentState() == STATE_STORY) {
+        m_storyManager.StartStory();
+        m_engineState = GAME_STATE_STORY;
+        m_gameManager.SetCurrentState(STATE_PLAYING);
+    }
+
     // GAME_STATE_STORY: StoryManager receives priority keyboard input every frame. Gameplay inputs disabled.
     if (m_engineState == GAME_STATE_STORY) {
         glutSetCursor(GLUT_CURSOR_LEFT_ARROW); // Visible cursor during Story Mode
@@ -119,6 +126,7 @@ void Game::Update() {
             m_engineState = GAME_STATE_PLAYING;
             m_gameManager.SetCurrentState(STATE_PLAYING);
             glutSetCursor(GLUT_CURSOR_NONE); // Restore original gameplay cursor settings
+            StopMenuMusic();
             printf("[GENESIS Engine] Story Intro finished. Restored normal gameplay keyboard input & transitioned to GAME_STATE_PLAYING.\n");
         }
         return; // Gameplay input and update systems 100% DISABLED during Story Mode!
@@ -156,6 +164,7 @@ void Game::HandleKeyPress(unsigned char key) {
             m_engineState = GAME_STATE_PLAYING;
             m_gameManager.SetCurrentState(STATE_PLAYING);
             glutSetCursor(GLUT_CURSOR_NONE);
+            StopMenuMusic();
         }
         return; // Gameplay input handlers 100% DISABLED during Story Mode!
     }
@@ -182,6 +191,7 @@ void Game::HandleSpecialKeyPress(unsigned char key) {
             m_engineState = GAME_STATE_PLAYING;
             m_gameManager.SetCurrentState(STATE_PLAYING);
             glutSetCursor(GLUT_CURSOR_NONE);
+            StopMenuMusic();
         }
         return; // Gameplay input handlers 100% DISABLED during Story Mode!
     }
@@ -197,6 +207,7 @@ void Game::HandleMouseClick(int button, int state, int mx, int my) {
             m_engineState = GAME_STATE_PLAYING;
             m_gameManager.SetCurrentState(STATE_PLAYING);
             glutSetCursor(GLUT_CURSOR_NONE); // Restore original gameplay cursor settings
+            StopMenuMusic();
         }
         return;
     }

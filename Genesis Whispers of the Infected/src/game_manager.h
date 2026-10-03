@@ -28,7 +28,8 @@ enum GameState {
     STATE_GAMEOVER,
     STATE_VICTORY,
     STATE_ENDING_SCENE,
-    STATE_LEADERBOARD
+    STATE_LEADERBOARD,
+    STATE_CREDITS
 };
 
 // ============================================================================
@@ -373,6 +374,8 @@ private:
     double menuTransitionAlpha;
     double menuEntranceTimer;
     double m_menuEntranceTimer;
+    double m_creditsTimer;
+    int m_creditsSlideIndex;
     double missionNotifyAlpha;
     double missionNotifyTimer;
     int lastObjectiveID;
@@ -383,6 +386,7 @@ private:
     // Interactive Image Main Menu Buttons
     Button m_btnStartSurvival;
     Button m_btnLeaderboard;
+    Button m_btnCredits;
     Button m_btnExit;
 
     // Contextual Interaction Prompt
@@ -425,6 +429,7 @@ private:
     void RenderPlaying();
     void RenderMenu();
     void RenderLeaderboard();
+    void RenderCredits();
     void RenderDialogue();
     void RenderGameOver();
     void RenderVictory();

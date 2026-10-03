@@ -5,24 +5,37 @@
 #include <windows.h>
 #include <mmsystem.h>
 #include <map>
+#include <vector>
 
 #pragma comment(lib, "winmm.lib")
 
 std::string GetAssetPath(const std::string &relativePath) {
     char cwd[MAX_PATH];
     GetCurrentDirectoryA(MAX_PATH, cwd);
-    std::string path1 = relativePath;
-    FILE* f = fopen(path1.c_str(), "rb");
-    if (f) {
-        fclose(f);
-        return path1;
+
+    std::vector<std::string> candidates;
+    candidates.push_back(relativePath);
+    candidates.push_back("Genesis Whispers of the Infected/" + relativePath);
+    candidates.push_back("../" + relativePath);
+    candidates.push_back("../Genesis Whispers of the Infected/" + relativePath);
+
+    if (relativePath.find("MainMenu") != std::string::npos || relativePath.find("Main Menu") != std::string::npos) {
+        size_t lastSlash = relativePath.find_last_of("/\\");
+        std::string filename = (lastSlash != std::string::npos) ? relativePath.substr(lastSlash + 1) : relativePath;
+        candidates.push_back("Genesis Whispers of the Infected/Assets/UI/Main Menu/" + filename);
+        candidates.push_back("../Genesis Whispers of the Infected/Assets/UI/Main Menu/" + filename);
+        candidates.push_back("Assets/UI/Main Menu/" + filename);
+        candidates.push_back("../Assets/UI/Main Menu/" + filename);
     }
-    std::string path2 = "../" + relativePath;
-    f = fopen(path2.c_str(), "rb");
-    if (f) {
-        fclose(f);
-        return path2;
+
+    for (size_t i = 0; i < candidates.size(); ++i) {
+        FILE* f = fopen(candidates[i].c_str(), "rb");
+        if (f) {
+            fclose(f);
+            return candidates[i];
+        }
     }
+
     return relativePath;
 }
 
@@ -83,6 +96,77 @@ void PlayAudioFile(const std::string &primaryRelativePath, const std::string &fa
     char cmdPlay[64];
     sprintf_s(cmdPlay, sizeof(cmdPlay), "play %s from 0", alias.c_str());
     mciSendStringA(cmdPlay, NULL, 0, NULL);
+}
+
+// ============================================================================
+// MAIN MENU BACKGROUND MUSIC CONTROLLER
+// ============================================================================
+static bool s_menuMusicPlaying = false;
+
+void PlayMenuMusic() {
+    if (s_menuMusicPlaying) return;
+
+    const char* candidates[] = {
+        "UI/MainMenu/main_menu_music.wav",
+        "Assets/UI/Main Menu/Audio/main menu music.mp3",
+        "Assets/UI/Main Menu/main_menu_music.wav",
+        "Assets/UI/Main Menu/Audio/main_menu_music.wav",
+        "UI/MainMenu/main menu music.mp3",
+        "Audios/background.mp3"
+    };
+
+    std::string resolvedPath = "";
+    for (int i = 0; i < sizeof(candidates) / sizeof(candidates[0]); ++i) {
+        std::string p = GetAssetPath(candidates[i]);
+        FILE* f = fopen(p.c_str(), "rb");
+        if (f) {
+            fclose(f);
+            resolvedPath = p;
+            break;
+        }
+    }
+
+    if (resolvedPath.empty()) {
+        printf("[GENESIS Audio] WARNING: Could not find menu music file.\n");
+        return;
+    }
+
+    char fullPath[MAX_PATH];
+    if (_fullpath(fullPath, resolvedPath.c_str(), MAX_PATH) == NULL) {
+        strcpy_s(fullPath, sizeof(fullPath), resolvedPath.c_str());
+    }
+
+    mciSendStringA("stop menu_bgm", NULL, 0, NULL);
+    mciSendStringA("close menu_bgm", NULL, 0, NULL);
+
+    char cmdOpen[MAX_PATH + 128];
+    sprintf_s(cmdOpen, sizeof(cmdOpen), "open \"%s\" type mpegvideo alias menu_bgm", fullPath);
+    MCIERROR err = mciSendStringA(cmdOpen, NULL, 0, NULL);
+    if (err != 0) {
+        sprintf_s(cmdOpen, sizeof(cmdOpen), "open \"%s\" alias menu_bgm", fullPath);
+        err = mciSendStringA(cmdOpen, NULL, 0, NULL);
+    }
+
+    if (err == 0) {
+        mciSendStringA("setaudio menu_bgm volume to 500", NULL, 0, NULL);
+        mciSendStringA("play menu_bgm repeat", NULL, 0, NULL);
+        s_menuMusicPlaying = true;
+        printf("[GENESIS Audio] Started Main Menu music loop from '%s'\n", fullPath);
+    } else {
+        PlaySoundA(fullPath, NULL, SND_FILENAME | SND_ASYNC | SND_LOOP | SND_NODEFAULT);
+        s_menuMusicPlaying = true;
+        printf("[GENESIS Audio] Started Main Menu PlaySound loop from '%s'\n", fullPath);
+    }
+}
+
+void StopMenuMusic() {
+    if (s_menuMusicPlaying) {
+        mciSendStringA("stop menu_bgm", NULL, 0, NULL);
+        mciSendStringA("close menu_bgm", NULL, 0, NULL);
+        PlaySoundA(NULL, NULL, 0);
+        s_menuMusicPlaying = false;
+        printf("[GENESIS Audio] Stopped Main Menu music.\n");
+    }
 }
 
 // Static caching tables for background textures

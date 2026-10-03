@@ -130,11 +130,82 @@ static unsigned int g_texMainMenuBg = 0;
 static unsigned int g_texGameName = 0;
 static unsigned int g_texStartSurvivalBtn = 0;
 static unsigned int g_texLeaderboardBtn = 0;
+static unsigned int g_texCreditsBtn = 0;
 static unsigned int g_texExitBtn = 0;
 static unsigned int g_texGameOverBg = 0;
 static unsigned int g_texLevelCompleteBg = 0;
 static unsigned int g_texLeaderboardBg = 0;
 static unsigned int g_texEndingScene = 0;
+static unsigned int g_texTeammate1 = 0;
+static unsigned int g_texTeammate2 = 0;
+static unsigned int g_texTeammate3 = 0;
+static unsigned int g_texThankYouScreen = 0;
+
+static void LoadCreditsTextures() {
+    if (g_texTeammate1 == 0) {
+        const char* c1[] = {
+            "UI/MainMenu/Credits/teammate1.jpg",
+            "UI/MainMenu/Credits/teammate1.png",
+            "Assets/UI/Main Menu/Credits/teammate1.jpg",
+            "Assets/UI/Main Menu/Credit_images/Abdur Rahman Sahil_ Ruins at Sunset.png",
+            "Assets/UI/Main Menu/Credit_images/teammate1.jpg",
+            "Assets/UI/Main Menu/Credit_images/teammate1.png"
+        };
+        for (int i = 0; i < 6; ++i) {
+            std::string p = GetAssetPath(c1[i]);
+            g_texTeammate1 = iLoadImage(p.c_str());
+            if (g_texTeammate1 != 0) break;
+        }
+    }
+
+    if (g_texTeammate2 == 0) {
+        const char* c2[] = {
+            "UI/MainMenu/Credits/teammate2.jpg",
+            "UI/MainMenu/Credits/teammate2.png",
+            "Assets/UI/Main Menu/Credits/teammate2.jpg",
+            "Assets/UI/Main Menu/Credit_images/abir.png",
+            "Assets/UI/Main Menu/Credit_images/teammate2.jpg",
+            "Assets/UI/Main Menu/Credit_images/teammate2.png"
+        };
+        for (int i = 0; i < 6; ++i) {
+            std::string p = GetAssetPath(c2[i]);
+            g_texTeammate2 = iLoadImage(p.c_str());
+            if (g_texTeammate2 != 0) break;
+        }
+    }
+
+    if (g_texTeammate3 == 0) {
+        const char* c3[] = {
+            "UI/MainMenu/Credits/teammate3.jpg",
+            "UI/MainMenu/Credits/teammate3.png",
+            "Assets/UI/Main Menu/Credits/teammate3.jpg",
+            "Assets/UI/Main Menu/Credit_images/Raian Mahadin_ Ruins at Sunset (1).png",
+            "Assets/UI/Main Menu/Credit_images/teammate3.jpg",
+            "Assets/UI/Main Menu/Credit_images/teammate3.png"
+        };
+        for (int i = 0; i < 6; ++i) {
+            std::string p = GetAssetPath(c3[i]);
+            g_texTeammate3 = iLoadImage(p.c_str());
+            if (g_texTeammate3 != 0) break;
+        }
+    }
+
+    if (g_texThankYouScreen == 0) {
+        const char* cThankYou[] = {
+            "UI/MainMenu/Credits/thank_you_screen.png",
+            "UI/MainMenu/Credits/thank_you_screen.jpg",
+            "Assets/UI/Main Menu/Credits/thank_you_screen.png",
+            "Assets/UI/Main Menu/Credit_images/Thank You.png",
+            "Assets/UI/Main Menu/Credit_images/thank_you_screen.png",
+            "Assets/UI/Main Menu/Credit_images/thank_you_screen.jpg"
+        };
+        for (int i = 0; i < 6; ++i) {
+            std::string p = GetAssetPath(cThankYou[i]);
+            g_texThankYouScreen = iLoadImage(p.c_str());
+            if (g_texThankYouScreen != 0) break;
+        }
+    }
+}
 
 // Item PNG Asset Texture Handles (Assets/Items & Assets/Collectibles)
 static unsigned int g_texItemBread = 0;
@@ -907,40 +978,73 @@ void GameManager::ResetStaticUITextures() {
 void GameManager::LoadMainMenuAssets() {
     ResetStaticUITextures();
 
-    g_texMainMenuBg = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/new_main_menu.png");
-    if (g_texMainMenuBg == 0) {
-        g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/new_main_menu.png").c_str());
-    }
-    if (g_texMainMenuBg == 0) {
-        g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/new_main_menu.jpg").c_str());
-    }
-    if (g_texMainMenuBg == 0) {
-        g_texMainMenuBg = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/main_menu_bg.png").c_str());
-    }
-    printf("[GENESIS Engine] Loaded Main Menu Background Texture: %s (ID: %u)\n", "new_main_menu.png", g_texMainMenuBg);
+    printf("[GENESIS Engine] LoadMainMenuAssets() initializing...\n");
 
+    const char* bgCandidates[] = {
+        "Assets/UI/Main Menu/new_main_menu.png",
+        "Assets/UI/Main Menu/main_menu_bg.png",
+        "Assets/UI/Main Menu/new_main_menu.jpg",
+        "Assets/UI/Main Menu/main_menu_bg.jpg",
+        "MainMenu/UI/new_main_menu.png",
+        "MainMenu/UI/main_menu_bg.png",
+        "MainMenu/UI/new_main_menu.jpg",
+        "MainMenu/UI/main_menu_bg.jpg",
+        "new_main_menu.png",
+        "main_menu_bg.png"
+    };
+
+    g_texMainMenuBg = 0;
+    for (int i = 0; i < sizeof(bgCandidates) / sizeof(bgCandidates[0]); ++i) {
+        std::string resolved = GetAssetPath(bgCandidates[i]);
+        g_texMainMenuBg = ResourceManager::GetInstance().GetTexture(bgCandidates[i]);
+        if (g_texMainMenuBg == 0) {
+            g_texMainMenuBg = iLoadImage(resolved.c_str());
+        }
+        if (g_texMainMenuBg != 0) {
+            printf("[GENESIS Engine] SUCCESS: Loaded Main Menu Background Texture ID %u from '%s' (Original candidate: '%s')\n", g_texMainMenuBg, resolved.c_str(), bgCandidates[i]);
+            break;
+        }
+    }
+
+    if (g_texMainMenuBg == 0) {
+        printf("[GENESIS Engine] ERROR: Failed to load Main Menu Background image from all candidate paths!\n");
+    }
+
+    std::string titlePath = GetAssetPath("Assets/UI/Main Menu/game_name.png");
     g_texGameName = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/game_name.png");
-    if (g_texGameName == 0) g_texGameName = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/game_name.png").c_str());
+    if (g_texGameName == 0) g_texGameName = iLoadImage(titlePath.c_str());
 
+    std::string startBtnPath = GetAssetPath("Assets/UI/Main Menu/start_survival_button.png");
     g_texStartSurvivalBtn = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/start_survival_button.png");
-    if (g_texStartSurvivalBtn == 0) g_texStartSurvivalBtn = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/start_survival_button.png").c_str());
+    if (g_texStartSurvivalBtn == 0) g_texStartSurvivalBtn = iLoadImage(startBtnPath.c_str());
 
+    std::string leadBtnPath = GetAssetPath("Assets/UI/Main Menu/leaderboard_button.png");
     g_texLeaderboardBtn = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/leaderboard_button.png");
-    if (g_texLeaderboardBtn == 0) g_texLeaderboardBtn = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/leaderboard_button.png").c_str());
+    if (g_texLeaderboardBtn == 0) g_texLeaderboardBtn = iLoadImage(leadBtnPath.c_str());
 
+    std::string creditsBtnPath = GetAssetPath("Assets/UI/Main Menu/Credit.png");
+    g_texCreditsBtn = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/Credit.png");
+    if (g_texCreditsBtn == 0) g_texCreditsBtn = iLoadImage(creditsBtnPath.c_str());
+
+    std::string exitBtnPath = GetAssetPath("Assets/UI/Main Menu/exit_button.png");
     g_texExitBtn = ResourceManager::GetInstance().GetTexture("Assets/UI/Main Menu/exit_button.png");
-    if (g_texExitBtn == 0) g_texExitBtn = iLoadImage((char*)GetAssetPath("Assets/UI/Main Menu/exit_button.png").c_str());
+    if (g_texExitBtn == 0) g_texExitBtn = iLoadImage(exitBtnPath.c_str());
 
-    m_btnStartSurvival.Initialize(470.0f, 340.0f, 340.0f, 70.0f, g_texStartSurvivalBtn, [this]() {
+    m_btnStartSurvival.Initialize(470.0f, 350.0f, 340.0f, 65.0f, g_texStartSurvivalBtn, [this]() {
         Initialize();
-        currentState = STATE_PLAYING;
+        currentState = STATE_STORY;
         menuTransitionAlpha = 1.0;
     });
-    m_btnLeaderboard.Initialize(470.0f, 250.0f, 340.0f, 70.0f, g_texLeaderboardBtn, [this]() {
+    m_btnLeaderboard.Initialize(470.0f, 270.0f, 340.0f, 65.0f, g_texLeaderboardBtn, [this]() {
         currentState = STATE_LEADERBOARD;
         menuTransitionAlpha = 1.0;
     });
-    m_btnExit.Initialize(470.0f, 160.0f, 340.0f, 70.0f, g_texExitBtn, []() {
+    m_btnCredits.Initialize(470.0f, 190.0f, 340.0f, 65.0f, g_texCreditsBtn, [this]() {
+        m_creditsTimer = 0.0;
+        currentState = STATE_CREDITS;
+        menuTransitionAlpha = 1.0;
+    });
+    m_btnExit.Initialize(470.0f, 110.0f, 340.0f, 65.0f, g_texExitBtn, []() {
         exit(0);
     });
 
@@ -1852,12 +1956,19 @@ void GameManager::Update(float dt, bool keys[], bool specialKeys[]) {
         if (areaBannerAlpha < 0.0) areaBannerAlpha = 0.0;
     }
 
-    if (currentState == STATE_MENU) {
-        m_menuEntranceTimer += dt;
-        m_btnStartSurvival.Update(dt, mouseX, mouseY, isMouseDown);
-        m_btnLeaderboard.Update(dt, mouseX, mouseY, isMouseDown);
-        m_btnExit.Update(dt, mouseX, mouseY, isMouseDown);
+    if (currentState == STATE_MENU || currentState == STATE_LEADERBOARD || currentState == STATE_CREDITS) {
+        PlayMenuMusic();
+        if (currentState == STATE_MENU) {
+            m_menuEntranceTimer += dt;
+            m_btnStartSurvival.Update(dt, mouseX, mouseY, isMouseDown);
+            m_btnLeaderboard.Update(dt, mouseX, mouseY, isMouseDown);
+            m_btnCredits.Update(dt, mouseX, mouseY, isMouseDown);
+            m_btnExit.Update(dt, mouseX, mouseY, isMouseDown);
+        } else if (currentState == STATE_CREDITS) {
+            m_creditsTimer += dt;
+        }
     } else {
+        StopMenuMusic();
         m_menuEntranceTimer = 0.0;
     }
 
@@ -3529,6 +3640,9 @@ void GameManager::Render() {
     case STATE_LEADERBOARD:
         RenderLeaderboard();
         break;
+    case STATE_CREDITS:
+        RenderCredits();
+        break;
     }
 
     // Render active notifications
@@ -3551,62 +3665,176 @@ void GameManager::RenderMenu() {
         m_menuEntranceTimer = 0.4;
     }
 
-    float bgAlpha = 1.0f;
-
-    // 1. First Layer: Full Screen Background Image (new_main_menu.png)
+    // 1. Draw Main Menu Background Image filling full screen (1280x720)
     if (g_texMainMenuBg != 0) {
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, g_texMainMenuBg);
-        glColor4f(1.0f, 1.0f, 1.0f, bgAlpha);
-
-        glBegin(GL_QUADS);
-        glTexCoord2f(0.001f, 0.999f); glVertex2f(0.0f, 0.0f);
-        glTexCoord2f(0.999f, 0.999f); glVertex2f(1280.0f, 0.0f);
-        glTexCoord2f(0.999f, 0.001f); glVertex2f(1280.0f, 720.0f);
-        glTexCoord2f(0.001f, 0.001f); glVertex2f(0.0f, 720.0f);
-        glEnd();
-
-        glDisable(GL_TEXTURE_2D);
-        glDisable(GL_BLEND);
+        iShowImage(0, 0, 1280, 720, g_texMainMenuBg);
     } else {
         iSetColor(10, 12, 18);
         iFilledRectangle(0, 0, 1280, 720);
     }
 
-    // 2. Second Layer: Top-Center Game Title Logo (game_name.png)
+    // 2. Draw Top-Center Game Title Logo (game_name.png)
     if (g_texGameName != 0) {
-        float logoW = 560.0f;
-        float logoH = 180.0f;
-        float logoX = (1280.0f - logoW) * 0.5f; // 360.0f
-        float logoY = 445.0f;
-
-        glEnable(GL_BLEND);
-        glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-        glEnable(GL_TEXTURE_2D);
-        glBindTexture(GL_TEXTURE_2D, g_texGameName);
-        glColor4f(1.0f, 1.0f, 1.0f, 1.0f);
-
-        glBegin(GL_QUADS);
-        glTexCoord2f(0.001f, 0.999f); glVertex2f(logoX, logoY);
-        glTexCoord2f(0.999f, 0.999f); glVertex2f(logoX + logoW, logoY);
-        glTexCoord2f(0.999f, 0.001f); glVertex2f(logoX + logoW, logoY + logoH);
-        glTexCoord2f(0.001f, 0.001f); glVertex2f(logoX, logoY + logoH);
-        glEnd();
-
-        glDisable(GL_TEXTURE_2D);
-        glDisable(GL_BLEND);
+        iShowImage(360, 445, 560, 180, g_texGameName);
     }
 
-    // 3. Third Layer: Interactive Image Buttons
+    // 3. Draw Interactive Image Buttons (START SURVIVAL, LEADERBOARD, CREDITS, EXIT GAME)
     m_btnStartSurvival.SetAlpha(1.0f);
     m_btnLeaderboard.SetAlpha(1.0f);
+    m_btnCredits.SetAlpha(1.0f);
     m_btnExit.SetAlpha(1.0f);
 
     m_btnStartSurvival.Draw();
     m_btnLeaderboard.Draw();
+    m_btnCredits.Draw();
     m_btnExit.Draw();
+}
+
+void GameManager::RenderCredits() {
+    // 0. Ensure Teammate images are loaded
+    LoadCreditsTextures();
+
+    // 1. Draw exact Main Menu Background image full screen (1280x720)
+    if (g_texMainMenuBg != 0) {
+        iShowImage(0, 0, 1280, 720, g_texMainMenuBg);
+    } else {
+        iSetColor(10, 12, 18);
+        iFilledRectangle(0, 0, 1280, 720);
+    }
+
+    // 2. Draw Translucent Dark Backdrop Glass Panel for contrast
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glDisable(GL_TEXTURE_2D);
+
+    glColor4f(0.04f, 0.06f, 0.12f, 0.82f);
+    glBegin(GL_QUADS);
+    glVertex2f(0, 0);
+    glVertex2f(1280, 0);
+    glVertex2f(1280, 720);
+    glVertex2f(0, 720);
+    glEnd();
+
+    // Header Title
+    DrawOutlinedText(430, 655, "GENESIS DEVELOPMENT TEAM", GLUT_BITMAP_TIMES_ROMAN_24, 0, 230, 255);
+
+    if (m_creditsSlideIndex < 3) {
+        unsigned int currentTex = 0;
+        const char* teammateName = "";
+
+        if (m_creditsSlideIndex == 0) {
+            currentTex = g_texTeammate1;
+            teammateName = "Abdur Rahman Sahil";
+        } else if (m_creditsSlideIndex == 1) {
+            currentTex = g_texTeammate2;
+            teammateName = "Abir";
+        } else if (m_creditsSlideIndex == 2) {
+            currentTex = g_texTeammate3;
+            teammateName = "Raian Mahadin";
+        }
+
+        // Significantly Increased Image Container (740x420, centered at X=270, Y=190)
+        int maxW = 740;
+        int maxH = 420;
+        int containerX = (1280 - maxW) / 2; // 270
+        int containerY = 190;
+
+        // Draw Outer Frame Border Outline
+        iSetColor(0, 200, 255);
+        iRectangle(containerX - 4, containerY - 4, maxW + 8, maxH + 8);
+
+        // Draw Teammate Image inside container with original aspect ratio preservation
+        if (currentTex != 0) {
+            glBindTexture(GL_TEXTURE_2D, currentTex);
+            int imgW = 0, imgH = 0;
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &imgW);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &imgH);
+
+            int drawX = containerX;
+            int drawY = containerY;
+            int drawW = maxW;
+            int drawH = maxH;
+
+            if (imgW > 0 && imgH > 0) {
+                float scaleW = (float)maxW / (float)imgW;
+                float scaleH = (float)maxH / (float)imgH;
+                float scale = (scaleW < scaleH) ? scaleW : scaleH;
+
+                drawW = (int)(imgW * scale);
+                drawH = (int)(imgH * scale);
+                drawX = containerX + (maxW - drawW) / 2;
+                drawY = containerY + (maxH - drawH) / 2;
+            }
+
+            iShowImage(drawX, drawY, drawW, drawH, currentTex);
+        }
+
+        // Teammate Name text directly below image (Centered horizontally)
+        int nameLen = (int)strlen(teammateName);
+        int nameX = (1280 - (nameLen * 9)) / 2;
+        DrawOutlinedText(nameX, 145, teammateName, GLUT_BITMAP_HELVETICA_18, 0, 230, 255);
+
+        // Instruction near bottom below name
+        const char* promptStr = "[ PRESS ENTER FOR NEXT ]";
+        int promptLen = (int)strlen(promptStr);
+        int promptX = (1280 - (promptLen * 9)) / 2;
+        DrawOutlinedText(promptX, 110, promptStr, GLUT_BITMAP_HELVETICA_18, 200, 220, 240);
+
+    } else {
+        // "THANK YOU FOR PLAYING" Artwork Screen (m_creditsSlideIndex >= 3)
+        if (g_texThankYouScreen != 0) {
+            glBindTexture(GL_TEXTURE_2D, g_texThankYouScreen);
+            int imgW = 0, imgH = 0;
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &imgW);
+            glGetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &imgH);
+
+            int maxW = 1280;
+            int maxH = 720;
+            int drawX = 0;
+            int drawY = 0;
+            int drawW = maxW;
+            int drawH = maxH;
+
+            if (imgW > 0 && imgH > 0) {
+                float scaleW = (float)maxW / (float)imgW;
+                float scaleH = (float)maxH / (float)imgH;
+                float scale = (scaleW < scaleH) ? scaleW : scaleH;
+
+                drawW = (int)(imgW * scale);
+                drawH = (int)(imgH * scale);
+                drawX = (maxW - drawW) / 2;
+                drawY = (maxH - drawH) / 2;
+            }
+
+            iShowImage(drawX, drawY, drawW, drawH, g_texThankYouScreen);
+        } else {
+            // Fallback screen if artwork texture is missing
+            iSetColor(12, 20, 38);
+            iFilledRectangle(260, 180, 760, 380);
+            iSetColor(0, 220, 255);
+            iRectangle(260, 180, 760, 380);
+
+            DrawOutlinedText(430, 480, "THANK YOU FOR PLAYING!", GLUT_BITMAP_TIMES_ROMAN_24, 0, 230, 255);
+            DrawOutlinedText(410, 420, "GENESIS: WHISPERS OF THE INFECTED", GLUT_BITMAP_HELVETICA_18, 255, 255, 255);
+            DrawOutlinedText(370, 340, "Crafted with passion by the Genesis Development Team.", GLUT_BITMAP_HELVETICA_18, 200, 210, 225);
+            DrawOutlinedText(440, 270, "Your survival journey has just begun.", GLUT_BITMAP_HELVETICA_18, 0, 200, 255);
+        }
+    }
+
+    // 4. Render BACK Button at Bottom Centered (X=540, Y=40, W=200, H=45)
+    bool isBackHover = (mouseX >= 540 && mouseX <= 740 && mouseY >= 40 && mouseY <= 85);
+    if (isBackHover) {
+        iSetColor(0, 180, 230);
+        iFilledRectangle(540, 40, 200, 45);
+        iSetColor(255, 255, 255);
+        DrawOutlinedText(615, 55, "BACK", GLUT_BITMAP_HELVETICA_18, 255, 255, 255);
+    } else {
+        iSetColor(20, 32, 50);
+        iFilledRectangle(540, 40, 200, 45);
+        iSetColor(0, 200, 255);
+        iRectangle(540, 40, 200, 45);
+        DrawOutlinedText(615, 55, "BACK", GLUT_BITMAP_HELVETICA_18, 0, 200, 255);
+    }
 }
 
 // ============================================================================
@@ -5837,6 +6065,15 @@ void GameManager::HandleKeyPress(unsigned char key) {
             menuTransitionAlpha = 1.0;
         }
     }
+    else if (currentState == STATE_CREDITS) {
+        if (key == 13 || key == 10) { // ENTER Key
+            m_creditsSlideIndex++;
+        }
+        else if (key == 27) { // ESC Key
+            currentState = STATE_MENU;
+            menuTransitionAlpha = 1.0;
+        }
+    }
 }
 
 void GameManager::HandleSpecialKeyPress(unsigned char key) {
@@ -5860,7 +6097,7 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
             isMouseDown = false;
 
             if (currentState == STATE_MENU) {
-                // Interactive Button objects (m_btnStartSurvival, m_btnLeaderboard, m_btnExit)
+                // Interactive Button objects (m_btnStartSurvival, m_btnLeaderboard, m_btnCredits, m_btnExit)
                 // handle their click events automatically via Button::Update callbacks.
             }
             else if (currentState == STATE_PAUSED) {
@@ -5939,6 +6176,12 @@ void GameManager::HandleMouseClick(int button, int state, int mx, int my) {
             }
             else if (currentState == STATE_LEADERBOARD) {
                 LoadMainMenuAssets();
+            }
+            else if (currentState == STATE_CREDITS) {
+                if (mx >= 540 && mx <= 740 && my >= 30 && my <= 145) {
+                    currentState = STATE_MENU;
+                    menuTransitionAlpha = 1.0;
+                }
             }
             else if (currentState == STATE_PLAYING) {
                 if (showInventory) {

@@ -32,4 +32,8 @@ std::string GetAssetPath(const std::string &relativePath);
 // Helper for playing audio files asynchronously with absolute path resolution
 void PlayAudioFile(const std::string &primaryRelativePath, const std::string &fallbackRelativePath = "");
 
+// Controls looping background music for Main Menu
+void PlayMenuMusic();
+void StopMenuMusic();
+
 #endif // ASSET_LOADER_H
